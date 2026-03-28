@@ -481,6 +481,15 @@ const HANGAR_CRAFT_KEY='pw_hangar_craft';
 const HANGAR_COLOR_KEY='pw_hangar_color';
 function _saveHangar(){ try{localStorage.setItem(HANGAR_CRAFT_KEY,selectedCraft);localStorage.setItem(HANGAR_COLOR_KEY,selectedColor);}catch(e){} }
 function _loadHangar(){ try{const c=localStorage.getItem(HANGAR_CRAFT_KEY);const col=localStorage.getItem(HANGAR_COLOR_KEY);if(c!==null){selectedCraft=parseInt(c)||0;}if(col){selectedColor=col;colorPick.value=col;}}catch(e){} }
+const SETTINGS_KEY='pw_settings';
+const SETTINGS_DEFAULT={musicVol:1,sfxVol:1,uiVol:1,screenShake:true,particles:'full'};
+let settings=Object.assign({},SETTINGS_DEFAULT);
+function _loadSettings(){
+  try{const s=JSON.parse(localStorage.getItem(SETTINGS_KEY));if(s)settings=Object.assign({},SETTINGS_DEFAULT,s);}catch(e){}
+}
+function _saveSettings(){
+  try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));}catch(e){}
+}
 let selectedCraft=0,selectedColor='#00ddff',hoverCard=-1,hoverSwatch=-1;
 // Hangar state — separate working copies while editing in the Hangar screen
 let hangarCraft=0,hangarColor='#00ddff';
@@ -490,6 +499,7 @@ colorPick.addEventListener('input',e=>{
   if(gameState==='hangar') hangarColor=e.target.value;
   else selectedColor=e.target.value;
 });
+_loadSettings();
 _loadHangar(); // apply saved craft+color immediately
 
 // ─── GAME STATE ──────────────────────────────────────────────────
