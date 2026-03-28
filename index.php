@@ -56,12 +56,12 @@ function initAudio(){
     ).call(el);
   }
 }
-function beep(f,t,d,v,sw=0){
+function beep(f,t,d,v,sw=0,dest){
   if(!AC)return;
   if(typeof Music!=='undefined'&&Music.isMuted())return;
   try{
   const o=AC.createOscillator(),g=AC.createGain();
-  o.connect(g);g.connect(AC.destination);
+  o.connect(g);g.connect(dest||(typeof Music!=='undefined'?Music.sfxNode():AC.destination));
   o.type=t;o.frequency.setValueAtTime(f,AC.currentTime);
   if(sw)o.frequency.exponentialRampToValueAtTime(sw,AC.currentTime+d);
   g.gain.setValueAtTime(v,AC.currentTime);
@@ -86,12 +86,12 @@ const SFX={
   shbreak:()=>beep(400,'sawtooth',0.18,0.28,100),
   emp:    ()=>{beep(140,'sawtooth',0.6,0.32,38);beep(70,'square',0.5,0.22,28);},
   overchg:()=>{[0,100,200].forEach((d,i)=>setTimeout(()=>beep(330+i*110,'sine',0.18,0.18-i*0.03,(i+1)*660),d));},
-  wave:   ()=>beep(300,'triangle',0.4,0.2,600),
+  wave:   ()=>beep(300,'triangle',0.4,0.2,600,Music.uiNode()),
   boss:   ()=>beep(60,'sawtooth',0.8,0.3,40),
   wallhit:()=>beep(250,'square',0.05,0.06,180),
   fractal:()=>{beep(180,'sawtooth',0.14,0.06,60);setTimeout(()=>beep(340,'square',0.10,0.04,50),30);setTimeout(()=>beep(520,'sawtooth',0.08,0.03,40),60);},
-  select: ()=>{beep(520,'sine',0.12,0.18,780);},
-  confirm:()=>{beep(440,'sine',0.10,0.16,880);setTimeout(()=>beep(660,'sine',0.14,0.14,1100),110);setTimeout(()=>beep(880,'sine',0.18,0.12,1320),240);},
+  select: ()=>{beep(520,'sine',0.12,0.18,780,Music.uiNode());},
+  confirm:()=>{beep(440,'sine',0.10,0.16,880,Music.uiNode());setTimeout(()=>beep(660,'sine',0.14,0.14,1100,Music.uiNode()),110);setTimeout(()=>beep(880,'sine',0.18,0.12,1320,Music.uiNode()),240);},
   mineset:()=>{beep(180,'square',0.08,0.14,120);setTimeout(()=>beep(90,'square',0.06,0.10,60),90);},
   minedet:()=>{beep(80,'sawtooth',0.7,0.38,28);beep(140,'sawtooth',0.5,0.28,35);beep(60,'sine',0.55,0.22,24);},
   stun:   ()=>{[0,40,80].forEach(d=>setTimeout(()=>beep(1800,'square',0.04,0.09,900),d));beep(600,'sawtooth',0.06,0.06,40);},
