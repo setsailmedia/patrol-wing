@@ -3680,11 +3680,12 @@ const MENU_ITEMS=[
   {label:'Level Designer', dim:false},
   {label:'Aircraft Hangar',dim:false},
   {label:'Hall of Fame',   dim:false},
-  {label:'Setup',          dim:true },
+  {label:'Setup',          dim:false},
 ];
 // Only Battle Waves has a click action currently; rest render as available but inert
 const MENU_ACTIVE=['Battle Waves'];
 let menuHover=-1;
+let soundToggleHover=false;
 function getMenuRects(){
   const W=canvas.width,H=canvas.height;
   const bw=Math.max(200,Math.min(W*0.72,380));
@@ -3761,6 +3762,24 @@ function drawStartScreen(){
     ctx.fillText(item.label,x+w/2,y+h/2+btnSz*0.36);
     ctx.shadowBlur=0;
   }
+  ctx.textAlign='left';
+  // Sound toggle — top-right corner
+  const _stPad=Math.max(14,W*0.02);
+  const _stW=Math.max(80,W*0.075),_stH=Math.max(28,H*0.042);
+  const _stX=W-_stPad-_stW,_stY=_stPad;
+  const _stMuted=Music.isMuted();
+  const _stHov=soundToggleHover;
+  ctx.fillStyle=_stHov?'rgba(0,180,255,0.18)':'rgba(0,55,115,0.55)';
+  ctx.fillRect(_stX,_stY,_stW,_stH);
+  ctx.strokeStyle=_stHov?'#00ccff':'rgba(0,140,220,0.75)';
+  ctx.lineWidth=_stHov?2:1;
+  ctx.shadowBlur=_stHov?20:0;ctx.shadowColor='#00ccff';
+  ctx.strokeRect(_stX,_stY,_stW,_stH);ctx.shadowBlur=0;
+  const _stSz=Math.max(9,Math.min(_stH*0.38,13));
+  ctx.font=`bold ${_stSz}px "Courier New"`;
+  ctx.textAlign='center';
+  ctx.fillStyle=_stHov?'#00eeff':'rgba(150,205,255,0.92)';
+  ctx.fillText(_stMuted?'✕ SOUND OFF':'♪ SOUND ON',_stX+_stW/2,_stY+_stH/2+_stSz*0.36);
   ctx.textAlign='left';
 }
 function drawWaveClearScreen(){
@@ -5808,6 +5827,13 @@ function _doClick(){
   }
 
   if(gameState==='start'){
+    // Sound toggle button
+    const _stPad2=Math.max(14,canvas.width*0.02);
+    const _stW2=Math.max(80,canvas.width*0.075),_stH2=Math.max(28,canvas.height*0.042);
+    const _stX2=canvas.width-_stPad2-_stW2,_stY2=_stPad2;
+    if(mouse.x>=_stX2&&mouse.x<=_stX2+_stW2&&mouse.y>=_stY2&&mouse.y<=_stY2+_stH2){
+      initAudio();Music.toggleMute();return;
+    }
     const rects=getMenuRects();
     for(let i=0;i<rects.length;i++){
       const {x,y,w,h,item}=rects[i];
@@ -5817,6 +5843,7 @@ function _doClick(){
         if(item.label==='Combat Training'){ activeBriefing='brief_ct'; gameState='briefing'; SFX.select(); }
         if(item.label==='Aircraft Hangar'){ hangarCraft=selectedCraft; hangarColor=selectedColor; gameState='hangar'; SFX.select(); }
         if(item.label==='Hall of Fame'){ hofTab=0; gameState='hallOfFame'; SFX.select(); }
+        if(item.label==='Setup'){ gameState='setup'; SFX.select(); }
         return;
       }
     }
@@ -6034,6 +6061,7 @@ if(IS_TOUCH){
 }
 
 // ─── HOVER TRACKING ──────────────────────────────────────────────
+function _isOverSetupInteractive(mx,my){return false;}
 canvas.addEventListener('mousemove',()=>{
   hoverCard=-1;hoverSwatch=-1;menuHover=-1;
   if(gameState==='start'){
@@ -6054,6 +6082,19 @@ canvas.addEventListener('mousemove',()=>{
     for(let i=0;i<CRAFTS.length;i++){const cardX=startX+i*spacing;if(mouse.x>cardX-100&&mouse.x<cardX+100&&mouse.y>cardsCY-170&&mouse.y<cardsCY+170){hoverCard=i;break;}}
     for(let i=0;i<SWATCHES.length;i++){const sx=rowStartX+i*itemStep;if(dist(mouse.x,mouse.y,sx,swatchCY)<swatchR+8){hoverSwatch=i;break;}}
   }
+  // Pointer cursor
+  let _wantPointer=false;
+  if(gameState==='start'){
+    const _mr=getMenuRects();
+    for(let i=0;i<_mr.length;i++){const{x,y,w,h}=_mr[i];if(mouse.x>=x&&mouse.x<=x+w&&mouse.y>=y&&mouse.y<=y+h){_wantPointer=true;break;}}
+    const _sp=Math.max(14,canvas.width*0.02),_sw=Math.max(80,canvas.width*0.075),_sh=Math.max(28,canvas.height*0.042);
+    const _sx=canvas.width-_sp-_sw,_sy=_sp;
+    const _overToggle=mouse.x>=_sx&&mouse.x<=_sx+_sw&&mouse.y>=_sy&&mouse.y<=_sy+_sh;
+    soundToggleHover=_overToggle;
+    if(_overToggle)_wantPointer=true;
+  }
+  if(gameState==='setup')_wantPointer=_isOverSetupInteractive(mouse.x,mouse.y);
+  canvas.style.cursor=_wantPointer?'pointer':'default';
 });
 
 // ─── POINTER LOCK ────────────────────────────────────────────────
@@ -6829,6 +6870,8 @@ function loop(now){
     wavePause-=dt*1000;if(wavePause<=0){spawnWave(wave);gameState='playing';}
   } else if(gameState==='briefing'){
     drawBriefingScreen();
+  } else if(gameState==='setup'){
+    drawSetupScreen();
   } else if(gameState==='gameover'){
     tickParticles(dt);drawWorld();drawParticles();drawDeathScreen();
   } else if(gameState==='victory'){
