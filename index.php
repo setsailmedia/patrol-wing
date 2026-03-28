@@ -609,7 +609,13 @@ const SEEKR_COL     ='#ffaa00';
 const SEEKR_ACC     ='#ffddaa';
 
 // ─── PARTICLES ───────────────────────────────────────────────────
+function _pCount(n){
+  if(settings.particles==='off')return 0;
+  if(settings.particles==='reduced')return Math.max(1,Math.ceil(n*0.4));
+  return n;
+}
 function spawnParts(x,y,color,n=10,sp=4,sz=5,life=450){
+  if(n<=0)return;
   for(let i=0;i<n;i++){
     const a=rng(0,Math.PI*2),s=sp*(0.35+rng(0,0.8));
     particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,color,sz:sz*(0.5+rng(0,0.7)),life,maxLife:life,drag:0.91});
@@ -728,8 +734,8 @@ function tickHazards(dt,now){
       if(h.cooldown<=0&&P.alive&&P.iframes<=0&&P.invincMs<=0){
         const d2=_pointSegDist2(P.x,P.y,h.ax,h.ay,h.bx,h.by);
         if(d2<18*18){
-          if(P.shieldMs>0){P.shieldMs=0;if(settings.screenShake)shake=8;spawnParts(P.x,P.y,'#44aaff',14,4,5,400);SFX.shbreak();P.iframes=400;}
-          else{P.hp-=h.dmg*P.damageMult;P.iframes=600;if(settings.screenShake)shake=12;SFX.hit();spawnParts(P.x,P.y,'#ffff44',8,3,4,300);if(P.hp<=0)P.alive=false;}
+          if(P.shieldMs>0){P.shieldMs=0;if(settings.screenShake)shake=8;spawnParts(P.x,P.y,'#44aaff',_pCount(14),4,5,400);SFX.shbreak();P.iframes=400;}
+          else{P.hp-=h.dmg*P.damageMult;P.iframes=600;if(settings.screenShake)shake=12;SFX.hit();spawnParts(P.x,P.y,'#ffff44',_pCount(8),3,4,300);if(P.hp<=0)P.alive=false;}
           h.cooldown=1200; // 1.2s recharge between zaps
           Music.onHit();
         }
@@ -739,7 +745,7 @@ function tickHazards(dt,now){
         const e=enemies[ei];
         if(_pointSegDist2(e.x,e.y,h.ax,h.ay,h.bx,h.by)<14*14){
           e.hp-=3*dt*60; // continuous low damage
-          if(e.hp<=0){spawnParts(e.x,e.y,e.color,12,4,6,500);killEnemy(ei);}
+          if(e.hp<=0){spawnParts(e.x,e.y,e.color,_pCount(12),4,6,500);killEnemy(ei);}
         }
       }
     } else if(h.type==='floor_mine'){
@@ -757,15 +763,15 @@ function tickHazards(dt,now){
         // Damage player
         if(P.invincMs<=0){
           const pDmg=Math.round(h.dmg*(1-dp/h.blastR));
-          if(P.shieldMs>0){P.shieldMs=0;spawnParts(P.x,P.y,'#44aaff',16,4,5,450);SFX.shbreak();P.iframes=400;}
+          if(P.shieldMs>0){P.shieldMs=0;spawnParts(P.x,P.y,'#44aaff',_pCount(16),4,5,450);SFX.shbreak();P.iframes=400;}
           else if(pDmg>0){P.hp-=pDmg*P.damageMult;P.iframes=500;if(settings.screenShake)shake=18;SFX.hit();if(P.hp<=0)P.alive=false;Music.onHit();}
         }
         // Damage nearby enemies
         for(let ei=enemies.length-1;ei>=0;ei--){
           const de=dist(enemies[ei].x,enemies[ei].y,h.x,h.y);
-          if(de<h.blastR){enemies[ei].hp-=h.dmg*(1-de/h.blastR);if(enemies[ei].hp<=0){spawnParts(enemies[ei].x,enemies[ei].y,enemies[ei].color,16,5,7,600);killEnemy(ei);}}
+          if(de<h.blastR){enemies[ei].hp-=h.dmg*(1-de/h.blastR);if(enemies[ei].hp<=0){spawnParts(enemies[ei].x,enemies[ei].y,enemies[ei].color,_pCount(16),5,7,600);killEnemy(ei);}}
         }
-        spawnParts(h.x,h.y,'#ff6600',24,6,8,700);spawnParts(h.x,h.y,'#ffff44',12,4,5,500);
+        spawnParts(h.x,h.y,'#ff6600',_pCount(24),6,8,700);spawnParts(h.x,h.y,'#ffff44',_pCount(12),4,5,500);
         if(settings.screenShake)shake=Math.max(shake,20);SFX.minedet();
       }
     }
@@ -1076,7 +1082,7 @@ function fireWeapon(){
       vy:Math.sin(angle)*SEEKR_SPD,
       target,life:SEEKR_LIFE,blasting:false,blastT:0,trail:[]
     });
-    spawnParts(P.x+Math.cos(angle)*20,P.y+Math.sin(angle)*20,SEEKR_COL,5,2.5,3,180);
+    spawnParts(P.x+Math.cos(angle)*20,P.y+Math.sin(angle)*20,SEEKR_COL,_pCount(5),2.5,3,180);
     SFX.seekr();
     return;
   }
@@ -1172,13 +1178,13 @@ function fireWeapon(){
     if(hitEnemy!==null){
       const e=enemies[hitEnemy];
       e.hp-=dmg;
-      spawnParts(ex,ey,'#ff66ff',18,5,6,400);
-      spawnParts(ex,ey,'#ffffff',8,3,4,280);
+      spawnParts(ex,ey,'#ff66ff',_pCount(18),5,6,400);
+      spawnParts(ex,ey,'#ffffff',_pCount(8),3,4,280);
       if(e.hp<=0){SFX.boom();killEnemy(hitEnemy);}
     } else if(blockedByObs){
       // Spark off the obstacle surface
-      spawnParts(ex,ey,'#ff66ff',8,3,4,250);
-      spawnParts(ex,ey,'#ffffff',4,2,3,180);
+      spawnParts(ex,ey,'#ff66ff',_pCount(8),3,4,250);
+      spawnParts(ex,ey,'#ffffff',_pCount(4),2,3,180);
     }
     if(settings.screenShake)shake=hitEnemy!==null?14:6;
     SFX.laser();
@@ -1195,7 +1201,7 @@ function fireWeapon(){
       hitEnemies:new Set(),  // avoid hitting same enemy twice
       trail:[],              // {x,y} world coords — burn scorch marks
     });
-    spawnParts(P.x+Math.cos(angle)*18,P.y+Math.sin(angle)*18,ROCKET_COL,6,3,4.5,240);
+    spawnParts(P.x+Math.cos(angle)*18,P.y+Math.sin(angle)*18,ROCKET_COL,_pCount(6),3,4.5,240);
     SFX.seekr(); // reuse seekr launch sound — fits a rocket well
     Music.onShot();
     P.vx-=Math.cos(angle)*0.9; P.vy-=Math.sin(angle)*0.9;
@@ -1211,13 +1217,13 @@ function fireWeapon(){
     miniMe.vx=P.vx; miniMe.vy=P.vy;
     miniMe.orbitAngle=Math.atan2(miniMe.y-P.y,miniMe.x-P.x);
     miniMe.aim=P.aim; miniMe.rotor=0; miniMe.lastFired=0;
-    spawnParts(miniMe.x,miniMe.y,MM_COL,16,4,5,420);
+    spawnParts(miniMe.x,miniMe.y,MM_COL,_pCount(16),4,5,420);
     SFX.mmdeploy();
     return;
   }
   if(w.id==='stun'){
     firePBullet(P.x,P.y,P.aim,0,w.spd,w.bSz,w.color,true);
-    spawnParts(P.x+Math.cos(P.aim)*28,P.y+Math.sin(P.aim)*28,'#aaff44',4,3,3,120);
+    spawnParts(P.x+Math.cos(P.aim)*28,P.y+Math.sin(P.aim)*28,'#aaff44',_pCount(4),3,3,120);
     SFX.stun();P.vx-=Math.cos(P.aim)*0.3;P.vy-=Math.sin(P.aim)*0.3;
     return;
   }
@@ -1254,7 +1260,7 @@ function fireWeapon(){
     hitSet.forEach(ei=>{
       if(ei<enemies.length){
         enemies[ei].hp-=DMG;
-        spawnParts(enemies[ei].x,enemies[ei].y,'#ff9900',5,2.5,3.5,250);
+        spawnParts(enemies[ei].x,enemies[ei].y,'#ff9900',_pCount(5),2.5,3.5,250);
         if(enemies[ei].hp<=0) killEnemy(ei);
       }
     });
@@ -1270,7 +1276,7 @@ function fireWeapon(){
       dmg, phase:'out', rot:0, hitEnemies:new Set(),
       color:w.color
     });
-    spawnParts(P.x+Math.cos(P.aim)*28,P.y+Math.sin(P.aim)*28,w.color,5,2.5,3,180);
+    spawnParts(P.x+Math.cos(P.aim)*28,P.y+Math.sin(P.aim)*28,w.color,_pCount(5),2.5,3,180);
     SFX.boomr(); P.vx-=Math.cos(P.aim)*0.7; P.vy-=Math.sin(P.aim)*0.7;
     return;
   }
@@ -1278,7 +1284,7 @@ function fireWeapon(){
     // Fire a rico bullet — identical to plasma but tagged to bounce, 10s max life
     const angle=P.aim;
     pBullets.push({x:P.x,y:P.y,vx:Math.cos(angle)*w.spd,vy:Math.sin(angle)*w.spd,life:10000,dmg,bSz:w.bSz,color:w.color,stun:false,rico:true});
-    spawnParts(P.x+Math.cos(angle)*36,P.y+Math.sin(angle)*36,w.color,5,2.5,3.5,160);
+    spawnParts(P.x+Math.cos(angle)*36,P.y+Math.sin(angle)*36,w.color,_pCount(5),2.5,3.5,160);
     SFX.rico();P.vx-=Math.cos(angle)*1.8;P.vy-=Math.sin(angle)*1.8;
     return;
   }
@@ -1286,12 +1292,12 @@ function fireWeapon(){
   if(w.id==='dinf'){
     const angle=P.aim+(Math.random()-0.5)*0.06;
     pBullets.push({x:P.x+Math.cos(angle)*22,y:P.y+Math.sin(angle)*22,vx:Math.cos(angle)*w.spd,vy:Math.sin(angle)*w.spd,life:1700,dmg,bSz:w.bSz,color:'#00ff88',stun:false,dinf:true});
-    spawnParts(P.x+Math.cos(angle)*18,P.y+Math.sin(angle)*18,'#00ff88',2,1.5,2.5,140);
+    spawnParts(P.x+Math.cos(angle)*18,P.y+Math.sin(angle)*18,'#00ff88',_pCount(2),1.5,2.5,140);
     SFX.rapid();P.vx-=Math.cos(P.aim)*0.3;P.vy-=Math.sin(P.aim)*0.3;
     return;
   }
   for(let i=0;i<w.count;i++)firePBullet(P.x,P.y,P.aim+(i-half)*w.spread,dmg,w.spd,w.bSz,w.color);
-  spawnParts(P.x+Math.cos(P.aim)*36,P.y+Math.sin(P.aim)*36,w.color,3+w.count,2,2.5,130);
+  spawnParts(P.x+Math.cos(P.aim)*36,P.y+Math.sin(P.aim)*36,w.color,_pCount(3+w.count),2,2.5,130);
   SFX[w.id]();P.vx-=Math.cos(P.aim)*0.9;P.vy-=Math.sin(P.aim)*0.9;
 }
 function tickBullets(dt){
@@ -1301,30 +1307,30 @@ function tickBullets(dt){
     b.x+=b.vx*step;b.y+=b.vy*step;b.life-=dt*1000;
     if(b.rico){
       // Rico bullets never leave the world — bounce off world edges
-      if(b.x-b.bSz<0){b.x=b.bSz;b.vx=Math.abs(b.vx);spawnParts(b.x,b.y,b.color,3,1.5,2.5,160);SFX.ricobounce();}
-      else if(b.x+b.bSz>WORLD_W){b.x=WORLD_W-b.bSz;b.vx=-Math.abs(b.vx);spawnParts(b.x,b.y,b.color,3,1.5,2.5,160);SFX.ricobounce();}
-      if(b.y-b.bSz<0){b.y=b.bSz;b.vy=Math.abs(b.vy);spawnParts(b.x,b.y,b.color,3,1.5,2.5,160);SFX.ricobounce();}
-      else if(b.y+b.bSz>WORLD_H){b.y=WORLD_H-b.bSz;b.vy=-Math.abs(b.vy);spawnParts(b.x,b.y,b.color,3,1.5,2.5,160);SFX.ricobounce();}
+      if(b.x-b.bSz<0){b.x=b.bSz;b.vx=Math.abs(b.vx);spawnParts(b.x,b.y,b.color,_pCount(3),1.5,2.5,160);SFX.ricobounce();}
+      else if(b.x+b.bSz>WORLD_W){b.x=WORLD_W-b.bSz;b.vx=-Math.abs(b.vx);spawnParts(b.x,b.y,b.color,_pCount(3),1.5,2.5,160);SFX.ricobounce();}
+      if(b.y-b.bSz<0){b.y=b.bSz;b.vy=Math.abs(b.vy);spawnParts(b.x,b.y,b.color,_pCount(3),1.5,2.5,160);SFX.ricobounce();}
+      else if(b.y+b.bSz>WORLD_H){b.y=WORLD_H-b.bSz;b.vy=-Math.abs(b.vy);spawnParts(b.x,b.y,b.color,_pCount(3),1.5,2.5,160);SFX.ricobounce();}
       // Bounce off obstacles
-      if(reflectRicoVsObs(b)){spawnParts(b.x,b.y,b.color,4,2,3,200);SFX.ricobounce();}
+      if(reflectRicoVsObs(b)){spawnParts(b.x,b.y,b.color,_pCount(4),2,3,200);SFX.ricobounce();}
       // Rico bullets expire only by time (long life) — never by leaving world
       if(b.life<=0){pBullets.splice(i,1);}
     } else {
       if(b.life<=0||b.x<-50||b.x>WORLD_W+50||b.y<-50||b.y>WORLD_H+50){pBullets.splice(i,1);continue;}
-      if(circleVsObs(b.x,b.y,b.bSz)){spawnParts(b.x,b.y,'#5599bb',4,1.8,2.5,200);SFX.wallhit();pBullets.splice(i,1);}
+      if(circleVsObs(b.x,b.y,b.bSz)){spawnParts(b.x,b.y,'#5599bb',_pCount(4),1.8,2.5,200);SFX.wallhit();pBullets.splice(i,1);}
     }
   }
   for(let i=eBullets.length-1;i>=0;i--){
     const b=eBullets[i];b.x+=b.vx*step;b.y+=b.vy*step;b.life-=dt*1000;
     if(b.life<=0||b.x<-50||b.x>WORLD_W+50||b.y<-50||b.y>WORLD_H+50){eBullets.splice(i,1);continue;}
     const ebs=b.isBrute?b.bSz:3.5;
-    if(circleVsObs(b.x,b.y,ebs)){spawnParts(b.x,b.y,'rgba(220,120,0,0.8)',b.isBrute?8:3,1.5,2,b.isBrute?300:180);eBullets.splice(i,1);continue;}
+    if(circleVsObs(b.x,b.y,ebs)){spawnParts(b.x,b.y,'rgba(220,120,0,0.8)',_pCount(b.isBrute?8:3),1.5,2,b.isBrute?300:180);eBullets.splice(i,1);continue;}
     if(b.fromInfected){
       for(let ei=enemies.length-1;ei>=0;ei--){
         const e=enemies[ei];
         if(e.infected) continue;
         if(dist2(b.x,b.y,e.x,e.y)<e.size*e.size*1.21){
-          e.hp-=b.dmg;spawnParts(b.x,b.y,'#00ff88',5,2,3,200);
+          e.hp-=b.dmg;spawnParts(b.x,b.y,'#00ff88',_pCount(5),2,3,200);
           if(e.hp<=0){SFX.boom();killEnemy(ei);}
           eBullets.splice(i,1);break;
         }
@@ -1654,9 +1660,9 @@ function triggerEMP(){
   enemies.forEach(e=>{
     const sx=e.x-camX,sy=e.y-camY;
     if(sx<-e.size||sx>canvas.width+e.size||sy<-e.size||sy>canvas.height+e.size)return;
-    e.stunMs=3700;spawnParts(e.x,e.y,'#cc44ff',14,5,7,650);
+    e.stunMs=3700;spawnParts(e.x,e.y,'#cc44ff',_pCount(14),5,7,650);
   });
-  spawnParts(P.x,P.y,'#dd55ff',28,10,7,600);SFX.emp();
+  spawnParts(P.x,P.y,'#dd55ff',_pCount(28),10,7,600);SFX.emp();
 }
 function tickPlayer(dt,now){
   if(!P.alive)return;
@@ -1749,7 +1755,7 @@ function tickPlayer(dt,now){
       }
       if(Math.random()<0.4) spawnParts(
         e.x+(P.x-e.x)*Math.random(), e.y+(P.y-e.y)*Math.random(),
-        '#44aaff',1,1.2,2.5,200
+        '#44aaff',_pCount(1),1.2,2.5,200
       );
     }
     P.lastShot=now;
@@ -1905,9 +1911,9 @@ function tickEnemies(dt,now){
     // Cloak: enemies can't detect or fire at player
     if(P.cloakMs>0){e.state='patrol';e.vx*=0.92;e.vy*=0.92;continue;}
     // EMP stun (full freeze + purple sparks)
-    if(e.stunMs>0){e.vx*=0.95;e.vy*=0.95;e.state='patrol';if(Math.random()<0.045)spawnParts(e.x,e.y,'#cc44ff',2,2,3,300);}
+    if(e.stunMs>0){e.vx*=0.95;e.vy*=0.95;e.state='patrol';if(Math.random()<0.045)spawnParts(e.x,e.y,'#cc44ff',_pCount(2),2,3,300);}
     // Stun-gun move freeze (sparks without full state override)
-    else if(e.stunMoveMs>0){e.vx*=0.90;e.vy*=0.90;e.state='patrol';if(Math.random()<0.06)spawnParts(e.x,e.y,'#aaff44',2,2.5,3,200);}
+    else if(e.stunMoveMs>0){e.vx*=0.90;e.vy*=0.90;e.state='patrol';if(Math.random()<0.06)spawnParts(e.x,e.y,'#aaff44',_pCount(2),2.5,3,200);}
     // Infected enemies: retarget to nearest non-infected foe
     if(e.infected){
       let nearFoe=null,nearFoeD=Infinity;
@@ -1954,7 +1960,7 @@ function tickEnemies(dt,now){
           for(let s=-1;s<=1;s++) fireEBullet(e.x,e.y,e.aim+s*0.28,8.5,e.dmg*0.8);
           e.lastFired=now+800; // brief refractory after blink
         }
-        spawnParts(e.x,e.y,e.color,10,3,4.5,300);
+        spawnParts(e.x,e.y,e.color,_pCount(10),3,4.5,300);
       }
     }
 
@@ -2002,13 +2008,13 @@ function tickEnemies(dt,now){
         continue;
       }
       const sp=(Math.random()-0.5)*0.14;
-      if(e.type==='boss'){for(let s=-2;s<=2;s++)fireEBullet(e.x,e.y,e.aim+s*0.24,7.5,e.dmg*0.7);spawnParts(e.x,e.y,e.color,5,3,4,200);}
+      if(e.type==='boss'){for(let s=-2;s<=2;s++)fireEBullet(e.x,e.y,e.aim+s*0.24,7.5,e.dmg*0.7);spawnParts(e.x,e.y,e.color,_pCount(5),3,4,200);}
       else if(e.type==='turret'){fireEBullet(e.x,e.y,e.aim+sp,8,e.dmg);setTimeout(()=>fireEBullet(e.x,e.y,e.aim+sp*1.5,8,e.dmg*0.8),110);}
       else if(e.type==='brute'){
         // Fat slow plasma-style bolt — big bSz, slow, high dmg
         const angle=e.aim+sp*0.5;
         eBullets.push({x:e.x,y:e.y,vx:Math.cos(angle)*4.5,vy:Math.sin(angle)*4.5,life:3200,dmg:e.dmg,bSz:9,isBrute:true});
-        spawnParts(e.x,e.y,e.color,6,2.5,3.5,240);
+        spawnParts(e.x,e.y,e.color,_pCount(6),2.5,3.5,240);
       }
       else if(e.type==='phantom'){
         // Sniper shot — fast, accurate, no spread (only fires at long detection range)
@@ -2026,8 +2032,8 @@ function tickEnemies(dt,now){
       weaponFlash={name:'SELF DESTRUCT INITIATED',ms:2500};
     }
     e.hp-=e.maxHp*0.012*dt*60; // drains to zero over ~6 seconds
-    spawnParts(e.x+rng(-e.size,e.size),e.y+rng(-e.size,e.size),'#00ff88',1,1.5,3,400);
-    if(Math.random()<0.15) spawnParts(e.x,e.y,'#ffffff',2,2,3,300);
+    spawnParts(e.x+rng(-e.size,e.size),e.y+rng(-e.size,e.size),'#00ff88',_pCount(1),1.5,3,400);
+    if(Math.random()<0.15) spawnParts(e.x,e.y,'#ffffff',_pCount(2),2,3,300);
     if(e.hp<=0){SFX.boom();killEnemy(0);}
   }
 }
@@ -2039,8 +2045,8 @@ function tickMiniMe(dt,now){
   miniMe.hp-=MM_HP*0.005*dt;
   if(miniMe.hp<=0){
     miniMe.active=false;miniMe.lost=true;
-    spawnParts(miniMe.x,miniMe.y,MM_COL,20,4.5,6,700);
-    spawnParts(miniMe.x,miniMe.y,'#ffffff',8,3,4,400);
+    spawnParts(miniMe.x,miniMe.y,MM_COL,_pCount(20),4.5,6,700);
+    spawnParts(miniMe.x,miniMe.y,'#ffffff',_pCount(8),3,4,400);
     if(settings.screenShake)shake=10;SFX.mmdead();return;
   }
   // Find nearest enemy within detection range
@@ -2250,8 +2256,8 @@ function _spreadInfection(killedType, killedIdx){
   // Remove the killed enemy first
   const dead=enemies[killedIdx];
   score+=dead.score; P.kills++;
-  spawnParts(dead.x,dead.y,'#00ff88',30,5,7,900);
-  spawnParts(dead.x,dead.y,'#ffffff',10,3,4,500);
+  spawnParts(dead.x,dead.y,'#00ff88',_pCount(30),5,7,900);
+  spawnParts(dead.x,dead.y,'#ffffff',_pCount(10),3,4,500);
   if(settings.screenShake)shake=Math.max(shake,14);
   spawnPickup(dead.x,dead.y,null,false);
   if(Math.random()<0.5) pickups[pickups.length-1].mystery=true;
@@ -2274,16 +2280,16 @@ function _spreadInfection(killedType, killedIdx){
 }
 function _infectEnemy(e){
   e.infected=true;
-  spawnParts(e.x,e.y,'#00ff88',20,4,6,700);
-  spawnParts(e.x,e.y,'#aaffcc',8,2,3.5,500);
+  spawnParts(e.x,e.y,'#00ff88',_pCount(20),4,6,700);
+  spawnParts(e.x,e.y,'#aaffcc',_pCount(8),2,3.5,500);
 }
 function killEnemy(idx){
   const e=enemies[idx];
   score+=e.score; P.kills++;
   if(e.type==='boss') score+=100; // Big Boss bonus
-  spawnParts(e.x,e.y,e.color,24,6.5,8.5,800);
-  spawnParts(e.x,e.y,'#fff',10,4,3,500);
-  spawnParts(e.x,e.y,'#ffaa00',15,5.5,6,650);
+  spawnParts(e.x,e.y,e.color,_pCount(24),6.5,8.5,800);
+  spawnParts(e.x,e.y,'#fff',_pCount(10),4,3,500);
+  spawnParts(e.x,e.y,'#ffaa00',_pCount(15),5.5,6,650);
   if(settings.screenShake)shake=Math.max(shake, e.type==='boss'?32:14);
   // Every kill drops at least one pickup — half are mystery diamonds
   const isMystery1=Math.random()<0.5;
@@ -2315,9 +2321,9 @@ function tickMines(dt){
     // DETONATE — hit everything in blast radius
     m.blasting=true; m.blastT=520;
     SFX.minedet();
-    spawnParts(m.x,m.y,'#ff2200',40,9,10,900);
-    spawnParts(m.x,m.y,'#ff8800',28,7,7,700);
-    spawnParts(m.x,m.y,'#ffffff',16,5,4,500);
+    spawnParts(m.x,m.y,'#ff2200',_pCount(40),9,10,900);
+    spawnParts(m.x,m.y,'#ff8800',_pCount(28),7,7,700);
+    spawnParts(m.x,m.y,'#ffffff',_pCount(16),5,4,500);
     if(settings.screenShake)shake=Math.max(shake,22);
     // Process enemies in blast radius (iterate backwards for safe splice)
     for(let ei=enemies.length-1;ei>=0;ei--){
@@ -2326,7 +2332,7 @@ function tickMines(dt){
       if(e.type==='boss'){
         // 50% HP damage to boss — never kills
         e.hp=Math.max(1, e.hp - e.maxHp*0.5);
-        spawnParts(e.x,e.y,e.color,18,5,7,600);
+        spawnParts(e.x,e.y,e.color,_pCount(18),5,7,600);
       } else {
         killEnemy(ei);
       }
@@ -2416,14 +2422,14 @@ function tickRockets(dt){
         r.hitEnemies.add(ei);
         const e=enemies[ei];
         e.hp-=DMG;
-        spawnParts(r.x,r.y,ROCKET_COL,10,3.5,5,380);
+        spawnParts(r.x,r.y,ROCKET_COL,_pCount(10),3.5,5,380);
         score+=10;
         if(e.hp<=0){SFX.boom();killEnemy(ei);}
       }
     }
     // Smoke/fire trail particles
-    if(Math.random()<0.55) spawnParts(r.x-r.vx*2,r.y-r.vy*2,'#ff4400',1,0.8,2.5,320);
-    if(Math.random()<0.25) spawnParts(r.x-r.vx*3,r.y-r.vy*3,'#888888',1,0.4,1.8,480);
+    if(Math.random()<0.55) spawnParts(r.x-r.vx*2,r.y-r.vy*2,'#ff4400',_pCount(1),0.8,2.5,320);
+    if(Math.random()<0.25) spawnParts(r.x-r.vx*3,r.y-r.vy*3,'#888888',_pCount(1),0.4,1.8,480);
   }
 }
 function drawRockets(){
@@ -2527,7 +2533,7 @@ function tickSeekers(dt,now){
     s.x=clamp(s.x,0,WORLD_W);s.y=clamp(s.y,0,WORLD_H);
 
     // Exhaust trail
-    if(Math.random()<0.6) spawnParts(s.x-s.vx*2,s.y-s.vy*2,SEEKR_COL,1,0.6,2.5,320);
+    if(Math.random()<0.6) spawnParts(s.x-s.vx*2,s.y-s.vy*2,SEEKR_COL,_pCount(1),0.6,2.5,320);
 
     // Detonate on enemy contact
     if(s.target!==null&&s.target<enemies.length){
@@ -2536,8 +2542,8 @@ function tickSeekers(dt,now){
         // 30% of enemy maxHp damage (+20% from 25%)
         const dmg=e.maxHp*0.30;
         e.hp-=dmg;
-        spawnParts(s.x,s.y,SEEKR_COL,18,5,7,480);
-        spawnParts(s.x,s.y,'#ffffff',8,3,4,320);
+        spawnParts(s.x,s.y,SEEKR_COL,_pCount(18),5,7,480);
+        spawnParts(s.x,s.y,'#ffffff',_pCount(8),3,4,320);
         if(settings.screenShake)shake=8; SFX.seekboom();
         if(e.hp<=0){SFX.boom();killEnemy(s.target);}
         s.blasting=true;s.blastT=380;
@@ -2650,7 +2656,7 @@ function tickBoomerangs(dt){
       const hitObs = circleVsObs(b.x,b.y,6);
       if(atEdge||hitObs){
         b.phase='return';
-        spawnParts(b.x,b.y,b.color,6,2.5,3.5,260);
+        spawnParts(b.x,b.y,b.color,_pCount(6),2.5,3.5,260);
         // Push back inside world slightly if at obstacle
         if(hitObs){ b.x-=b.vx*step*2; b.y-=b.vy*step*2; }
       }
@@ -2666,7 +2672,7 @@ function tickBoomerangs(dt){
 
     // Trail particles on outbound
     if(b.phase==='out'&&Math.random()<0.55)
-      spawnParts(b.x,b.y,b.color,1,1.2,2,150);
+      spawnParts(b.x,b.y,b.color,_pCount(1),1.2,2,150);
 
     // Hit enemies in either phase (each enemy only once per throw)
     for(let ei=enemies.length-1;ei>=0;ei--){
@@ -2675,7 +2681,7 @@ function tickBoomerangs(dt){
       if(dist2(b.x,b.y,e.x,e.y)<(e.size+6)**2){
         b.hitEnemies.add(ei);
         e.hp-=b.dmg;
-        spawnParts(b.x,b.y,b.color,8,3,4.5,300);
+        spawnParts(b.x,b.y,b.color,_pCount(8),3,4.5,300);
         if(settings.screenShake)shake=Math.max(shake,6);
         if(e.hp<=0){ SFX.boom(); killEnemy(ei);
           // Remap hit set indices above ei
@@ -2726,7 +2732,7 @@ function tickFractals(dt){
         if(dist2(wx,wy,enemies[ei].x,enemies[ei].y)<38*38){
           f.hitSet.add(ei);
           enemies[ei].hp-=f.dmg;
-          spawnParts(enemies[ei].x,enemies[ei].y,'#ff9900',4,2,3.5,220);
+          spawnParts(enemies[ei].x,enemies[ei].y,'#ff9900',_pCount(4),2,3.5,220);
           if(enemies[ei].hp<=0){SFX.boom();killEnemy(ei);}
         }
       }
@@ -2782,11 +2788,11 @@ function checkCollisions(){
           e.stunMoveMs=Math.max(e.stunMoveMs,1000);
           e.stunFireMs=Math.max(e.stunFireMs,2000);
           e.vx*=0.1;e.vy*=0.1;
-          spawnParts(b.x,b.y,'#aaff44',10,3,4,280);
-          spawnParts(b.x,b.y,'#ffffff',5,2,3,200);
+          spawnParts(b.x,b.y,'#aaff44',_pCount(10),3,4,280);
+          spawnParts(b.x,b.y,'#ffffff',_pCount(5),2,3,200);
         } else {
           score+=10;
-          e.hp-=b.dmg; spawnParts(b.x,b.y,e.color,6,2.8,3.5,230);
+          e.hp-=b.dmg; spawnParts(b.x,b.y,e.color,_pCount(6),2.8,3.5,230);
           // Alert: enemy detects player on hit regardless of range (except turret stays put)
           if(e.type!=='turret'&&e.state==='patrol'){
             e.state=dist(P.x,P.y,e.x,e.y)<e.atk?'attack':'chase';
@@ -2816,12 +2822,12 @@ function checkCollisions(){
       // miniMe intercepts bullets (checked before player)
       if(miniMe.active&&miniMe.iframes<=0&&dist2(b.x,b.y,miniMe.x,miniMe.y)<MM_SIZE*MM_SIZE){
         miniMe.hp-=b.dmg;miniMe.iframes=500;
-        spawnParts(b.x,b.y,MM_COL,8,2.5,3.5,260);
+        spawnParts(b.x,b.y,MM_COL,_pCount(8),2.5,3.5,260);
         eBullets.splice(bi,1);
         if(miniMe.hp<=0){
           miniMe.active=false;miniMe.lost=true;
-          spawnParts(miniMe.x,miniMe.y,MM_COL,20,4.5,6,700);
-          spawnParts(miniMe.x,miniMe.y,'#ffffff',8,3,4,400);
+          spawnParts(miniMe.x,miniMe.y,MM_COL,_pCount(20),4.5,6,700);
+          spawnParts(miniMe.x,miniMe.y,'#ffffff',_pCount(8),3,4,400);
           if(settings.screenShake)shake=10;SFX.mmdead();
         }
         continue;
@@ -2834,11 +2840,11 @@ function checkCollisions(){
           const ang=Math.atan2(b.y-P.y,b.x-P.x);
           b.vx=Math.cos(ang)*Math.sqrt(b.vx*b.vx+b.vy*b.vy);
           b.vy=Math.sin(ang)*Math.sqrt(b.vx*b.vx+b.vy*b.vy);
-          spawnParts(b.x,b.y,'#ffffff',5,2.5,3.5,180);
+          spawnParts(b.x,b.y,'#ffffff',_pCount(5),2.5,3.5,180);
           continue;
         }
-        if(P.shieldMs>0){P.shieldMs=0;if(settings.screenShake)shake=9;spawnParts(P.x,P.y,'#44aaff',24,5,6,500);SFX.shbreak();P.iframes=400;}
-        else{const dmg=b.dmg*P.damageMult;P.hp-=dmg;P.iframes=700;if(settings.screenShake)shake=16;SFX.hit();Music.onHit();spawnParts(b.x,b.y,'#00eeff',10,3,4,380);if(P.hp<=0)P.alive=false;}
+        if(P.shieldMs>0){P.shieldMs=0;if(settings.screenShake)shake=9;spawnParts(P.x,P.y,'#44aaff',_pCount(24),5,6,500);SFX.shbreak();P.iframes=400;}
+        else{const dmg=b.dmg*P.damageMult;P.hp-=dmg;P.iframes=700;if(settings.screenShake)shake=16;SFX.hit();Music.onHit();spawnParts(b.x,b.y,'#00eeff',_pCount(10),3,4,380);if(P.hp<=0)P.alive=false;}
         eBullets.splice(bi,1);
       }
     }
@@ -2849,18 +2855,18 @@ function checkCollisions(){
     const playerHit=dist2(pk.x,pk.y,P.x,P.y)<hitR;
     const jrHit=miniMe.active&&dist2(pk.x,pk.y,miniMe.x,miniMe.y)<(MM_SIZE+18)**2;
     if(playerHit||jrHit){
-      if(jrHit&&!playerHit) spawnParts(pk.x,pk.y,'#44ffcc',8,2.5,4,300); // J R pickup sparkle
+      if(jrHit&&!playerHit) spawnParts(pk.x,pk.y,'#44ffcc',_pCount(8),2.5,4,300); // J R pickup sparkle
       switch(pk.type){
-        case'battery':P.bat=Math.min(P.maxBat,P.bat+58);score+=50;spawnParts(pk.x,pk.y,'#00ff88',14,3.5,5,420);SFX.pickup();break;
-        case'health':P.hp=Math.min(P.maxHp,P.hp+48);score+=50;spawnParts(pk.x,pk.y,'#ff4466',14,3.5,5,420);SFX.pickup();break;
-        case'medkit':P.hp=Math.min(P.maxHp,P.hp+22);score+=30;spawnParts(pk.x,pk.y,'#44ffdd',12,3,4.5,380);SFX.pickup();weaponFlash={name:'MEDKIT +22',ms:1400};break;
+        case'battery':P.bat=Math.min(P.maxBat,P.bat+58);score+=50;spawnParts(pk.x,pk.y,'#00ff88',_pCount(14),3.5,5,420);SFX.pickup();break;
+        case'health':P.hp=Math.min(P.maxHp,P.hp+48);score+=50;spawnParts(pk.x,pk.y,'#ff4466',_pCount(14),3.5,5,420);SFX.pickup();break;
+        case'medkit':P.hp=Math.min(P.maxHp,P.hp+22);score+=30;spawnParts(pk.x,pk.y,'#44ffdd',_pCount(12),3,4.5,380);SFX.pickup();weaponFlash={name:'MEDKIT +22',ms:1400};break;
         case'weapon':
           if(P.unlockedW.size<WEAPONS.length){
             let next=0; while(P.unlockedW.has(next))next++;
             P.unlockedW.add(next); P.weaponIdx=next;
             score+=100;
             weaponFlash={name:WEAPONS[next].name,ms:3000};
-            spawnParts(pk.x,pk.y,WEAPONS[next].color,22,5,7,550); SFX.weapon();
+            spawnParts(pk.x,pk.y,WEAPONS[next].color,_pCount(22),5,7,550); SFX.weapon();
             if(WEAPONS[next].id==='mine') P.mineStock=enemies.length;
             if(WEAPONS[next].id==='seekr'){const half=Math.ceil(enemies.length/2);P.seekStock=half+Math.floor(Math.random()*(enemies.length*3-half+1));}
           } else {
@@ -2878,17 +2884,17 @@ function checkCollisions(){
               else if(w.id==='seekr') P.seekStock+=10;
               else P.stocks[w.id]=(P.stocks[w.id]||0)+10;
               weaponFlash={name:`${w.name} +10 AMMO`,ms:2200};
-              spawnParts(pk.x,pk.y,w.color,14,3.5,5,380); SFX.weapon();
+              spawnParts(pk.x,pk.y,w.color,_pCount(14),3.5,5,380); SFX.weapon();
             } else {
               // Nothing depleted — fall back to battery
               P.bat=Math.min(P.maxBat,P.bat+40); SFX.pickup();
             }
           }
           break;
-        case'shield':P.shieldMs=4800;score+=10;spawnParts(pk.x,pk.y,'#44aaff',18,4,6,480);SFX.shield();break;
+        case'shield':P.shieldMs=4800;score+=10;spawnParts(pk.x,pk.y,'#44aaff',_pCount(18),4,6,480);SFX.shield();break;
         case'emp':triggerEMP();break;
-        case'overcharge':P.overchargeMs=7000;P.bat=Math.min(P.maxBat,P.bat+50);spawnParts(pk.x,pk.y,'#ff9900',22,5.5,7.5,580);SFX.overchg();break;
-        case'points':score+=250;spawnParts(pk.x,pk.y,'#ffd700',18,4,6,480);SFX.pickup();break;
+        case'overcharge':P.overchargeMs=7000;P.bat=Math.min(P.maxBat,P.bat+50);spawnParts(pk.x,pk.y,'#ff9900',_pCount(22),5.5,7.5,580);SFX.overchg();break;
+        case'points':score+=250;spawnParts(pk.x,pk.y,'#ffd700',_pCount(18),4,6,480);SFX.pickup();break;
         case'ammo':{
           const w=WEAPONS.find(w2=>w2.id===pk.weaponId);
           if(w){
@@ -2896,28 +2902,28 @@ function checkCollisions(){
             else if(pk.weaponId==='seekr') P.seekStock+=pk.ammoAmt;
             else P.stocks[pk.weaponId]=(P.stocks[pk.weaponId]||0)+pk.ammoAmt;
             weaponFlash={name:`${pk.weaponName} +${pk.ammoAmt}`,ms:2400};
-            spawnParts(pk.x,pk.y,pk.weaponColor||'#ccddff',16,4,5.5,480);SFX.weapon();
+            spawnParts(pk.x,pk.y,pk.weaponColor||'#ccddff',_pCount(16),4,5.5,480);SFX.weapon();
           }
           break;
         }
         case'invincibility':
           P.invincMs=5000;
-          spawnParts(pk.x,pk.y,'#ffffff',28,5,7,600);
+          spawnParts(pk.x,pk.y,'#ffffff',_pCount(28),5,7,600);
           weaponFlash={name:'INVINCIBLE 5s',ms:2400};
           SFX.shield();break;
         case'cloak':
           P.cloakMs=5000;
-          spawnParts(pk.x,pk.y,'#88ffee',24,4,6,550);
+          spawnParts(pk.x,pk.y,'#88ffee',_pCount(24),4,6,550);
           weaponFlash={name:'CLOAK 5s',ms:2400};
           SFX.shield();break;
         case'portal':
           _activatePortal(pk.x,pk.y);
-          spawnParts(pk.x,pk.y,'#ff8800',22,5,7,500);
+          spawnParts(pk.x,pk.y,'#ff8800',_pCount(22),5,7,500);
           SFX.emp();break;
         case'nuke_key':
           P.nukeKeys.add(pk.bombId);
           weaponFlash={name:`${NUKE_NAMES[pk.bombId]} KEY ACQUIRED`,ms:2800};
-          spawnParts(pk.x,pk.y,NUKE_COLORS[pk.bombId],20,4,6,500);SFX.weapon();break;
+          spawnParts(pk.x,pk.y,NUKE_COLORS[pk.bombId],_pCount(20),4,6,500);SFX.weapon();break;
       }
       pickups.splice(pi,1);
     }
@@ -4330,8 +4336,8 @@ function tickNukes(dt){
       n.disarmProgress+=dt*1000;
       if(n.disarmProgress>=NUKE_DISARM_TIME){
         n.armed=false;n.disarmProgress=0;
-        spawnParts(n.x,n.y,n.color,30,5,8,800);
-        spawnParts(n.x,n.y,'#ffffff',12,3,5,500);
+        spawnParts(n.x,n.y,n.color,_pCount(30),5,8,800);
+        spawnParts(n.x,n.y,'#ffffff',_pCount(12),3,5,500);
         SFX.confirm();
         weaponFlash={name:`✔ ${n.name} DISARMED`,ms:3500};
         // Check all disarmed
@@ -5466,7 +5472,7 @@ function tickJRRescue(dt){
       if(dist(P.x,P.y,c.x,c.y)<JRR_GRAB_R){
         c.state='carried'; jrCarrying=ci;
         weaponFlash={name:'J R RESCUED — RETURN TO BASE',ms:3000};
-        spawnParts(c.x,c.y,MM_COL,20,4,6,600); SFX.confirm();
+        spawnParts(c.x,c.y,MM_COL,_pCount(20),4,6,600); SFX.confirm();
       }
     }
     if(c.state==='carried'){
@@ -5476,8 +5482,8 @@ function tickJRRescue(dt){
       // Check delivery at base
       if(dist(P.x,P.y,jrBase.x,jrBase.y)<JRR_BASE_R){
         c.state='rescued'; jrCarrying=-1;
-        spawnParts(c.x,c.y,MM_COL,28,5,7,800);
-        spawnParts(jrBase.x,jrBase.y,'#ffffff',12,3,5,600);
+        spawnParts(c.x,c.y,MM_COL,_pCount(28),5,7,800);
+        spawnParts(jrBase.x,jrBase.y,'#ffffff',_pCount(12),3,5,600);
         SFX.confirm(); if(settings.screenShake)shake=10;
         const rescued=jrCaptives.filter(j=>j.state==='rescued').length;
         weaponFlash={name:`J R SAFE! ${rescued}/3 RESCUED`,ms:3000};
@@ -5721,15 +5727,15 @@ function tickTNG(dt){
   if(nearIdx!==-1){
     const pad=tngPads[nearIdx];
     // Reveal number on first approach
-    if(!pad.revealed){pad.revealed=true;spawnParts(pad.x,pad.y,'#ffdd00',10,3,5,500);}
+    if(!pad.revealed){pad.revealed=true;spawnParts(pad.x,pad.y,'#ffdd00',_pCount(10),3,5,500);}
     if(nearIdx!==tngOnPad){tngOnPad=nearIdx;tngHoldMs=0;}
     tngHoldMs+=dt*1000;
     if(tngHoldMs>=TNG_HOLD_MS){
       // Evaluate
       if(pad.num===tngSeq){
         pad.done=true;tngSeq++;score+=500;
-        spawnParts(pad.x,pad.y,'#44ff88',22,5,7,700);
-        spawnParts(pad.x,pad.y,'#ffffff',10,3,5,500);
+        spawnParts(pad.x,pad.y,'#44ff88',_pCount(22),5,7,700);
+        spawnParts(pad.x,pad.y,'#ffffff',_pCount(10),3,5,500);
         SFX.confirm();if(settings.screenShake)shake=8;
         weaponFlash={name:`PAD ${pad.num} ✔  —  ${tngSeq<=5?'FIND PAD '+tngSeq:'ALL PADS CLEARED!'}`,ms:2500};
         if(tngSeq>5){
@@ -5743,7 +5749,7 @@ function tickTNG(dt){
         tngSeq=1;
         // Un-done all pads but keep them revealed
         for(const p of tngPads) p.done=false;
-        spawnParts(pad.x,pad.y,'#ff2244',18,4,6,600);
+        spawnParts(pad.x,pad.y,'#ff2244',_pCount(18),4,6,600);
         SFX.boom();if(settings.screenShake)shake=14;
         weaponFlash={name:`WRONG ORDER — RESTART FROM PAD 1`,ms:3000};
       }
@@ -6901,7 +6907,7 @@ function _resolvePortal(){
     P.vx=0; P.vy=0;
     camX=clamp(P.x-canvas.width/2,0,Math.max(0,WORLD_W-canvas.width));
     camY=(gameMode==='timetrial'&&(ttLevel===1||ttLevel===3))?0:clamp(P.y-canvas.height/2,0,Math.max(0,WORLD_H-canvas.height));
-    spawnParts(P.x,P.y,P.color,24,5,7,500);
+    spawnParts(P.x,P.y,P.color,_pCount(24),5,7,500);
     _snapMouseToPlayer();
   }
   portalActive=false;
@@ -7052,7 +7058,7 @@ function loop(now){
     }
     if(!P.alive){
       mines.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;
-      spawnParts(P.x,P.y,P.color,35,7.5,9.5,1100);spawnParts(P.x,P.y,'#ffffff',15,5,4,700);if(settings.screenShake)shake=30;
+      spawnParts(P.x,P.y,P.color,_pCount(35),7.5,9.5,1100);spawnParts(P.x,P.y,'#ffffff',_pCount(15),5,4,700);if(settings.screenShake)shake=30;
       if(jrCarrying>=0){jrCarrying=-1;P.spd=CRAFTS[P.craftIdx].spd;}
       saveHighScore(gameMode==='combattraining'?'combattraining':gameMode==='timetrial'?`timetrial_${ttLevel}`:'battle', score, Date.now()-gameStartTime);
       gameEndScore=(gameMode==='combattraining')?(ctTotalScore+score):score;
