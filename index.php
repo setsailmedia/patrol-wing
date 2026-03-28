@@ -346,13 +346,22 @@ if(IS_TOUCH){
   window.addEventListener('resize', resetTouchSticks);
   window.addEventListener('orientationchange', resetTouchSticks);
 }
-// Helper: returns layout constants for the top-right HUD panel
+// Helper: returns layout constants for the top-right HUD panel (score + minimap)
 function trLayout(){
   return IS_TOUCH
-    ? {pbW:44, pbH:32, pbY:62, muteW:32, muteH:32, muteOff:50, scoreY:22, labelY:12, mmY:100}
-    : {pbW:44, pbH:28, pbY:58, muteW:28, muteH:28, muteOff:52, scoreY:22, labelY:12, mmY:94};
+    ? {scoreY:22, labelY:12, mmY:100}
+    : {scoreY:22, labelY:12, mmY:94};
 }
 function weaponBarY(){ return IS_TOUCH ? canvas.height-132 : canvas.height-52; }
+function mlLayout(){
+  const pbW=44,pbH=28,muteW=28,muteH=28,gap=4;
+  if(IS_TOUCH){
+    const y=canvas.height-STICK_R*2-14-Math.max(pbH,muteH);
+    return{pbX:10,pbY:y,pbW,pbH,muteX:10+pbW+gap,muteY:y,muteW,muteH};
+  }
+  const y=canvas.height-14-pbH;
+  return{pbX:14,pbY:y,pbW,pbH,muteX:14+pbW+gap,muteY:y,muteW,muteH};
+}
 window.addEventListener('keydown',e=>{
   if(!K[e.code]){K[e.code]=true;initAudio();}
   if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
@@ -3110,12 +3119,12 @@ function drawHUD(){
   drawPauseBtn();drawMuteBtn();
 }
 function pauseBtnRect(){
-  const {pbW,pbH,pbY}=trLayout();
-  return {x:canvas.width-pbW-14, y:pbY, w:pbW, h:pbH};
+  const{pbX,pbY,pbW,pbH}=mlLayout();
+  return{x:pbX,y:pbY,w:pbW,h:pbH};
 }
 function muteBtnRect(){
-  const {pbW,pbH,pbY,muteW,muteH,muteOff}=trLayout();
-  return {x:canvas.width-pbW-muteOff-muteW-4, y:pbY, w:muteW, h:muteH};
+  const{muteX,muteY,muteW,muteH}=mlLayout();
+  return{x:muteX,y:muteY,w:muteW,h:muteH};
 }
 function drawPauseBtn(){
   const{x,y,w,h}=pauseBtnRect();
