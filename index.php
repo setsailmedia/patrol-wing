@@ -519,8 +519,9 @@ function _applyVolumes(){
   if(!AC) return;
   const t=AC.currentTime;
   const m=Music.isMuted();
-  if(sfxGain)  sfxGain.gain.setValueAtTime(m ? 0 : settings.sfxVol, t);
-  if(uiGain)   uiGain.gain.setValueAtTime(m ? 0 : settings.uiVol, t);
+  const sfx=Music.sfxNode(),ui=Music.uiNode();
+  if(sfx&&sfx!==AC.destination) sfx.gain.setValueAtTime(m?0:settings.sfxVol,t);
+  if(ui &&ui !==AC.destination)  ui.gain.setValueAtTime(m?0:settings.uiVol, t);
 }
 let selectedCraft=0,selectedColor='#00ddff',hoverCard=-1,hoverSwatch=-1;
 // Hangar state — separate working copies while editing in the Hangar screen
