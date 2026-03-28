@@ -487,7 +487,7 @@ const CRAFTS=[
     stats:{speed:2,armor:5,fire:2,battery:4},
     hp:185,spd:3.3,batDrain:1.4,size:24,drag:0.90,
     ability:'IRON CRAFT  —  Incoming damage reduced 28%',
-    startWeapon:2,damageMult:0.72,detMult:1.0,
+    startWeapon:3,damageMult:0.72,detMult:1.0,
     defaultColor:'#ff8800',
   },
   {
