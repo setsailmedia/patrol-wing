@@ -3061,14 +3061,14 @@ function drawHUD(){
   const {scoreY,labelY}=trLayout();
   ctx.textAlign='right';
   const scoreX=canvas.width-14;
-  ctx.font=`${T?7:10}px "Courier New"`;ctx.fillStyle='rgba(140,100,30,0.75)';
+  ctx.font=`${T?9:12}px "Courier New"`;ctx.fillStyle='rgba(140,100,30,0.75)';
   ctx.fillText('SCORE',scoreX,T?labelY+8:labelY+10);
   if(T){
-    ctx.font='bold 13px "Courier New"';ctx.fillStyle='#ffdd00';ctx.shadowBlur=8;ctx.shadowColor='#ffaa00';
-    ctx.fillText(String(score).padStart(8,'0'),scoreX,scoreY+16);ctx.shadowBlur=0;
+    ctx.font='bold 18px "Courier New"';ctx.fillStyle='#ffdd00';ctx.shadowBlur=12;ctx.shadowColor='#ffaa00';
+    ctx.fillText(String(score).padStart(8,'0'),scoreX,scoreY+20);ctx.shadowBlur=0;
   } else {
-    ctx.font='bold 22px "Courier New"';ctx.fillStyle='#ffdd00';ctx.shadowBlur=14;ctx.shadowColor='#ffaa00';
-    ctx.fillText(String(score).padStart(8,'0'),scoreX,scoreY+18);ctx.shadowBlur=0;
+    ctx.font='bold 32px "Courier New"';ctx.fillStyle='#ffdd00';ctx.shadowBlur=18;ctx.shadowColor='#ffaa00';
+    ctx.fillText(String(score).padStart(8,'0'),scoreX,scoreY+26);ctx.shadowBlur=0;
   }
   // Wave counter (battle) or TT timer or CT round indicator
   ctx.textAlign='center';
