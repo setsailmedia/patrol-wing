@@ -728,8 +728,8 @@ function tickHazards(dt,now){
       if(h.cooldown<=0&&P.alive&&P.iframes<=0&&P.invincMs<=0){
         const d2=_pointSegDist2(P.x,P.y,h.ax,h.ay,h.bx,h.by);
         if(d2<18*18){
-          if(P.shieldMs>0){P.shieldMs=0;shake=8;spawnParts(P.x,P.y,'#44aaff',14,4,5,400);SFX.shbreak();P.iframes=400;}
-          else{P.hp-=h.dmg*P.damageMult;P.iframes=600;shake=12;SFX.hit();spawnParts(P.x,P.y,'#ffff44',8,3,4,300);if(P.hp<=0)P.alive=false;}
+          if(P.shieldMs>0){P.shieldMs=0;if(settings.screenShake)shake=8;spawnParts(P.x,P.y,'#44aaff',14,4,5,400);SFX.shbreak();P.iframes=400;}
+          else{P.hp-=h.dmg*P.damageMult;P.iframes=600;if(settings.screenShake)shake=12;SFX.hit();spawnParts(P.x,P.y,'#ffff44',8,3,4,300);if(P.hp<=0)P.alive=false;}
           h.cooldown=1200; // 1.2s recharge between zaps
           Music.onHit();
         }
@@ -758,7 +758,7 @@ function tickHazards(dt,now){
         if(P.invincMs<=0){
           const pDmg=Math.round(h.dmg*(1-dp/h.blastR));
           if(P.shieldMs>0){P.shieldMs=0;spawnParts(P.x,P.y,'#44aaff',16,4,5,450);SFX.shbreak();P.iframes=400;}
-          else if(pDmg>0){P.hp-=pDmg*P.damageMult;P.iframes=500;shake=18;SFX.hit();if(P.hp<=0)P.alive=false;Music.onHit();}
+          else if(pDmg>0){P.hp-=pDmg*P.damageMult;P.iframes=500;if(settings.screenShake)shake=18;SFX.hit();if(P.hp<=0)P.alive=false;Music.onHit();}
         }
         // Damage nearby enemies
         for(let ei=enemies.length-1;ei>=0;ei--){
@@ -766,7 +766,7 @@ function tickHazards(dt,now){
           if(de<h.blastR){enemies[ei].hp-=h.dmg*(1-de/h.blastR);if(enemies[ei].hp<=0){spawnParts(enemies[ei].x,enemies[ei].y,enemies[ei].color,16,5,7,600);killEnemy(ei);}}
         }
         spawnParts(h.x,h.y,'#ff6600',24,6,8,700);spawnParts(h.x,h.y,'#ffff44',12,4,5,500);
-        shake=Math.max(shake,20);SFX.minedet();
+        if(settings.screenShake)shake=Math.max(shake,20);SFX.minedet();
       }
     }
   }
@@ -1180,7 +1180,7 @@ function fireWeapon(){
       spawnParts(ex,ey,'#ff66ff',8,3,4,250);
       spawnParts(ex,ey,'#ffffff',4,2,3,180);
     }
-    shake=hitEnemy!==null?14:6;
+    if(settings.screenShake)shake=hitEnemy!==null?14:6;
     SFX.laser();
     P.vx-=cos*2.2;P.vy-=sin*2.2;
     return;
@@ -2041,7 +2041,7 @@ function tickMiniMe(dt,now){
     miniMe.active=false;miniMe.lost=true;
     spawnParts(miniMe.x,miniMe.y,MM_COL,20,4.5,6,700);
     spawnParts(miniMe.x,miniMe.y,'#ffffff',8,3,4,400);
-    shake=10;SFX.mmdead();return;
+    if(settings.screenShake)shake=10;SFX.mmdead();return;
   }
   // Find nearest enemy within detection range
   let target=null,bestDist=MM_DET;
@@ -2252,7 +2252,7 @@ function _spreadInfection(killedType, killedIdx){
   score+=dead.score; P.kills++;
   spawnParts(dead.x,dead.y,'#00ff88',30,5,7,900);
   spawnParts(dead.x,dead.y,'#ffffff',10,3,4,500);
-  shake=Math.max(shake,14);
+  if(settings.screenShake)shake=Math.max(shake,14);
   spawnPickup(dead.x,dead.y,null,false);
   if(Math.random()<0.5) pickups[pickups.length-1].mystery=true;
   enemies.splice(killedIdx,1);
@@ -2284,7 +2284,7 @@ function killEnemy(idx){
   spawnParts(e.x,e.y,e.color,24,6.5,8.5,800);
   spawnParts(e.x,e.y,'#fff',10,4,3,500);
   spawnParts(e.x,e.y,'#ffaa00',15,5.5,6,650);
-  shake=Math.max(shake, e.type==='boss'?32:14);
+  if(settings.screenShake)shake=Math.max(shake, e.type==='boss'?32:14);
   // Every kill drops at least one pickup — half are mystery diamonds
   const isMystery1=Math.random()<0.5;
   spawnPickup(e.x,e.y,null,false);
@@ -2318,7 +2318,7 @@ function tickMines(dt){
     spawnParts(m.x,m.y,'#ff2200',40,9,10,900);
     spawnParts(m.x,m.y,'#ff8800',28,7,7,700);
     spawnParts(m.x,m.y,'#ffffff',16,5,4,500);
-    shake=Math.max(shake,22);
+    if(settings.screenShake)shake=Math.max(shake,22);
     // Process enemies in blast radius (iterate backwards for safe splice)
     for(let ei=enemies.length-1;ei>=0;ei--){
       const e=enemies[ei];
@@ -2538,7 +2538,7 @@ function tickSeekers(dt,now){
         e.hp-=dmg;
         spawnParts(s.x,s.y,SEEKR_COL,18,5,7,480);
         spawnParts(s.x,s.y,'#ffffff',8,3,4,320);
-        shake=8; SFX.seekboom();
+        if(settings.screenShake)shake=8; SFX.seekboom();
         if(e.hp<=0){SFX.boom();killEnemy(s.target);}
         s.blasting=true;s.blastT=380;
       }
@@ -2676,7 +2676,7 @@ function tickBoomerangs(dt){
         b.hitEnemies.add(ei);
         e.hp-=b.dmg;
         spawnParts(b.x,b.y,b.color,8,3,4.5,300);
-        shake=Math.max(shake,6);
+        if(settings.screenShake)shake=Math.max(shake,6);
         if(e.hp<=0){ SFX.boom(); killEnemy(ei);
           // Remap hit set indices above ei
           const updated=new Set();
@@ -2822,7 +2822,7 @@ function checkCollisions(){
           miniMe.active=false;miniMe.lost=true;
           spawnParts(miniMe.x,miniMe.y,MM_COL,20,4.5,6,700);
           spawnParts(miniMe.x,miniMe.y,'#ffffff',8,3,4,400);
-          shake=10;SFX.mmdead();
+          if(settings.screenShake)shake=10;SFX.mmdead();
         }
         continue;
       }
@@ -2837,8 +2837,8 @@ function checkCollisions(){
           spawnParts(b.x,b.y,'#ffffff',5,2.5,3.5,180);
           continue;
         }
-        if(P.shieldMs>0){P.shieldMs=0;shake=9;spawnParts(P.x,P.y,'#44aaff',24,5,6,500);SFX.shbreak();P.iframes=400;}
-        else{const dmg=b.dmg*P.damageMult;P.hp-=dmg;P.iframes=700;shake=16;SFX.hit();Music.onHit();spawnParts(b.x,b.y,'#00eeff',10,3,4,380);if(P.hp<=0)P.alive=false;}
+        if(P.shieldMs>0){P.shieldMs=0;if(settings.screenShake)shake=9;spawnParts(P.x,P.y,'#44aaff',24,5,6,500);SFX.shbreak();P.iframes=400;}
+        else{const dmg=b.dmg*P.damageMult;P.hp-=dmg;P.iframes=700;if(settings.screenShake)shake=16;SFX.hit();Music.onHit();spawnParts(b.x,b.y,'#00eeff',10,3,4,380);if(P.hp<=0)P.alive=false;}
         eBullets.splice(bi,1);
       }
     }
@@ -5478,7 +5478,7 @@ function tickJRRescue(dt){
         c.state='rescued'; jrCarrying=-1;
         spawnParts(c.x,c.y,MM_COL,28,5,7,800);
         spawnParts(jrBase.x,jrBase.y,'#ffffff',12,3,5,600);
-        SFX.confirm(); shake=10;
+        SFX.confirm(); if(settings.screenShake)shake=10;
         const rescued=jrCaptives.filter(j=>j.state==='rescued').length;
         weaponFlash={name:`J R SAFE! ${rescued}/3 RESCUED`,ms:3000};
         score+=1000;
@@ -5730,7 +5730,7 @@ function tickTNG(dt){
         pad.done=true;tngSeq++;score+=500;
         spawnParts(pad.x,pad.y,'#44ff88',22,5,7,700);
         spawnParts(pad.x,pad.y,'#ffffff',10,3,5,500);
-        SFX.confirm();shake=8;
+        SFX.confirm();if(settings.screenShake)shake=8;
         weaponFlash={name:`PAD ${pad.num} ✔  —  ${tngSeq<=5?'FIND PAD '+tngSeq:'ALL PADS CLEARED!'}`,ms:2500};
         if(tngSeq>5){
           ttFinished=true;ttElapsed=performance.now()-ttStartTime;
@@ -5744,7 +5744,7 @@ function tickTNG(dt){
         // Un-done all pads but keep them revealed
         for(const p of tngPads) p.done=false;
         spawnParts(pad.x,pad.y,'#ff2244',18,4,6,600);
-        SFX.boom();shake=14;
+        SFX.boom();if(settings.screenShake)shake=14;
         weaponFlash={name:`WRONG ORDER — RESTART FROM PAD 1`,ms:3000};
       }
       tngOnPad=-1;tngHoldMs=0;
@@ -7052,7 +7052,7 @@ function loop(now){
     }
     if(!P.alive){
       mines.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;
-      spawnParts(P.x,P.y,P.color,35,7.5,9.5,1100);spawnParts(P.x,P.y,'#ffffff',15,5,4,700);shake=30;
+      spawnParts(P.x,P.y,P.color,35,7.5,9.5,1100);spawnParts(P.x,P.y,'#ffffff',15,5,4,700);if(settings.screenShake)shake=30;
       if(jrCarrying>=0){jrCarrying=-1;P.spd=CRAFTS[P.craftIdx].spd;}
       saveHighScore(gameMode==='combattraining'?'combattraining':gameMode==='timetrial'?`timetrial_${ttLevel}`:'battle', score, Date.now()-gameStartTime);
       gameEndScore=(gameMode==='combattraining')?(ctTotalScore+score):score;
