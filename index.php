@@ -139,7 +139,7 @@ const Music = (function(){
   };
 
   // ── Internal state ────────────────────────────────────────────
-  let masterGain=null, melGain=null, bassGain=null, arpGain=null;
+  let masterGain=null, melGain=null, bassGain=null, arpGain=null, sfxGain=null, uiGain=null;
   let filterNode=null, delayNode=null, feedbackGain=null;
   let melStep=0, bassStep=0, arpStep=0;
   let nextMelT=0, nextBassT=0, nextArpT=0;
@@ -165,6 +165,12 @@ const Music = (function(){
       masterGain = AC.createGain();
       masterGain.gain.setValueAtTime(0.42, AC.currentTime); // menus start quieter
       masterGain.connect(comp);
+      sfxGain = AC.createGain();
+      sfxGain.gain.setValueAtTime(settings.sfxVol, AC.currentTime);
+      sfxGain.connect(comp);
+      uiGain = AC.createGain();
+      uiGain.gain.setValueAtTime(settings.uiVol, AC.currentTime);
+      uiGain.connect(comp);
 
       // Global lowpass — sweeps open during combat
       filterNode = AC.createBiquadFilter();
@@ -287,7 +293,8 @@ const Music = (function(){
     if(mode !== targetMode) targetMode = mode;
 
     // Dim music during menus; full volume during play — only ramp when value changes
-    const wantVol = muted ? 0 : (playing ? 0.72 : 0.38);
+    const baseVol = playing ? 0.72 : 0.38;
+    const wantVol = muted ? 0 : (baseVol * settings.musicVol);
     if(Math.abs(masterGain.gain.value - wantVol) > 0.005){
       masterGain.gain.setTargetAtTime(wantVol, AC.currentTime, 0.9);
     }
@@ -301,16 +308,22 @@ const Music = (function(){
     onHit:   ()=>{ lastHitMs  = Date.now(); },
     toggleMute(){
       muted = !muted;
+      const t = AC ? AC.currentTime : 0;
       if(masterGain){
-        masterGain.gain.cancelScheduledValues(AC.currentTime);
-        const vol = muted ? 0 : (gameState === 'playing' ? 0.72 : 0.38);
-        masterGain.gain.setValueAtTime(masterGain.gain.value, AC.currentTime);
-        masterGain.gain.linearRampToValueAtTime(vol, AC.currentTime + 0.15);
+        masterGain.gain.cancelScheduledValues(t);
+        const baseVol = (gameState==='playing') ? 0.72 : 0.38;
+        const vol = muted ? 0 : (baseVol * settings.musicVol);
+        masterGain.gain.setValueAtTime(masterGain.gain.value, t);
+        masterGain.gain.linearRampToValueAtTime(vol, t + 0.15);
       }
+      if(sfxGain) sfxGain.gain.setValueAtTime(muted ? 0 : settings.sfxVol, t);
+      if(uiGain)  uiGain.gain.setValueAtTime(muted ? 0 : settings.uiVol, t);
       return muted;
     },
     isMuted: ()=> muted,
     mode:    ()=> currentMode,
+    sfxNode: ()=> sfxGain || AC.destination,
+    uiNode:  ()=> uiGain  || AC.destination,
   };
 })();
 
@@ -489,6 +502,13 @@ function _loadSettings(){
 }
 function _saveSettings(){
   try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings));}catch(e){}
+}
+function _applyVolumes(){
+  if(!AC) return;
+  const t=AC.currentTime;
+  const m=Music.isMuted();
+  if(sfxGain)  sfxGain.gain.setValueAtTime(m ? 0 : settings.sfxVol, t);
+  if(uiGain)   uiGain.gain.setValueAtTime(m ? 0 : settings.uiVol, t);
 }
 let selectedCraft=0,selectedColor='#00ddff',hoverCard=-1,hoverSwatch=-1;
 // Hangar state — separate working copies while editing in the Hangar screen
