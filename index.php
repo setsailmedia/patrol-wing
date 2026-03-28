@@ -373,6 +373,18 @@ document.addEventListener('contextmenu',e=>e.preventDefault());
 canvas.addEventListener('mousedown',e=>{
   if(e.button!==0) return;
   initAudio();
+  if(gameState==='setup'){
+    const L=_getSetupLayout(canvas.width,canvas.height);
+    for(const s of L.sliders){
+      const th=L.trackThumbR*3;
+      if(mouse.x>=L.trackX&&mouse.x<=L.trackX+L.trackW&&mouse.y>=s.y-th&&mouse.y<=s.y+th){
+        setupSliderDrag={key:s.key,trackX:L.trackX,trackW:L.trackW};
+        settings[s.key]=Math.max(0,Math.min(1,(mouse.x-L.trackX)/L.trackW));
+        _saveSettings();_applyVolumes();
+        return;
+      }
+    }
+  }
   // Suppress fire if click lands on the weapon bar
   if(gameState==='playing'){
     const slotW=38, slotH=38, slotGap=5, total=WEAPONS.length;
@@ -384,7 +396,7 @@ canvas.addEventListener('mousedown',e=>{
   }
   mouse.down=true; mouse.justDown=true;
 });
-canvas.addEventListener('mouseup',  e=>{if(e.button!==0)return; mouse.down=false;});
+canvas.addEventListener('mouseup',  e=>{if(e.button!==0)return; mouse.down=false; if(setupSliderDrag)setupSliderDrag=null;});
 canvas.addEventListener('mouseup',  e=>{
   if(e.button!==2)return;
   // Portal: right-click cycles through portals (same as Space)
@@ -3686,6 +3698,8 @@ const MENU_ITEMS=[
 const MENU_ACTIVE=['Battle Waves'];
 let menuHover=-1;
 let soundToggleHover=false;
+let hofClearStep=0,hofClearResetAt=0,hofClearFlashMs=0;
+let setupSliderDrag=null;
 function getMenuRects(){
   const W=canvas.width,H=canvas.height;
   const bw=Math.max(200,Math.min(W*0.72,380));
@@ -3780,6 +3794,188 @@ function drawStartScreen(){
   ctx.textAlign='center';
   ctx.fillStyle=_stHov?'#00eeff':'rgba(150,205,255,0.92)';
   ctx.fillText(_stMuted?'✕ SOUND OFF':'♪ SOUND ON',_stX+_stW/2,_stY+_stH/2+_stSz*0.36);
+  ctx.textAlign='left';
+}
+function _roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);
+  ctx.arcTo(x+w,y,x+w,y+r,r);ctx.lineTo(x+w,y+h-r);
+  ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);
+  ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);
+  ctx.arcTo(x,y,x+r,y,r);ctx.closePath();
+}
+function _getSetupLayout(W,H){
+  const cx=W/2;
+  const trackW=Math.max(200,Math.min(W*0.55,520));
+  const trackX=cx-trackW/2;
+  const labelSz=Math.max(9,Math.min(12,W/90));
+  const rowH=Math.max(36,H*0.065);
+  const sectionGap=Math.max(18,H*0.032);
+  const btnH=Math.max(30,H*0.052);
+  const tog3W=Math.max(70,W*0.1);
+  const tog2W=Math.max(80,W*0.11);
+  const togH=Math.max(26,H*0.045);
+  const titleH=Math.max(32,H*0.1);
+  let y=titleH+Math.max(20,H*0.04);
+  const audioHeaderY=y;y+=labelSz*2+8;
+  const sliders=[
+    {key:'musicVol',label:'MUSIC VOLUME',y},
+    {key:'sfxVol',label:'EFFECTS VOLUME',y:y+rowH},
+    {key:'uiVol',label:'INTERFACE VOLUME',y:y+rowH*2},
+  ];
+  y+=rowH*3+sectionGap;
+  const displayHeaderY=y;y+=labelSz*2+8;
+  const particleY=y;y+=rowH+sectionGap;
+  const gameplayHeaderY=y;y+=labelSz*2+8;
+  const shakeY=y;y+=rowH+sectionGap;
+  const dataHeaderY=y;y+=labelSz*2+8;
+  const hofBtnY=y;
+  const hofBtnW=Math.max(220,W*0.28),hofBtnH=btnH;
+  const backPad=Math.max(20,W*0.03);
+  const backH=Math.max(30,H*0.052),backW=Math.max(90,W*0.1);
+  const backBtn={x:backPad,y:H-backPad-backH,w:backW,h:backH};
+  return{W,H,cx,trackW,trackX,labelSz,rowH,btnH,tog3W,tog2W,togH,
+    audioHeaderY,sliders,trackThumbR:8,
+    displayHeaderY,particleY,
+    gameplayHeaderY,shakeY,
+    dataHeaderY,hofBtnY,hofBtnW,hofBtnH,
+    backBtn};
+}
+function _particleBtnRects(L){
+  const opts=['full','reduced','off'],totalW=opts.length*L.tog3W+(opts.length-1)*8;
+  const startX=L.cx-totalW/2;
+  return opts.map((v,i)=>({x:startX+i*(L.tog3W+8),y:L.particleY,val:v}));
+}
+function _shakeBtnRects(L){
+  const labels=['ON','OFF'],vals=[true,false],totalW=2*L.tog2W+8;
+  const startX=L.cx-totalW/2;
+  return vals.map((v,i)=>({x:startX+i*(L.tog2W+8),y:L.shakeY,val:v,label:labels[i]}));
+}
+function _drawSlider(L,key,label,cy){
+  const val=settings[key];
+  const isDragging=setupSliderDrag&&setupSliderDrag.key===key;
+  const thumbX=L.trackX+val*L.trackW;
+  ctx.font=`bold ${L.labelSz}px "Courier New"`;
+  ctx.textAlign='right';
+  ctx.fillStyle='rgba(150,205,255,0.85)';
+  ctx.fillText(label,L.trackX-14,cy+L.labelSz*0.4);
+  ctx.fillStyle='rgba(0,40,90,0.7)';
+  _roundRect(L.trackX,cy-5,L.trackW,10,5);ctx.fill();
+  ctx.strokeStyle='rgba(0,100,180,0.5)';ctx.lineWidth=1;
+  _roundRect(L.trackX,cy-5,L.trackW,10,5);ctx.stroke();
+  if(val>0){ctx.fillStyle='rgba(0,180,255,0.5)';_roundRect(L.trackX,cy-5,val*L.trackW,10,5);ctx.fill();}
+  ctx.beginPath();ctx.arc(thumbX,cy,isDragging?10:L.trackThumbR,0,Math.PI*2);
+  ctx.fillStyle=isDragging?'#00eeff':'#00ccff';
+  ctx.shadowBlur=isDragging?18:10;ctx.shadowColor='#00aaff';
+  ctx.fill();ctx.shadowBlur=0;
+  ctx.textAlign='left';
+  ctx.fillStyle='rgba(0,200,255,0.7)';
+  ctx.font=`bold ${L.labelSz}px "Courier New"`;
+  ctx.fillText(Math.round(val*100)+'%',L.trackX+L.trackW+14,cy+L.labelSz*0.4);
+  ctx.textAlign='center';
+}
+function _drawToggle3(L,key,labels,vals,rects,rowLabel){
+  ctx.font=`bold ${L.labelSz}px "Courier New"`;
+  ctx.textAlign='right';
+  ctx.fillStyle='rgba(150,205,255,0.85)';
+  ctx.fillText(rowLabel,rects[0].x-14,rects[0].y+L.togH/2+L.labelSz*0.4);
+  for(let i=0;i<rects.length;i++){
+    const{x,y,val}=rects[i];const active=settings[key]===val;
+    ctx.fillStyle=active?'rgba(0,160,255,0.85)':'rgba(0,40,90,0.7)';
+    ctx.fillRect(x,y,L.tog3W,L.togH);
+    ctx.strokeStyle=active?'#00ccff':'rgba(0,100,180,0.5)';ctx.lineWidth=active?2:1;
+    ctx.shadowBlur=active?12:0;ctx.shadowColor='#00ccff';
+    ctx.strokeRect(x,y,L.tog3W,L.togH);ctx.shadowBlur=0;
+    ctx.font=`bold ${L.labelSz*0.9}px "Courier New"`;ctx.textAlign='center';
+    ctx.fillStyle=active?'#060c18':'rgba(100,170,230,0.7)';
+    ctx.fillText(labels[i],x+L.tog3W/2,y+L.togH/2+L.labelSz*0.36);
+  }
+  ctx.textAlign='center';
+}
+function _drawToggle2(L,key,rects,rowLabel){
+  ctx.font=`bold ${L.labelSz}px "Courier New"`;
+  ctx.textAlign='right';
+  ctx.fillStyle='rgba(150,205,255,0.85)';
+  ctx.fillText(rowLabel,rects[0].x-14,rects[0].y+L.togH/2+L.labelSz*0.4);
+  for(let i=0;i<rects.length;i++){
+    const{x,y,val,label}=rects[i];const active=settings[key]===val;
+    ctx.fillStyle=active?'rgba(0,160,255,0.85)':'rgba(0,40,90,0.7)';
+    ctx.fillRect(x,y,L.tog2W,L.togH);
+    ctx.strokeStyle=active?'#00ccff':'rgba(0,100,180,0.5)';ctx.lineWidth=active?2:1;
+    ctx.shadowBlur=active?12:0;ctx.shadowColor='#00ccff';
+    ctx.strokeRect(x,y,L.tog2W,L.togH);ctx.shadowBlur=0;
+    ctx.font=`bold ${L.labelSz*0.9}px "Courier New"`;ctx.textAlign='center';
+    ctx.fillStyle=active?'#060c18':'rgba(100,170,230,0.7)';
+    ctx.fillText(label,x+L.tog2W/2,y+L.togH/2+L.labelSz*0.36);
+  }
+  ctx.textAlign='center';
+}
+function _drawHofClearBtn(L,now){
+  if(hofClearStep===1&&now>hofClearResetAt)hofClearStep=0;
+  const hx=L.cx-L.hofBtnW/2;
+  const label=hofClearStep===1?'CONFIRM CLEAR — CLICK AGAIN':'CLEAR HALL OF FAME';
+  const hov=mouse.x>=hx&&mouse.x<=hx+L.hofBtnW&&mouse.y>=L.hofBtnY&&mouse.y<=L.hofBtnY+L.hofBtnH;
+  ctx.fillStyle=hofClearStep===1?'rgba(120,0,0,0.7)':hov?'rgba(0,180,255,0.18)':'rgba(0,55,115,0.55)';
+  ctx.fillRect(hx,L.hofBtnY,L.hofBtnW,L.hofBtnH);
+  ctx.strokeStyle=hofClearStep===1?'#ff3333':hov?'#00ccff':'rgba(0,140,220,0.75)';
+  ctx.lineWidth=(hov||hofClearStep===1)?2:1;
+  ctx.shadowBlur=(hov||hofClearStep===1)?16:0;ctx.shadowColor=hofClearStep===1?'#ff3333':'#00ccff';
+  ctx.strokeRect(hx,L.hofBtnY,L.hofBtnW,L.hofBtnH);ctx.shadowBlur=0;
+  const bSz=Math.max(9,Math.min(L.hofBtnH*0.36,12));
+  ctx.font=`bold ${bSz}px "Courier New"`;
+  ctx.fillStyle=hofClearStep===1?'#ff8888':hov?'#00eeff':'rgba(150,205,255,0.92)';
+  ctx.textAlign='center';
+  ctx.fillText(label,L.cx,L.hofBtnY+L.hofBtnH/2+bSz*0.36);
+}
+function drawSetupScreen(){
+  const W=canvas.width,H=canvas.height;
+  ctx.fillStyle='#060c18';ctx.fillRect(0,0,W,H);
+  const gs=Math.max(50,Math.min(80,W/14));
+  ctx.strokeStyle='rgba(0,80,180,0.09)';ctx.lineWidth=1;
+  for(let x=0;x<W;x+=gs){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=gs){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  const L=_getSetupLayout(W,H);
+  const now=Date.now();
+  ctx.textAlign='center';
+  const titleSz=Math.max(20,Math.min(W*0.055,36));
+  ctx.font=`bold ${titleSz}px "Courier New"`;
+  ctx.shadowBlur=30;ctx.shadowColor='#00aaff';ctx.fillStyle='#00ccff';
+  ctx.fillText('SETUP',W/2,Math.max(titleSz+10,H*0.07));
+  ctx.shadowBlur=0;
+  function _sh(label,y){
+    ctx.font=`bold ${L.labelSz*0.85}px "Courier New"`;
+    ctx.fillStyle='rgba(0,140,220,0.55)';
+    ctx.fillText(label,L.cx,y+L.labelSz);
+    ctx.strokeStyle='rgba(0,100,180,0.3)';ctx.lineWidth=1;
+    const lw=Math.max(100,W*0.35);
+    ctx.beginPath();ctx.moveTo(L.cx-lw/2,y+L.labelSz+5);ctx.lineTo(L.cx+lw/2,y+L.labelSz+5);ctx.stroke();
+  }
+  _sh('AUDIO',L.audioHeaderY);
+  for(const s of L.sliders)_drawSlider(L,s.key,s.label,s.y);
+  _sh('DISPLAY',L.displayHeaderY);
+  _drawToggle3(L,'particles',['FULL','REDUCED','OFF'],['full','reduced','off'],_particleBtnRects(L),'Particle Intensity');
+  _sh('GAMEPLAY',L.gameplayHeaderY);
+  _drawToggle2(L,'screenShake',_shakeBtnRects(L),'Screen Shake');
+  _sh('DATA',L.dataHeaderY);
+  _drawHofClearBtn(L,now);
+  if(hofClearFlashMs>0){
+    ctx.font=`bold ${L.labelSz*1.1}px "Courier New"`;
+    ctx.fillStyle=`rgba(0,220,120,${Math.min(1,hofClearFlashMs/400)})`;
+    ctx.fillText('CLEARED',L.cx,L.hofBtnY+L.hofBtnH+L.labelSz*2);
+    hofClearFlashMs-=16;
+  }
+  const{x,y,w,h}=L.backBtn;
+  const backHov=mouse.x>=x&&mouse.x<=x+w&&mouse.y>=y&&mouse.y<=y+h;
+  ctx.fillStyle=backHov?'rgba(0,180,255,0.18)':'rgba(0,55,115,0.55)';
+  ctx.fillRect(x,y,w,h);
+  ctx.strokeStyle=backHov?'#00ccff':'rgba(0,140,220,0.75)';
+  ctx.lineWidth=backHov?2:1;
+  ctx.shadowBlur=backHov?20:0;ctx.shadowColor='#00ccff';
+  ctx.strokeRect(x,y,w,h);ctx.shadowBlur=0;
+  const bSz=Math.max(9,Math.min(h*0.38,13));
+  ctx.font=`bold ${bSz}px "Courier New"`;
+  ctx.fillStyle=backHov?'#00eeff':'rgba(150,205,255,0.92)';
+  ctx.fillText('◀ BACK',x+w/2,y+h/2+bSz*0.36);
   ctx.textAlign='left';
 }
 function drawWaveClearScreen(){
@@ -5899,6 +6095,29 @@ function _doClick(){
     return;
   }
 
+  if(gameState==='setup'){
+    const L=_getSetupLayout(canvas.width,canvas.height);
+    for(const b of _particleBtnRects(L)){
+      if(mouse.x>=b.x&&mouse.x<=b.x+L.tog3W&&mouse.y>=b.y&&mouse.y<=b.y+L.togH){
+        settings.particles=b.val;_saveSettings();SFX.select();return;
+      }
+    }
+    for(const b of _shakeBtnRects(L)){
+      if(mouse.x>=b.x&&mouse.x<=b.x+L.tog2W&&mouse.y>=b.y&&mouse.y<=b.y+L.togH){
+        settings.screenShake=b.val;_saveSettings();SFX.select();return;
+      }
+    }
+    const hx=L.cx-L.hofBtnW/2;
+    if(mouse.x>=hx&&mouse.x<=hx+L.hofBtnW&&mouse.y>=L.hofBtnY&&mouse.y<=L.hofBtnY+L.hofBtnH){
+      if(hofClearStep===0){hofClearStep=1;hofClearResetAt=Date.now()+3000;SFX.select();}
+      else{try{localStorage.removeItem(HOF_KEY);}catch(e){}hofClearStep=0;hofClearFlashMs=2000;SFX.confirm();}
+      return;
+    }
+    const{x,y,w,h}=L.backBtn;
+    if(mouse.x>=x&&mouse.x<=x+w&&mouse.y>=y&&mouse.y<=y+h){gameState='start';SFX.select();return;}
+    return;
+  }
+
   if(gameState==='ttLevelSelect'){
     const W=canvas.width,H=canvas.height,cx=W/2;
     const headerH=88,backH=52,padV=12;
@@ -6061,7 +6280,19 @@ if(IS_TOUCH){
 }
 
 // ─── HOVER TRACKING ──────────────────────────────────────────────
-function _isOverSetupInteractive(mx,my){return false;}
+function _isOverSetupInteractive(mx,my){
+  if(!canvas)return false;
+  const L=_getSetupLayout(canvas.width,canvas.height);
+  const th=L.trackThumbR*3;
+  for(const s of L.sliders){if(mx>=L.trackX&&mx<=L.trackX+L.trackW&&my>=s.y-th&&my<=s.y+th)return true;}
+  for(const b of _particleBtnRects(L)){if(mx>=b.x&&mx<=b.x+L.tog3W&&my>=b.y&&my<=b.y+L.togH)return true;}
+  for(const b of _shakeBtnRects(L)){if(mx>=b.x&&mx<=b.x+L.tog2W&&my>=b.y&&my<=b.y+L.togH)return true;}
+  const hx=L.cx-L.hofBtnW/2;
+  if(mx>=hx&&mx<=hx+L.hofBtnW&&my>=L.hofBtnY&&my<=L.hofBtnY+L.hofBtnH)return true;
+  const{x,y,w,h}=L.backBtn;
+  if(mx>=x&&mx<=x+w&&my>=y&&my<=y+h)return true;
+  return false;
+}
 canvas.addEventListener('mousemove',()=>{
   hoverCard=-1;hoverSwatch=-1;menuHover=-1;
   if(gameState==='start'){
@@ -6110,6 +6341,10 @@ function _snapMouseToPlayer(){
 // Free mouse tracking — no pointer lock, no leash
 canvas.addEventListener('mousemove',e=>{
   mouse.x = e.clientX; mouse.y = e.clientY;
+  if(setupSliderDrag){
+    settings[setupSliderDrag.key]=Math.max(0,Math.min(1,(mouse.x-setupSliderDrag.trackX)/setupSliderDrag.trackW));
+    _saveSettings();_applyVolumes();
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════
