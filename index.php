@@ -4774,7 +4774,7 @@ function drawHangarScreen(){
   roundRect(ctx,elX,elY,elW,elH,6);ctx.stroke();ctx.shadowBlur=0;
   ctx.textAlign='center';ctx.font='bold 12px "Courier New"';
   ctx.fillStyle=elHov?'#000':'rgba(100,200,255,0.9)';
-  ctx.fillText('EDIT LOADOUT',cx,elY+elH/2+4);ctx.textAlign='left';
+  ctx.fillText('EDIT LOADOUT',cx,elY+elH/2+4);
 
   // ── Bottom buttons ───────────────────────────────────────────
   const cancelHov=mouse.x>cancelX&&mouse.x<cancelX+cancelW&&mouse.y>btnY&&mouse.y<btnY+btnH;
@@ -4783,7 +4783,7 @@ function drawHangarScreen(){
   ctx.strokeStyle=cancelHov?'rgba(220,80,50,0.8)':'rgba(130,50,30,0.5)';ctx.lineWidth=1.8;
   roundRect(ctx,cancelX,btnY,cancelW,btnH,8);ctx.stroke();
   ctx.font='bold 13px "Courier New"';ctx.fillStyle=cancelHov?'#ff8866':'rgba(200,100,70,0.8)';
-  ctx.fillText('✕  CANCEL',cancelX+cancelW/2,btnY+btnH/2+5);
+  ctx.textAlign='center';ctx.fillText('✕  CANCEL',cancelX+cancelW/2,btnY+btnH/2+5);
 
   const saveHov=mouse.x>saveX&&mouse.x<saveX+saveW&&mouse.y>btnY&&mouse.y<btnY+btnH;
   ctx.shadowBlur=saveHov?22:8;ctx.shadowColor='#ff8800';
@@ -4791,7 +4791,7 @@ function drawHangarScreen(){
   roundRect(ctx,saveX,btnY,saveW,btnH,8);ctx.fill();
   ctx.strokeStyle='#ff8800';ctx.lineWidth=2;roundRect(ctx,saveX,btnY,saveW,btnH,8);ctx.stroke();ctx.shadowBlur=0;
   ctx.font='bold 14px "Courier New"';ctx.fillStyle=saveHov?'#000':'#ff8800';
-  ctx.fillText('✔  SAVE CHANGES',saveX+saveW/2,btnY+btnH/2+5);
+  ctx.textAlign='center';ctx.fillText('✔  SAVE CHANGES',saveX+saveW/2,btnY+btnH/2+5);
 
   ctx.textAlign='left';
 }
