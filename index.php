@@ -3866,66 +3866,58 @@ function hudBar(x,y,w,h,val,max,color,label){
 }
 function drawWeaponBar(){
   const T=IS_TOUCH;
-  const bw=T?24:38, bh=T?24:38, gap=T?3:5;
-  const total=WEAPONS.length, bx=(canvas.width-total*(bw+gap)+gap)/2, by=weaponBarY();
+  const bw=T?28:42, bh=T?28:42, gap=T?4:6;
+  const total=P.loadout.length, bx=(canvas.width-total*(bw+gap)+gap)/2, by=weaponBarY();
   const pad=T?4:8;
   ctx.fillStyle='rgba(0,0,0,0.42)';ctx.fillRect(bx-pad,by-pad,total*(bw+gap)+pad+gap,bh+pad*2+(T?10:16));
   ctx.strokeStyle='rgba(0,100,180,0.3)';ctx.lineWidth=1;ctx.strokeRect(bx-pad,by-pad,total*(bw+gap)+pad+gap,bh+pad*2+(T?10:16));
+  const GLYPHS=['•','►','»','↩','∿','↯','|','↪','⊙','‖','⊸','◈','◎','⊞','⊛','⇝','⬆','⊕','⌬','◉','⊗','≋','※'];
   for(let i=0;i<total;i++){
-    const w=WEAPONS[i],x=bx+i*(bw+gap),un=P.unlockedW.has(i),act=i===P.weaponIdx;
+    const wIdx=P.loadout[i],w=WEAPONS[wIdx],x=bx+i*(bw+gap),act=wIdx===P.weaponIdx;
     const wStock=w.stock!==null&&w.id!=='mine'?P.stocks[w.id]??w.stock:null;
-    const noAmmo=(w.id==='mine'&&P.mineStock<=0&&un)||(w.id==='seekr'&&P.seekStock<=0&&un)||(wStock!==null&&wStock<=0&&un);
-    const mmActive=w.id==='minime'&&miniMe.active&&un;
-    const mmLost  =w.id==='minime'&&miniMe.lost&&un;
-    ctx.fillStyle=act?'rgba(0,0,0,0.9)':un?'rgba(0,0,0,0.5)':'rgba(0,0,0,0.3)';ctx.fillRect(x,by,bw,bh);
-    // Border: teal pulse when minime is active, red when lost, normal otherwise
-    const borderCol=act?(noAmmo||mmLost?'#ff4400':mmActive?MM_COL:w.color):mmActive?MM_COL:mmLost?'rgba(180,50,50,0.5)':un?'rgba(50,80,110,0.6)':'rgba(18,35,55,0.4)';
+    const noAmmo=(w.id==='mine'&&P.mineStock<=0)||(w.id==='seekr'&&P.seekStock<=0)||(wStock!==null&&wStock<=0);
+    const mmActive=w.id==='minime'&&miniMe.active;
+    const mmLost  =w.id==='minime'&&miniMe.lost;
+    ctx.fillStyle=act?'rgba(0,0,0,0.9)':'rgba(0,0,0,0.5)';ctx.fillRect(x,by,bw,bh);
+    const borderCol=act?(noAmmo||mmLost?'#ff4400':mmActive?MM_COL:w.color):mmActive?MM_COL:mmLost?'rgba(180,50,50,0.5)':'rgba(50,80,110,0.6)';
     ctx.strokeStyle=borderCol;
     ctx.lineWidth=act?2:mmActive?1.8:1;ctx.shadowBlur=act?(T?8:16):mmActive?10:0;ctx.shadowColor=mmActive?MM_COL:w.color;ctx.strokeRect(x,by,bw,bh);ctx.shadowBlur=0;
     ctx.textAlign='center';
-    const numSz=T?6:8, iconSz=T?11:16;
-    if(!un){
-      ctx.font=`${T?10:15}px sans-serif`;ctx.fillStyle='rgba(35,55,80,0.5)';ctx.fillText('⬛',x+bw/2,by+bh/2+(T?4:6));
-      ctx.font=`${numSz}px "Courier New"`;ctx.fillStyle='rgba(40,65,90,0.5)';ctx.fillText(`${i+1}`,x+bw-(T?3:5),by+(T?8:12));
-    } else {
-      const iconCol=act?(noAmmo||mmLost?'#ff4400':mmActive?MM_COL:w.color):mmActive?MM_COL:mmLost?'rgba(180,50,50,0.7)':'rgba(65,95,120,0.7)';
-      ctx.font=`${act?'bold ':''}${numSz}px "Courier New"`;ctx.fillStyle=act?(noAmmo||mmLost?'#ff4400':mmActive?MM_COL:w.color):'rgba(70,100,130,0.8)';
-      ctx.fillText(`${i+1}`,x+bw-(T?3:5),by+(T?8:12));
-      ctx.font=`${act?'bold ':''}${iconSz}px "Courier New"`;ctx.fillStyle=iconCol;
-      ctx.fillText(['•','►','»','↩','∿','↯','|','↪','⊙','‖','⊸','◈','◎','⊞','⊛','⇝','⬆','⊕','⌬','◉','⊗','≋','※'][i],x+bw/2,by+bh/2+(T?5:7));
-      // Stock count label (mine uses mineStock; others use wStock; null = unlimited, no label)
-      if(w.id==='mine'){
-        ctx.font=`bold ${T?7:9}px "Courier New"`;
-        ctx.fillStyle=P.mineStock>0?(act?'#ff2200':'rgba(180,60,30,0.8)'):'rgba(100,50,40,0.6)';
-        ctx.fillText(`×${P.mineStock}`,x+bw/2,by+bh-(T?2:4));
-      } else if(w.id==='seekr'){
-        ctx.font=`bold ${T?7:9}px "Courier New"`;
-        ctx.fillStyle=P.seekStock>0?(act?SEEKR_COL:'rgba(180,130,30,0.8)'):'rgba(100,50,40,0.6)';
-        ctx.fillText(`×${P.seekStock}`,x+bw/2,by+bh-(T?2:4));
-      } else if(w.id==='tractor'){
-        const secLeft=(P.stocks['tractor']||0)/1000;
-        ctx.font=`bold ${T?7:9}px "Courier New"`;
-        ctx.fillStyle=secLeft>0?(act?'#44aaff':'rgba(60,130,200,0.8)'):'rgba(60,80,120,0.5)';
-        ctx.fillText(secLeft>0?`${Math.ceil(secLeft)}s`:'OUT',x+bw/2,by+bh-(T?2:4));
-      } else if(wStock!==null){
-        ctx.font=`bold ${T?7:9}px "Courier New"`;
-        // Format: show K suffix for large numbers
-        const label=wStock>=1000?`${Math.floor(wStock/1000)}k`:wStock<=0?'OUT':`×${wStock}`;
-        ctx.fillStyle=wStock>0?(act?w.color:'rgba(120,140,160,0.7)'):'rgba(200,60,60,0.7)';
-        ctx.fillText(label,x+bw/2,by+bh-(T?2:4));
-      }
-      // miniMe HP pip strip when active
-      if(w.id==='minime'&&miniMe.active){
-        const pw=bw-6,ph=T?2:3,px2=x+3,py2=by+bh-(T?3:5);
-        ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(px2,py2,pw,ph);
-        const hpPct=miniMe.hp/MM_HP;
-        ctx.fillStyle=hpPct>0.5?MM_COL:hpPct>0.25?'#ffaa00':'#ff3333';
-        ctx.fillRect(px2,py2,pw*hpPct,ph);
-      }
-      if(w.id==='minime'&&mmLost){
-        ctx.font=`bold ${T?7:9}px "Courier New"`;ctx.fillStyle='rgba(200,60,60,0.8)';
-        ctx.fillText('KIA',x+bw/2,by+bh-(T?2:4));
-      }
+    const numSz=T?7:9, iconSz=T?12:17;
+    const iconCol=act?(noAmmo||mmLost?'#ff4400':mmActive?MM_COL:w.color):mmActive?MM_COL:mmLost?'rgba(180,50,50,0.7)':'rgba(65,95,120,0.7)';
+    ctx.font=`${act?'bold ':''}${numSz}px "Courier New"`;ctx.fillStyle=act?(noAmmo||mmLost?'#ff4400':mmActive?MM_COL:w.color):'rgba(70,100,130,0.8)';
+    ctx.fillText(i<9?`${i+1}`:'0',x+bw-(T?3:5),by+(T?8:12));
+    ctx.font=`${act?'bold ':''}${iconSz}px "Courier New"`;ctx.fillStyle=iconCol;
+    ctx.fillText(GLYPHS[wIdx]||'?',x+bw/2,by+bh/2+(T?5:7));
+    if(w.id==='mine'){
+      ctx.font=`bold ${T?7:9}px "Courier New"`;
+      ctx.fillStyle=P.mineStock>0?(act?'#ff2200':'rgba(180,60,30,0.8)'):'rgba(100,50,40,0.6)';
+      ctx.fillText(`×${P.mineStock}`,x+bw/2,by+bh-(T?2:4));
+    } else if(w.id==='seekr'){
+      ctx.font=`bold ${T?7:9}px "Courier New"`;
+      ctx.fillStyle=P.seekStock>0?(act?SEEKR_COL:'rgba(180,130,30,0.8)'):'rgba(100,50,40,0.6)';
+      ctx.fillText(`×${P.seekStock}`,x+bw/2,by+bh-(T?2:4));
+    } else if(w.id==='tractor'){
+      const secLeft=(P.stocks['tractor']||0)/1000;
+      ctx.font=`bold ${T?7:9}px "Courier New"`;
+      ctx.fillStyle=secLeft>0?(act?'#44aaff':'rgba(60,130,200,0.8)'):'rgba(60,80,120,0.5)';
+      ctx.fillText(secLeft>0?`${Math.ceil(secLeft)}s`:'OUT',x+bw/2,by+bh-(T?2:4));
+    } else if(wStock!==null){
+      ctx.font=`bold ${T?7:9}px "Courier New"`;
+      const label=wStock>=1000?`${Math.floor(wStock/1000)}k`:wStock<=0?'OUT':`×${wStock}`;
+      ctx.fillStyle=wStock>0?(act?w.color:'rgba(120,140,160,0.7)'):'rgba(200,60,60,0.7)';
+      ctx.fillText(label,x+bw/2,by+bh-(T?2:4));
+    }
+    if(w.id==='minime'&&miniMe.active){
+      const pw=bw-6,ph=T?2:3,px2=x+3,py2=by+bh-(T?3:5);
+      ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(px2,py2,pw,ph);
+      const hpPct=miniMe.hp/MM_HP;
+      ctx.fillStyle=hpPct>0.5?MM_COL:hpPct>0.25?'#ffaa00':'#ff3333';
+      ctx.fillRect(px2,py2,pw*hpPct,ph);
+    }
+    if(w.id==='minime'&&mmLost){
+      ctx.font=`bold ${T?7:9}px "Courier New"`;ctx.fillStyle='rgba(200,60,60,0.8)';
+      ctx.fillText('KIA',x+bw/2,by+bh-(T?2:4));
     }
   }
   ctx.textAlign='center';
