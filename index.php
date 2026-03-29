@@ -508,8 +508,39 @@ const CRAFTS=[
     startWeapon:0,damageMult:1.0,detMult:0.62,startEMP:true,
     defaultColor:'#aa44ff',
   },
+  {
+    id:'sniper',name:'SNIPER',sub:'PRECISION CLASS',
+    desc:'Long-range elimination specialist. Patience is a weapon — the longer between shots, the greater the damage.',
+    stats:{speed:4,armor:1,fire:2,battery:3},
+    hp:62,spd:6.0,batDrain:2.2,size:15,drag:0.85,
+    ability:'DEAD EYE  —  Damage scales ×1–3 with time between shots (max at 2s)',
+    startWeapon:11,damageMult:1.0,detMult:1.0,
+    defaultColor:'#44ffcc',
+  },
+  {
+    id:'carrier',name:'CARRIER',sub:'COMMAND CLASS',
+    desc:'Deploys two attack drones that engage nearby enemies autonomously. Command field slows hostile fire rate.',
+    stats:{speed:2,armor:3,fire:3,battery:4},
+    hp:140,spd:3.8,batDrain:1.8,size:22,drag:0.91,
+    ability:'COMMAND FIELD  —  2 attack drones + enemy fire rate –25% in range',
+    startWeapon:0,damageMult:1.0,detMult:1.0,
+    defaultColor:'#00aaff',
+  },
+  {
+    id:'skirmisher',name:'SKIRMISHER',sub:'AGILITY CLASS',
+    desc:'Lowest drag in the fleet. Sharp direction reversals under fire trigger split-second dodge frames.',
+    stats:{speed:4,armor:2,fire:4,battery:2},
+    hp:80,spd:6.5,batDrain:2.9,size:16,drag:0.78,
+    ability:'SLIP STREAM  —  Direction reversal under fire grants 0.4s invincibility',
+    startWeapon:10,damageMult:1.0,detMult:1.0,
+    defaultColor:'#ff44aa',
+  },
 ];
 const HANGAR_VISIBLE=4;
+
+const SNIPER_IDX=()=>CRAFTS.findIndex(c=>c.id==='sniper');
+const CARRIER_IDX=()=>CRAFTS.findIndex(c=>c.id==='carrier');
+const SKIRMISHER_IDX=()=>CRAFTS.findIndex(c=>c.id==='skirmisher');
 
 // ─── SELECTION STATE ─────────────────────────────────────────────
 const HANGAR_CRAFT_KEY='pw_hangar_craft';
@@ -536,6 +567,7 @@ function _applyVolumes(){
 let selectedCraft=0,selectedColor='#00ddff',hoverCard=-1,hoverSwatch=-1;
 // Hangar state — separate working copies while editing in the Hangar screen
 let hangarCraft=0,hangarColor='#00ddff',hangarScroll=0;
+let deadEyeMs=0, carrierDrones=[], slipstreamMs=0, slipPrevVx=0, slipPrevVy=0;
 const SWATCHES=['#00ddff','#ff3300','#ffee00','#00ff88','#ff00aa','#aa44ff','#ffffff','#44ffcc','#ff8800','#88aaff'];
 colorPick.addEventListener('input',e=>{
   // Update whichever context is active
@@ -1278,7 +1310,8 @@ function fireWeapon(){
     fractals.push({segs, life:700, maxLife:700, ox:originX, oy:originY, vx:P.vx, vy:P.vy, dmg:DMG, hitSet});
     SFX.fractal(); Music.onShot(); return;
   }
-  const dmg=w.dmg*(P.overchargeMs>0?2.3:1),half=(w.count-1)/2;
+  const deadEyeMult=P.craftIdx===SNIPER_IDX()?Math.min(3.0,1.0+(deadEyeMs/2000)*2.0):1.0;
+  const dmg=w.dmg*(P.overchargeMs>0?2.3:1)*deadEyeMult,half=(w.count-1)/2;
   if(w.id==='boomr'){
     const spd=13;
     boomerangs.push({
@@ -1626,13 +1659,108 @@ function drawEnemyDrone(x,y,aim,sz,col,acc,spin,hp=1){
   ctx.restore();
 }
 
+  // ── SNIPER  elongated dart — long barrel, narrow fuselage, rear fins ─────
+function drawSniper(x,y,aim,sz,col,acc,spin,hp=1){
+  ctx.save();ctx.translate(x,y);
+  ctx.shadowBlur=16;ctx.shadowColor=col;
+  // Elongated fuselage
+  ctx.save();ctx.rotate(aim);
+  ctx.fillStyle='rgba(4,9,22,0.95)';ctx.strokeStyle=col;ctx.lineWidth=1.8;
+  ctx.beginPath();ctx.ellipse(sz*0.4,0,sz*1.4,sz*0.28,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+  // Long barrel
+  ctx.fillStyle=acc;ctx.shadowBlur=10;ctx.shadowColor=acc;
+  ctx.fillRect(sz*0.9,-2.2,sz*2.1,4.4);
+  ctx.beginPath();ctx.arc(sz*0.9+sz*2.1,0,2.5,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+  ctx.restore();
+  // Two rear stabiliser fins
+  const finA=[Math.PI*0.82,Math.PI*1.18];
+  for(const a of finA){
+    ctx.beginPath();ctx.moveTo(Math.cos(aim)*(-sz*0.7),Math.sin(aim)*(-sz*0.7));
+    ctx.lineTo(Math.cos(aim+a)*sz*0.9,Math.sin(aim+a)*sz*0.9);
+    ctx.strokeStyle=col;ctx.lineWidth=1.5;ctx.globalAlpha=0.7;ctx.stroke();ctx.globalAlpha=1;
+  }
+  // Core
+  ctx.beginPath();ctx.arc(0,0,3.5,0,Math.PI*2);ctx.fillStyle=acc;ctx.shadowColor=acc;ctx.shadowBlur=12;ctx.fill();
+  if(hp<0.3&&Math.floor(Date.now()/120)%2===0){ctx.beginPath();ctx.arc(0,0,sz*0.7,0,Math.PI*2);ctx.fillStyle='rgba(255,80,0,0.18)';ctx.fill();}
+  ctx.restore();
+}
+
+// ── CARRIER  wide hexagonal hull, side hardpoints, command dish ──────────
+function drawCarrier(x,y,aim,sz,col,acc,spin,hp=1){
+  ctx.save();ctx.translate(x,y);
+  ctx.shadowBlur=20;ctx.shadowColor=col;
+  // Wide hexagonal body
+  const bs=sz*0.68;
+  ctx.beginPath();for(let i=0;i<6;i++){const a=(Math.PI/3)*i+Math.PI/6;i===0?ctx.moveTo(Math.cos(a)*bs,Math.sin(a)*bs):ctx.lineTo(Math.cos(a)*bs,Math.sin(a)*bs);}ctx.closePath();
+  ctx.fillStyle='rgba(5,10,25,0.96)';ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=2.5;ctx.stroke();
+  // Side hardpoints (drone dock positions)
+  const hpA=[Math.PI*0.5,Math.PI*1.5];
+  for(const a of hpA){
+    const hx=Math.cos(a)*sz*0.9,hy=Math.sin(a)*sz*0.9;
+    ctx.beginPath();ctx.arc(hx,hy,5,0,Math.PI*2);
+    ctx.fillStyle='rgba(5,10,25,0.9)';ctx.fill();ctx.strokeStyle=acc;ctx.lineWidth=1.5;ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(hx,hy);ctx.strokeStyle=col;ctx.lineWidth=1.2;ctx.globalAlpha=0.4;ctx.stroke();ctx.globalAlpha=1;
+  }
+  // Command array (small dish on forward face)
+  ctx.save();ctx.rotate(aim);
+  ctx.strokeStyle=acc;ctx.lineWidth=1.2;ctx.globalAlpha=0.75;
+  ctx.beginPath();ctx.arc(bs*0.7,0,sz*0.22,Math.PI*0.6,Math.PI*1.4);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(bs*0.7,0);ctx.lineTo(bs*0.7+sz*0.22,0);ctx.stroke();
+  ctx.globalAlpha=1;ctx.restore();
+  // Gun barrel
+  ctx.save();ctx.rotate(aim);ctx.fillStyle=acc;ctx.shadowBlur=8;ctx.shadowColor=acc;
+  ctx.fillRect(bs*0.52,-3,bs*0.85,6);
+  ctx.beginPath();ctx.arc(bs*0.52+bs*0.85,0,2.5,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+  ctx.restore();
+  // Core
+  ctx.beginPath();ctx.arc(0,0,5,0,Math.PI*2);ctx.fillStyle=acc;ctx.shadowColor=acc;ctx.shadowBlur=16;ctx.fill();
+  if(hp<0.3&&Math.floor(Date.now()/120)%2===0){ctx.beginPath();ctx.arc(0,0,sz*0.8,0,Math.PI*2);ctx.fillStyle='rgba(255,80,0,0.15)';ctx.fill();}
+  ctx.restore();
+}
+
+// ── SKIRMISHER  swept chevron delta wing, no rotors, engine glow ─────────
+function drawSkirmisher(x,y,aim,sz,col,acc,spin,hp=1){
+  ctx.save();ctx.translate(x,y);
+  ctx.shadowBlur=18;ctx.shadowColor=col;
+  ctx.save();ctx.rotate(aim);
+  // Delta/chevron wing body
+  ctx.beginPath();
+  ctx.moveTo(sz*1.1,0);       // nose
+  ctx.lineTo(-sz*0.6,sz*0.9); // port rear
+  ctx.lineTo(-sz*0.3,0);      // center notch
+  ctx.lineTo(-sz*0.6,-sz*0.9);// starboard rear
+  ctx.closePath();
+  ctx.fillStyle='rgba(4,9,22,0.95)';ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=1.8;ctx.stroke();
+  // Swept inner accent line
+  ctx.strokeStyle=acc;ctx.lineWidth=0.9;ctx.globalAlpha=0.45;
+  ctx.beginPath();ctx.moveTo(sz*0.7,0);ctx.lineTo(-sz*0.3,sz*0.55);ctx.moveTo(sz*0.7,0);ctx.lineTo(-sz*0.3,-sz*0.55);ctx.stroke();
+  ctx.globalAlpha=1;
+  // Engine glow at rear
+  const engGlow=0.55+0.45*Math.sin(Date.now()/110);
+  ctx.beginPath();ctx.arc(-sz*0.48,0,sz*0.32,0,Math.PI*2);
+  ctx.fillStyle=`rgba(255,68,170,${0.18*engGlow})`;ctx.fill();
+  ctx.strokeStyle=`rgba(255,68,170,${0.5*engGlow})`;ctx.lineWidth=1;ctx.stroke();
+  // Barrel
+  ctx.fillStyle=acc;ctx.shadowBlur=8;ctx.shadowColor=acc;
+  ctx.fillRect(sz*0.5,-2,sz*0.9,4);
+  ctx.beginPath();ctx.arc(sz*0.5+sz*0.9,0,2,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+  ctx.restore();
+  // Core
+  ctx.beginPath();ctx.arc(0,0,3.5,0,Math.PI*2);ctx.fillStyle=acc;ctx.shadowColor=acc;ctx.shadowBlur=14;ctx.fill();
+  if(hp<0.3&&Math.floor(Date.now()/120)%2===0){ctx.beginPath();ctx.arc(0,0,sz*0.75,0,Math.PI*2);ctx.fillStyle='rgba(255,80,0,0.18)';ctx.fill();}
+  ctx.restore();
+}
+
 // Dispatcher for player craft
 function drawPlayerCraft(x,y,aim,sz,col,acc,spin,hp){
   const id=CRAFTS[P.craftIdx].id;
   if(id==='phantom')drawPhantom(x,y,aim,sz,col,acc,spin,hp);
   else if(id==='viper')drawViper(x,y,aim,sz,col,acc,spin,hp);
   else if(id==='titan')drawTitan(x,y,aim,sz,col,acc,spin,hp);
-  else drawSpecter(x,y,aim,sz,col,acc,spin,hp);
+  else if(id==='specter')drawSpecter(x,y,aim,sz,col,acc,spin,hp);
+  else if(id==='sniper')drawSniper(x,y,aim,sz,col,acc,spin,hp);
+  else if(id==='carrier')drawCarrier(x,y,aim,sz,col,acc,spin,hp);
+  else if(id==='skirmisher')drawSkirmisher(x,y,aim,sz,col,acc,spin,hp);
 }
 
 // ─── PLAYER ──────────────────────────────────────────────────────
@@ -1664,6 +1792,8 @@ function resetPlayer(){
     stocks:mkStocks(),mineStock:0,seekStock:0,noAmmoCount:0,sawtoothAngle:0,
   });
   if(c.startEMP){empFlash=750;eBullets.length=0;}
+  carrierDrones=[];if(c.id==='carrier') _initCarrierDrones();
+  deadEyeMs=0;slipstreamMs=0;slipPrevVx=0;slipPrevVy=0;
   P.color=selectedColor;
 }
 function triggerEMP(){
@@ -1675,8 +1805,67 @@ function triggerEMP(){
   });
   spawnParts(P.x,P.y,'#dd55ff',_pCount(28),10,7,600);SFX.emp();
 }
+function _initCarrierDrones(){
+  carrierDrones=[
+    {angle:0,       hp:40,maxHp:40,respawnMs:-1,x:P.x,y:P.y,lastFired:0},
+    {angle:Math.PI, hp:40,maxHp:40,respawnMs:-1,x:P.x,y:P.y,lastFired:0},
+  ];
+}
+function tickCarrierDrones(dt,now){
+  if(CRAFTS[P.craftIdx].id!=='carrier') return;
+  const ORBIT_R=65, FIRE_RANGE=280, FIRE_MS=900, DRONE_DMG=14, DRONE_SPD=12, RESPAWN_MS=10000;
+  for(let d=0;d<carrierDrones.length;d++){
+    const dr=carrierDrones[d];
+    if(dr.hp<=0){
+      dr.respawnMs-=dt*1000;
+      if(dr.respawnMs<=0){dr.hp=dr.maxHp;dr.respawnMs=-1;}
+      continue;
+    }
+    dr.angle=P.rotor+d*Math.PI;
+    dr.x=P.x+Math.cos(dr.angle)*ORBIT_R;
+    dr.y=P.y+Math.sin(dr.angle)*ORBIT_R;
+    if(now-dr.lastFired>FIRE_MS){
+      let bestD=Infinity,bestI=-1;
+      for(let i=0;i<enemies.length;i++){
+        const ed=dist(dr.x,dr.y,enemies[i].x,enemies[i].y);
+        if(ed<FIRE_RANGE&&ed<bestD){bestD=ed;bestI=i;}
+      }
+      if(bestI>=0){
+        const ang=Math.atan2(enemies[bestI].y-dr.y,enemies[bestI].x-dr.x);
+        pBullets.push({x:dr.x,y:dr.y,vx:Math.cos(ang)*DRONE_SPD,vy:Math.sin(ang)*DRONE_SPD,life:1700,dmg:DRONE_DMG,bSz:2.5,color:'#00aaff',stun:false});
+        dr.lastFired=now;
+      }
+    }
+  }
+}
+function drawCarrierDrones(){
+  if(CRAFTS[P.craftIdx].id!=='carrier') return;
+  const now=Date.now();
+  for(const dr of carrierDrones){
+    if(dr.hp<=0) continue;
+    const sx=dr.x-camX, sy=dr.y-camY;
+    ctx.save();ctx.translate(sx,sy);ctx.shadowBlur=12;ctx.shadowColor='#00aaff';
+    // Small hexagonal drone body
+    ctx.beginPath();for(let i=0;i<6;i++){const a=(Math.PI/3)*i;i===0?ctx.moveTo(Math.cos(a)*8,Math.sin(a)*8):ctx.lineTo(Math.cos(a)*8,Math.sin(a)*8);}ctx.closePath();
+    ctx.fillStyle='rgba(0,50,100,0.85)';ctx.fill();ctx.strokeStyle='#00aaff';ctx.lineWidth=1.3;ctx.stroke();
+    ctx.beginPath();ctx.arc(0,0,2.5,0,Math.PI*2);ctx.fillStyle='#00aaff';ctx.shadowBlur=8;ctx.fill();
+    // HP ring if damaged
+    if(dr.hp<dr.maxHp){
+      const frac=dr.hp/dr.maxHp;
+      ctx.beginPath();ctx.arc(0,0,11,0,Math.PI*2*frac);ctx.strokeStyle=frac>0.5?'#44ff88':'#ff6644';ctx.lineWidth=2;ctx.stroke();
+    }
+    ctx.shadowBlur=0;ctx.restore();
+    // Orbit ring (subtle)
+    const px=P.x-camX, py=P.y-camY;
+    ctx.beginPath();ctx.arc(px,py,65,0,Math.PI*2);ctx.strokeStyle='rgba(0,170,255,0.1)';ctx.lineWidth=1;ctx.stroke();
+  }
+}
 function tickPlayer(dt,now){
   if(!P.alive)return;
+  // ── Special mechanic ticks ──
+  if(P.craftIdx===SNIPER_IDX()) deadEyeMs+=dt*1000;
+  // Track previous velocity for SLIP STREAM reversal detection
+  const _prevVx=slipPrevVx, _prevVy=slipPrevVy;
   // Touch boost: left stick pushed to >85% of max radius
   const touchBoost = IS_TOUCH && touchSticks.L.active &&
     Math.sqrt(touchSticks.L.dx**2+touchSticks.L.dy**2)/STICK_R > 0.88;
@@ -1769,6 +1958,7 @@ function tickPlayer(dt,now){
         '#44aaff',_pCount(1),1.2,2.5,200
       );
     }
+    if(P.craftIdx===SNIPER_IDX()) deadEyeMs=0;
     P.lastShot=now;
   }
   // Detect weapons that are out of usable ammo
@@ -1791,9 +1981,26 @@ function tickPlayer(dt,now){
     } else {
       P.noAmmoCount=0;
       fireWeapon();
+      deadEyeMs=0;
     }
     P.lastShot=now;
   }
+  // ── SLIP STREAM — direction reversal under fire ──
+  const skirmIdx=SKIRMISHER_IDX();
+  if(P.craftIdx===skirmIdx&&P.iframes===0){
+    const prevSpd=Math.sqrt(_prevVx*_prevVx+_prevVy*_prevVy);
+    const curSpd=Math.sqrt(P.vx*P.vx+P.vy*P.vy);
+    if(prevSpd>0.5&&curSpd>0.5){
+      const dot=(_prevVx*P.vx+_prevVy*P.vy)/(prevSpd*curSpd);
+      const angleDiff=Math.acos(Math.max(-1,Math.min(1,dot)))*180/Math.PI;
+      if(angleDiff>110){
+        const nearFire=eBullets.some(b=>dist(b.x,b.y,P.x,P.y)<180);
+        if(nearFire){P.iframes=400;slipstreamMs=400;SFX.shield();}
+      }
+    }
+  }
+  slipPrevVx=P.vx; slipPrevVy=P.vy;
+  if(slipstreamMs>0) slipstreamMs-=dt*1000;
   if(P.hp<=0)P.alive=false;
   if(gameMode==='timetrial'&&(ttLevel===1||ttLevel===3)&&!ttFinished&&P.x>=(ttLevel===3?DBD_FINISH_X:TT_FINISH_X)){
     ttFinished=true;ttElapsed=performance.now()-ttStartTime;
@@ -2002,7 +2209,9 @@ function tickEnemies(dt,now){
       e.vx*=e.drag;e.vy*=e.drag;e.x=clamp(e.x+e.vx*dt*60,e.size,WORLD_W-e.size);e.y=clamp(e.y+e.vy*dt*60,e.size,WORLD_H-e.size);
       pushOutObs(e,e.size);
     }
-    if(e.state==='attack'&&!fireStunned&&P.alive&&now-e.lastFired>e.fireMs){
+    const cmdField=CRAFTS[P.craftIdx].id==='carrier'&&dist(e.x,e.y,P.x,P.y)<320;
+    const effectiveFireMs=cmdField?e.fireMs*1.25:e.fireMs;
+    if(e.state==='attack'&&!fireStunned&&P.alive&&now-e.lastFired>effectiveFireMs){
       // Infected: target nearest non-infected enemy instead of player
       if(e.infected){
         let nearestFoe=null,nearestD=Infinity;
@@ -2843,6 +3052,22 @@ function checkCollisions(){
         }
         continue;
       }
+      // Carrier drones intercept enemy bullets
+      if(carrierDrones.length){
+        let droneHit=false;
+        for(let d=0;d<carrierDrones.length;d++){
+          const dr=carrierDrones[d];
+          if(dr.hp<=0) continue;
+          if(dist2(b.x,b.y,dr.x,dr.y)<10*10){
+            dr.hp-=b.dmg;
+            spawnParts(b.x,b.y,'#00aaff',_pCount(5),2,3,200);
+            eBullets.splice(bi,1);
+            if(dr.hp<=0){dr.hp=0;dr.respawnMs=10000;spawnParts(dr.x,dr.y,'#00aaff',_pCount(12),3,5,500);if(settings.screenShake)shake=6;}
+            droneHit=true;break;
+          }
+        }
+        if(droneHit) continue;
+      }
       const hitR=P.size+(b.isBrute?b.bSz*0.6:0);
       if(b.fromInfected) continue; // infected ally bullets never hurt player
       if(dist2(b.x,b.y,P.x,P.y)<hitR*hitR){
@@ -3057,6 +3282,13 @@ function drawHUD(){
   if(P.overchargeMs>0){ctx.fillStyle='#ff9900';ctx.shadowBlur=8;ctx.shadowColor='#ff9900';ctx.font=`bold ${statusSz}px "Courier New"`;ctx.fillText(`OVR ${(P.overchargeMs/1000).toFixed(1)}s`,pad,sRow);sRow+=statusGap;ctx.shadowBlur=0;}
   if(P.invincMs>0){ctx.fillStyle='#ffffff';ctx.shadowBlur=10;ctx.shadowColor='#aaddff';ctx.font=`bold ${statusSz}px "Courier New"`;ctx.fillText(`INVINCIBLE ${(P.invincMs/1000).toFixed(1)}s`,pad,sRow);sRow+=statusGap;ctx.shadowBlur=0;}
   if(P.cloakMs>0){ctx.fillStyle='#88ffee';ctx.shadowBlur=8;ctx.shadowColor='#44ffcc';ctx.font=`bold ${statusSz}px "Courier New"`;ctx.fillText(`CLOAKED ${(P.cloakMs/1000).toFixed(1)}s`,pad,sRow);sRow+=statusGap;ctx.shadowBlur=0;}
+  if(CRAFTS[P.craftIdx].id==='sniper'&&deadEyeMs>0){
+    const mult=Math.min(3.0,1.0+(deadEyeMs/2000)*2.0);
+    const col=mult>=2.8?'#ff4444':mult>=2.0?'#ffaa00':'#44ffcc';
+    ctx.fillStyle=col;ctx.shadowBlur=8;ctx.shadowColor=col;
+    ctx.font=`bold ${statusSz}px "Courier New"`;
+    ctx.fillText(`DEAD EYE  ×${mult.toFixed(1)}`,pad,sRow);sRow+=statusGap;ctx.shadowBlur=0;
+  }
   if(!T){ctx.font='11px "Courier New"';ctx.fillStyle='rgba(90,140,200,0.7)';ctx.fillText(`KILLS: ${P.kills}  |  WEAPONS: ${P.unlockedW.size}/${WEAPONS.length}`,pad,sRow);}
   // Score — label on top, number below, flush top-right
   const {scoreY,labelY}=trLayout();
@@ -3431,7 +3663,10 @@ function drawCraftCard(craft,cx,cy,idx,hov,sel){
   if(craft.id==='phantom')drawPhantom(cx,previewY,Math.PI*0.85+Math.sin(t*0.7)*0.25,isActive?22:18,craft.defaultColor,lighten(craft.defaultColor),spin);
   else if(craft.id==='viper')drawViper(cx,previewY,Math.PI*0.85+Math.sin(t*0.7)*0.25,isActive?22:18,craft.defaultColor,lighten(craft.defaultColor),spin);
   else if(craft.id==='titan')drawTitan(cx,previewY,Math.PI*0.85+Math.sin(t*0.7)*0.25,isActive?22:18,craft.defaultColor,lighten(craft.defaultColor),spin);
-  else drawSpecter(cx,previewY,Math.PI*0.85+Math.sin(t*0.7)*0.25,isActive?22:18,craft.defaultColor,lighten(craft.defaultColor),spin);
+  else if(craft.id==='specter')drawSpecter(cx,previewY,Math.PI*0.85+Math.sin(t*0.7)*0.25,isActive?22:18,craft.defaultColor,lighten(craft.defaultColor),spin);
+  else if(craft.id==='sniper')drawSniper(cx,previewY,Math.PI*0.85+Math.sin(t*0.7)*0.25,isActive?22:18,craft.defaultColor,lighten(craft.defaultColor),spin);
+  else if(craft.id==='carrier')drawCarrier(cx,previewY,Math.PI*0.85+Math.sin(t*0.7)*0.25,isActive?22:18,craft.defaultColor,lighten(craft.defaultColor),spin);
+  else if(craft.id==='skirmisher')drawSkirmisher(cx,previewY,Math.PI*0.85+Math.sin(t*0.7)*0.25,isActive?22:18,craft.defaultColor,lighten(craft.defaultColor),spin);
 
   // Name
   ctx.textAlign='center';ctx.font=`bold 16px "Courier New"`;
@@ -3543,7 +3778,10 @@ function drawColorSelectScreen(){
   if(craft.id==='phantom')drawPhantom(cx,previewY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,selectedColor,lighten(selectedColor),spin);
   else if(craft.id==='viper')drawViper(cx,previewY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,selectedColor,lighten(selectedColor),spin);
   else if(craft.id==='titan')drawTitan(cx,previewY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,selectedColor,lighten(selectedColor),spin);
-  else drawSpecter(cx,previewY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,selectedColor,lighten(selectedColor),spin);
+  else if(craft.id==='specter')drawSpecter(cx,previewY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,selectedColor,lighten(selectedColor),spin);
+  else if(craft.id==='sniper')drawSniper(cx,previewY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,selectedColor,lighten(selectedColor),spin);
+  else if(craft.id==='carrier')drawCarrier(cx,previewY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,selectedColor,lighten(selectedColor),spin);
+  else if(craft.id==='skirmisher')drawSkirmisher(cx,previewY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,selectedColor,lighten(selectedColor),spin);
 
   // Swatch label
   ctx.font='11px "Courier New"';ctx.fillStyle='rgba(80,130,185,0.7)';ctx.textAlign='center';
@@ -3650,6 +3888,9 @@ function drawHangarScreen(){
   else if(craft.id==='viper')drawViper(cx,previewCY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,hangarColor,lighten(hangarColor),spin);
   else if(craft.id==='titan')drawTitan(cx,previewCY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,hangarColor,lighten(hangarColor),spin);
   else if(craft.id==='specter')drawSpecter(cx,previewCY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,hangarColor,lighten(hangarColor),spin);
+  else if(craft.id==='sniper')drawSniper(cx,previewCY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,hangarColor,lighten(hangarColor),spin);
+  else if(craft.id==='carrier')drawCarrier(cx,previewCY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,hangarColor,lighten(hangarColor),spin);
+  else if(craft.id==='skirmisher')drawSkirmisher(cx,previewCY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,hangarColor,lighten(hangarColor),spin);
   else drawEnemyDrone(cx,previewCY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,hangarColor,lighten(hangarColor),spin);
   // Hex label below preview
   ctx.font=`bold ${Math.min(11,previewSize*0.35)}px "Courier New"`;ctx.fillStyle=hangarColor;ctx.shadowBlur=6;ctx.shadowColor=hangarColor;
@@ -7114,8 +7355,17 @@ function loop(now){
       if(gameMode==='timetrial') drawFinishLine();
       drawHUD();drawMinimap();drawCrosshair();drawTouchSticks();drawMiniMe();drawPortals();
     } else {
-    tickPlayer(dt,now);tickEnemies(dt,now);tickMiniMe(dt,now);tickBullets(dt);tickMines(dt);tickRockets(dt);tickSeekers(dt,now);tickBoomerangs(dt);tickHazards(dt,now);tickFractals(dt);tickParticles(dt);tickPickups(dt);tickLaserFlash(dt);tickPortal(dt);if(ttLevel===2)tickNukes(dt);if(ttLevel===4)tickJRRescue(dt);if(ttLevel===5)tickTNG(dt);tickHullBeep(now);checkCollisions();
-    drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawRockets();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();
+    tickPlayer(dt,now);tickCarrierDrones(dt,now);tickEnemies(dt,now);tickMiniMe(dt,now);tickBullets(dt);tickMines(dt);tickRockets(dt);tickSeekers(dt,now);tickBoomerangs(dt);tickHazards(dt,now);tickFractals(dt);tickParticles(dt);tickPickups(dt);tickLaserFlash(dt);tickPortal(dt);if(ttLevel===2)tickNukes(dt);if(ttLevel===4)tickJRRescue(dt);if(ttLevel===5)tickTNG(dt);tickHullBeep(now);checkCollisions();
+    drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawRockets();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();drawCarrierDrones();
+    if(slipstreamMs>0&&P.alive&&CRAFTS[P.craftIdx].id==='skirmisher'){
+      const sx=P.x-camX, sy=P.y-camY;
+      const alphaBase=slipstreamMs/400;
+      for(let g=1;g<=3;g++){
+        ctx.globalAlpha=alphaBase*(0.35-g*0.08);
+        drawSkirmisher(sx-Math.cos(P.aim)*g*8,sy-Math.sin(P.aim)*g*8,P.aim,P.size,'#ff44aa',lighten('#ff44aa'),P.rotor,P.hp/P.maxHp);
+      }
+      ctx.globalAlpha=1;
+    }
     if(gameMode==='timetrial') drawFinishLine();
     drawEMPFlash();drawLaserFlash();drawPortals();drawHUD();drawMinimap();drawCrosshair();drawTouchSticks();drawMiniMe();drawBossWarning(dt);
     }
