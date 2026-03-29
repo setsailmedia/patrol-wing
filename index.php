@@ -3419,9 +3419,9 @@ function checkCollisions(){
     if(playerHit||jrHit){
       if(jrHit&&!playerHit) spawnParts(pk.x,pk.y,'#44ffcc',_pCount(8),2.5,4,300); // J R pickup sparkle
       switch(pk.type){
-        case'battery':P.bat=Math.min(P.maxBat,P.bat+58);score+=50;spawnParts(pk.x,pk.y,'#00ff88',_pCount(14),3.5,5,420);SFX.pickup();break;
-        case'health':P.hp=Math.min(P.maxHp,P.hp+48);score+=50;spawnParts(pk.x,pk.y,'#ff4466',_pCount(14),3.5,5,420);SFX.pickup();break;
-        case'medkit':P.hp=Math.min(P.maxHp,P.hp+22);score+=30;spawnParts(pk.x,pk.y,'#44ffdd',_pCount(12),3,4.5,380);SFX.pickup();weaponFlash={name:'MEDKIT +22',ms:1400};break;
+        case'battery':P.bat=Math.min(P.maxBat,P.bat+58);score+=50;spawnParts(pk.x,pk.y,'#00ff88',_pCount(14),3.5,5,420);SFX.pickup();weaponFlash={prefix:'COLLECTED',name:'BATTERY PACK +58',ms:1400};break;
+        case'health':P.hp=Math.min(P.maxHp,P.hp+48);score+=50;spawnParts(pk.x,pk.y,'#ff4466',_pCount(14),3.5,5,420);SFX.pickup();weaponFlash={prefix:'COLLECTED',name:'HULL REPAIR +48',ms:1400};break;
+        case'medkit':P.hp=Math.min(P.maxHp,P.hp+22);score+=30;spawnParts(pk.x,pk.y,'#44ffdd',_pCount(12),3,4.5,380);SFX.pickup();weaponFlash={prefix:'COLLECTED',name:'MED KIT +22',ms:1400};break;
         case'weapon':
           if(P.unlockedW.size<WEAPONS.length){
             let next=0; while(P.unlockedW.has(next))next++;
@@ -3445,7 +3445,7 @@ function checkCollisions(){
               if(w.id==='mine') P.mineStock+=10;
               else if(w.id==='seekr') P.seekStock+=10;
               else P.stocks[w.id]=(P.stocks[w.id]||0)+10;
-              weaponFlash={name:`${w.name} +10 AMMO`,ms:2200};
+              weaponFlash={prefix:'COLLECTED',name:`AMMO +10 ${w.name}`,ms:2200};
               spawnParts(pk.x,pk.y,w.color,_pCount(14),3.5,5,380); SFX.weapon();
             } else {
               // Nothing depleted — fall back to battery
@@ -3463,7 +3463,7 @@ function checkCollisions(){
             if(pk.weaponId==='mine') P.mineStock+=pk.ammoAmt;
             else if(pk.weaponId==='seekr') P.seekStock+=pk.ammoAmt;
             else P.stocks[pk.weaponId]=(P.stocks[pk.weaponId]||0)+pk.ammoAmt;
-            weaponFlash={name:`${pk.weaponName} +${pk.ammoAmt}`,ms:2400};
+            weaponFlash={prefix:'COLLECTED',name:`AMMO +${pk.ammoAmt} ${pk.weaponName}`,ms:2400};
             spawnParts(pk.x,pk.y,pk.weaponColor||'#ccddff',_pCount(16),4,5.5,480);SFX.weapon();
           }
           break;
@@ -3471,12 +3471,12 @@ function checkCollisions(){
         case'invincibility':
           P.invincMs=5000;
           spawnParts(pk.x,pk.y,'#ffffff',_pCount(28),5,7,600);
-          weaponFlash={name:'INVINCIBLE 5s',ms:2400};
+          weaponFlash={prefix:'COLLECTED',name:'INVINCIBLE 5s',ms:2400};
           SFX.shield();break;
         case'cloak':
           P.cloakMs=5000;
           spawnParts(pk.x,pk.y,'#88ffee',_pCount(24),4,6,550);
-          weaponFlash={name:'CLOAK 5s',ms:2400};
+          weaponFlash={prefix:'COLLECTED',name:'CLOAK 5s',ms:2400};
           SFX.shield();break;
         case'portal':
           _activatePortal(pk.x,pk.y);
@@ -3484,7 +3484,7 @@ function checkCollisions(){
           SFX.emp();break;
         case'nuke_key':
           P.nukeKeys.add(pk.bombId);
-          weaponFlash={name:`${NUKE_NAMES[pk.bombId]} KEY ACQUIRED`,ms:2800};
+          weaponFlash={prefix:'COLLECTED',name:`${NUKE_NAMES[pk.bombId]} KEY`,ms:2800};
           spawnParts(pk.x,pk.y,NUKE_COLORS[pk.bombId],_pCount(20),4,6,500);SFX.weapon();break;
       }
       pickups.splice(pi,1);
@@ -3584,7 +3584,7 @@ function drawWeaponBar(){
   if(weaponFlash.ms>0){
     const a=Math.min(1,weaponFlash.ms/700);ctx.globalAlpha=a;
     ctx.font=`bold ${T?11:16}px "Courier New"`;ctx.fillStyle=cw.color;ctx.shadowBlur=T?14:24;ctx.shadowColor=cw.color;
-    ctx.fillText(`⬆ WEAPON: ${weaponFlash.name}`,canvas.width/2,by-(T?14:24));ctx.shadowBlur=0;ctx.globalAlpha=1;
+    ctx.fillText(`${weaponFlash.prefix??'⬆ WEAPON:'} ${weaponFlash.name}`,canvas.width/2,by-(T?14:24));ctx.shadowBlur=0;ctx.globalAlpha=1;
   }
   ctx.textAlign='left';
 }
@@ -6972,19 +6972,12 @@ canvas.addEventListener('mousemove',()=>{
     for(let i=hangarScroll;i<Math.min(hangarScroll+HANGAR_VISIBLE,CRAFTS.length);i++){const cardX=startX+(i-hangarScroll)*spacing;if(mouse.x>cardX-100&&mouse.x<cardX+100&&mouse.y>cardsCY-170&&mouse.y<cardsCY+170){hoverCard=i;break;}}
     for(let i=0;i<SWATCHES.length;i++){const sx=rowStartX+i*itemStep;if(dist(mouse.x,mouse.y,sx,swatchCY)<swatchR+8){hoverSwatch=i;break;}}
   }
-  // Pointer cursor
-  let _wantPointer=false;
+  // Track sound toggle hover for start screen highlight
   if(gameState==='start'){
-    const _mr=getMenuRects();
-    for(let i=0;i<_mr.length;i++){const{x,y,w,h}=_mr[i];if(mouse.x>=x&&mouse.x<=x+w&&mouse.y>=y&&mouse.y<=y+h){_wantPointer=true;break;}}
     const _sp=Math.max(14,canvas.width*0.02),_sw=Math.max(80,canvas.width*0.075),_sh=Math.max(28,canvas.height*0.042);
     const _sx=canvas.width-_sp-_sw,_sy=_sp;
-    const _overToggle=mouse.x>=_sx&&mouse.x<=_sx+_sw&&mouse.y>=_sy&&mouse.y<=_sy+_sh;
-    soundToggleHover=_overToggle;
-    if(_overToggle)_wantPointer=true;
+    soundToggleHover=mouse.x>=_sx&&mouse.x<=_sx+_sw&&mouse.y>=_sy&&mouse.y<=_sy+_sh;
   }
-  if(gameState==='setup')_wantPointer=_isOverSetupInteractive(mouse.x,mouse.y);
-  canvas.style.cursor=_wantPointer?'pointer':'default';
 });
 
 // ─── POINTER LOCK ────────────────────────────────────────────────
@@ -7696,7 +7689,7 @@ function loop(now){
   }
 
   // Cursor: hide during active play only when using Sawtooth (which has its own arc indicator)
-  canvas.style.cursor=(gameState==='playing')?'none':'default';
+  canvas.style.cursor=(gameState==='playing')?'none':'pointer';
 
   ctx.save();
   if(shake>0){ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake);shake*=0.77;if(shake<0.4)shake=0;}
