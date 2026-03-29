@@ -669,9 +669,9 @@ const GRAVWELL_R       =200;
 const GRAVWELL_CRUSH_R =80;
 const GRAVWELL_DPS     =12;
 const GRAVWELL_PULL    =1.8;
-const GRAVWELL_LIFE    =4000;
+const GRAVWELL_LIFE    =10000;
 const FARADAY_TRIGGER_R=100;
-const FARADAY_LIFE     =8000;
+const FARADAY_LIFE     =20000;
 const SHOCKWAVE_R      =280;
 const SHOCKWAVE_KB     =14;
 
