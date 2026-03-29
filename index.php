@@ -485,7 +485,7 @@ const CRAFTS=[
     hp:100,spd:5.2,batDrain:2.4,size:18,drag:0.87,
     ability:'ADAPTIVE  —  Weapon fire rate +5% per wave cleared',
     startWeapon:0,damageMult:1.0,detMult:1.0,
-    defaultColor:'#00ddff',
+    defaultColor:'#00ddff',maxSlots:7,
   },
   {
     id:'viper',name:'VIPER',sub:'ASSAULT CLASS',
@@ -494,7 +494,7 @@ const CRAFTS=[
     hp:72,spd:7.8,batDrain:3.9,size:14,drag:0.84,
     ability:'OVERDRIVE  —  Boost battery drains 60% slower',
     startWeapon:1,damageMult:1.0,detMult:1.0,
-    defaultColor:'#ff3300',
+    defaultColor:'#ff3300',maxSlots:4,
   },
   {
     id:'titan',name:'TITAN',sub:'HEAVY CLASS',
@@ -503,7 +503,7 @@ const CRAFTS=[
     hp:185,spd:3.3,batDrain:1.4,size:24,drag:0.90,
     ability:'IRON CRAFT  —  Incoming damage reduced 28%',
     startWeapon:3,damageMult:0.72,detMult:1.0,
-    defaultColor:'#ff8800',
+    defaultColor:'#ff8800',maxSlots:10,
   },
   {
     id:'specter',name:'SPECTER',sub:'STEALTH CLASS',
@@ -512,7 +512,7 @@ const CRAFTS=[
     hp:78,spd:6.2,batDrain:2.7,size:15,drag:0.85,
     ability:'GHOST FIELD  —  Enemy detection range –38%',
     startWeapon:0,damageMult:1.0,detMult:0.62,startEMP:true,
-    defaultColor:'#aa44ff',
+    defaultColor:'#aa44ff',maxSlots:6,
   },
   {
     id:'sniper',name:'SNIPER',sub:'PRECISION CLASS',
@@ -521,7 +521,7 @@ const CRAFTS=[
     hp:62,spd:6.0,batDrain:2.2,size:15,drag:0.85,
     ability:'DEAD EYE  —  Damage scales ×1–3 with time between shots (max at 2s)',
     startWeapon:11,damageMult:1.0,detMult:1.0,
-    defaultColor:'#44ffcc',
+    defaultColor:'#44ffcc',maxSlots:6,
   },
   {
     id:'carrier',name:'CARRIER',sub:'COMMAND CLASS',
@@ -530,7 +530,7 @@ const CRAFTS=[
     hp:140,spd:3.8,batDrain:1.8,size:22,drag:0.91,
     ability:'COMMAND FIELD  —  2 attack drones + enemy fire rate –25% in range',
     startWeapon:0,damageMult:1.0,detMult:1.0,
-    defaultColor:'#00aaff',
+    defaultColor:'#00aaff',maxSlots:9,
   },
   {
     id:'skirmisher',name:'SKIRMISHER',sub:'AGILITY CLASS',
@@ -539,7 +539,7 @@ const CRAFTS=[
     hp:80,spd:6.5,batDrain:2.9,size:16,drag:0.78,
     ability:'SLIP STREAM  —  Direction reversal under fire grants 0.4s invincibility',
     startWeapon:10,damageMult:1.0,detMult:1.0,
-    defaultColor:'#ff44aa',
+    defaultColor:'#ff44aa',maxSlots:5,
   },
 ];
 const HANGAR_VISIBLE=4;
@@ -553,6 +553,18 @@ const HANGAR_CRAFT_KEY='pw_hangar_craft';
 const HANGAR_COLOR_KEY='pw_hangar_color';
 function _saveHangar(){ try{localStorage.setItem(HANGAR_CRAFT_KEY,selectedCraft);localStorage.setItem(HANGAR_COLOR_KEY,selectedColor);}catch(e){} }
 function _loadHangar(){ try{const c=localStorage.getItem(HANGAR_CRAFT_KEY);const col=localStorage.getItem(HANGAR_COLOR_KEY);if(c!==null){selectedCraft=parseInt(c)||0;}if(col){selectedColor=col;colorPick.value=col;}}catch(e){} }
+function _saveLoadout(craftId,loadout){
+  try{const ids=loadout.map(i=>WEAPONS[i].id);localStorage.setItem('pw_loadout_'+craftId,JSON.stringify(ids));}catch(e){}
+}
+function _loadLoadout(craftId,maxSlots){
+  try{
+    const raw=localStorage.getItem('pw_loadout_'+craftId);
+    if(!raw)return null;
+    const ids=JSON.parse(raw);
+    const indices=ids.map(id=>WEAPONS.findIndex(w=>w.id===id)).filter(i=>i>=0);
+    return indices.slice(0,maxSlots);
+  }catch(e){return null;}
+}
 const SETTINGS_KEY='pw_settings';
 const SETTINGS_DEFAULT={musicVol:1,sfxVol:1,uiVol:1,screenShake:true,particles:'full'};
 let settings=Object.assign({},SETTINGS_DEFAULT);
@@ -1922,7 +1934,7 @@ const P={
   x:WORLD_W/2,y:WORLD_H/2,vx:0,vy:0,aim:0,
   hp:100,maxHp:100,bat:100,maxBat:100,
   rotor:0,iframes:0,lastShot:0,alive:true,size:18,kills:0,
-  weaponIdx:0,unlockedW:new Set([0]),shieldMs:0,overchargeMs:0,invincMs:0,cloakMs:0,nukeKeys:new Set(),
+  weaponIdx:0,unlockedW:new Set([0]),loadout:[0],shieldMs:0,overchargeMs:0,invincMs:0,cloakMs:0,nukeKeys:new Set(),
   craftIdx:0,color:'#00ddff',
   spd:5.2,batDrain:2.4,drag:0.87,damageMult:1.0,detMult:1.0,
   stocks:{rapid:1000,spread:100,sawtooth:200,laser:20,burst:500,plasma:50,rico:30},mineStock:0,seekStock:0,noAmmoCount:0,
@@ -1939,7 +1951,7 @@ function resetPlayer(){
     x:WORLD_W/2,y:WORLD_H/2,vx:0,vy:0,aim:0,
     hp:c.hp,maxHp:c.hp,bat:100,maxBat:100,
     rotor:0,iframes:0,lastShot:0,alive:true,kills:0,
-    weaponIdx:c.startWeapon||0,unlockedW:new Set([0, c.startWeapon||0]),
+    weaponIdx:c.startWeapon||0,unlockedW:new Set([0, c.startWeapon||0]),loadout:[c.startWeapon||0],
     shieldMs:0,overchargeMs:0,invincMs:0,cloakMs:0,nukeKeys:new Set(),
     spd:c.spd,batDrain:c.batDrain,drag:c.drag,
     damageMult:c.damageMult||1.0,detMult:c.detMult||1.0,
