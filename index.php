@@ -4125,14 +4125,27 @@ function drawPauseScreen(){
     ctx.fillStyle='rgba(80,140,200,0.55)';
     ctx.fillText(IS_TOUCH?'TAP  ▶ RETURN TO FLIGHT  to resume':'SPACE · P · ESC  to resume',cx,by+bh+22);
   }
+
+  // Modify Weapons button
+  const mw2=290,mh2=44,mx2=cx-mw2/2,my2=by+bh+40;
+  const mhov=mouse.x>mx2&&mouse.x<mx2+mw2&&mouse.y>my2&&mouse.y<my2+mh2;
+  ctx.shadowBlur=mhov?22:8;ctx.shadowColor='#00ccff';
+  ctx.fillStyle=mhov?'rgba(0,140,200,0.85)':'rgba(0,0,0,0.65)';
+  roundRect(ctx,mx2,my2,mw2,mh2,8);ctx.fill();
+  ctx.strokeStyle=mhov?'#00eeff':'rgba(0,140,220,0.7)';ctx.lineWidth=1.8;
+  roundRect(ctx,mx2,my2,mw2,mh2,8);ctx.stroke();ctx.shadowBlur=0;
+  ctx.font='bold 13px "Courier New"';
+  ctx.fillStyle=mhov?'#000':'rgba(100,200,255,0.9)';
+  ctx.fillText('MODIFY WEAPONS',cx,my2+mh2/2+5);
+
   // Music status
   ctx.font='10px "Courier New"';
   const musicLabel = Music.isMuted() ? '♪ MUSIC OFF' : `♪ MUSIC  [${Music.mode().toUpperCase()}]`;
   ctx.fillStyle = Music.isMuted() ? 'rgba(160,80,50,0.6)' : 'rgba(0,160,180,0.5)';
-  ctx.fillText(`${musicLabel}  ·  M to toggle`,cx,by+bh+40);
+  ctx.fillText(`${musicLabel}  ·  M to toggle`,cx,my2+mh2+18);
 
   // Abort button
-  const aw=290,ah=44,ax=cx-aw/2,ay=by+bh+44;
+  const aw=290,ah=44,ax=cx-aw/2,ay=my2+mh2+30;
   const ahov=mouse.x>ax&&mouse.x<ax+aw&&mouse.y>ay&&mouse.y<ay+ah;
   ctx.shadowBlur=ahov?22:8; ctx.shadowColor='#ff3300';
   ctx.fillStyle=ahov?'rgba(180,30,10,0.92)':'rgba(0,0,0,0.65)';
@@ -7056,8 +7069,13 @@ function _doClick(){
       if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){
         gameState='playing'; lastTime=performance.now(); return;
       }
+      // Modify Weapons button
+      const mw2=290,mh2=44,mx2=cx-mw2/2,my2=by+bh+40;
+      if(mouse.x>mx2&&mouse.x<mx2+mw2&&mouse.y>my2&&mouse.y<my2+mh2){
+        gameState='loadoutEdit';SFX.select();return;
+      }
       // Abort button
-      const aw=290,ah=44,ax=cx-aw/2,ay=by+bh+44;
+      const aw=290,ah=44,ax=cx-aw/2,ay=my2+mh2+30;
       if(mouse.x>ax&&mouse.x<ax+aw&&mouse.y>ay&&mouse.y<ay+ah){
         gameState='start'; releaseLock();
         WORLD_W=2600;WORLD_H=1700;ttLevel=1;nukes=[];jrCaptives=[];jrCarrying=-1;tngPads=[];tngSeq=1;tngOnPad=-1;tngHoldMs=0;
