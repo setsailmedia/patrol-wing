@@ -368,7 +368,8 @@ window.addEventListener('keydown',e=>{
   // Music mute toggle — M key, works in any state
   if(e.code==='KeyM'){ Music.toggleMute(); }
   // Pause toggle
-  if((e.code==='KeyP'||e.code==='Escape')&&(gameState==='playing'||gameState==='paused')){
+  if((e.code==='KeyP'||e.code==='Escape')&&(gameState==='playing'||gameState==='paused'||gameState==='loadoutEdit')){
+    if(gameState==='loadoutEdit'){gameState='paused';_saveLoadout(CRAFTS[P.craftIdx].id,P.loadout);return;}
     if(gameState==='paused'&&screenLockMs>0)return; // locked
     gameState= gameState==='paused' ? 'playing' : 'paused';
     if(gameState==='paused') screenLockMs=2000;
@@ -4159,6 +4160,73 @@ function drawPauseScreen(){
 
   ctx.textAlign='left';
 }
+function drawLoadoutEdit(){
+  const cx=canvas.width/2,W=canvas.width,H=canvas.height;
+  const c=CRAFTS[P.craftIdx];
+  ctx.fillStyle='rgba(4,10,26,0.88)';ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  ctx.font='bold 24px "Courier New"';ctx.fillStyle='#00ccff';ctx.shadowBlur=20;ctx.shadowColor='#00aaff';
+  ctx.fillText('WEAPONS LOADOUT',cx,50);ctx.shadowBlur=0;
+  ctx.font='12px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.7)';
+  ctx.fillText(`${c.name}  —  ${P.loadout.length}/${c.maxSlots} SLOTS`,cx,72);
+  const GLYPHS=['•','►','»','↩','∿','↯','|','↪','⊙','‖','⊸','◈','◎','⊞','⊛','⇝','⬆','⊕','⌬','◉','⊗','≋','※'];
+  const cardW=120,cardH=38,cardGap=8;
+  ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(0,255,136,0.7)';
+  ctx.fillText('▼  LOADED',cx,100);
+  const loadedY=114;
+  const loadedTotalW=c.maxSlots*(cardW+cardGap)-cardGap;
+  const loadedStartX=cx-loadedTotalW/2;
+  for(let i=0;i<c.maxSlots;i++){
+    const x=loadedStartX+i*(cardW+cardGap),y=loadedY;
+    if(i<P.loadout.length){
+      const wIdx=P.loadout[i],w=WEAPONS[wIdx];
+      const hov=mouse.x>x&&mouse.x<x+cardW&&mouse.y>y&&mouse.y<y+cardH;
+      ctx.fillStyle=hov?'rgba(0,80,40,0.7)':'rgba(0,40,20,0.5)';
+      roundRect(ctx,x,y,cardW,cardH,6);ctx.fill();
+      ctx.strokeStyle=hov?'#00ff88':w.color;ctx.lineWidth=hov?2:1;
+      roundRect(ctx,x,y,cardW,cardH,6);ctx.stroke();
+      ctx.font='14px "Courier New"';ctx.fillStyle=w.color;
+      ctx.textAlign='center';ctx.fillText(GLYPHS[wIdx]||'?',x+16,y+cardH/2+5);
+      ctx.font='10px "Courier New"';ctx.fillStyle=hov?'#ffffff':'rgba(180,220,255,0.85)';
+      ctx.textAlign='left';ctx.fillText(w.name,x+30,y+cardH/2+4);ctx.textAlign='center';
+    } else {
+      ctx.strokeStyle='rgba(60,100,140,0.3)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+      roundRect(ctx,x,y,cardW,cardH,6);ctx.stroke();ctx.setLineDash([]);
+    }
+  }
+  const available=[...P.unlockedW].filter(i=>!P.loadout.includes(i)).sort((a,b)=>a-b);
+  const availY=loadedY+cardH+40;
+  ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(150,180,220,0.6)';
+  ctx.textAlign='center';ctx.fillText(`▼  AVAILABLE  (${available.length})`,cx,availY-8);
+  const availCols=Math.max(1,Math.min(available.length,Math.floor((W-40)/(cardW+cardGap))));
+  const availTotalW=Math.min(available.length,availCols)*(cardW+cardGap)-cardGap;
+  const availStartX=cx-availTotalW/2;
+  for(let i=0;i<available.length;i++){
+    const col=i%availCols,row=Math.floor(i/availCols);
+    const x=availStartX+col*(cardW+cardGap),y=availY+row*(cardH+cardGap);
+    const wIdx=available[i],w=WEAPONS[wIdx];
+    const hov=mouse.x>x&&mouse.x<x+cardW&&mouse.y>y&&mouse.y<y+cardH;
+    const full=P.loadout.length>=c.maxSlots;
+    ctx.fillStyle=hov&&!full?'rgba(0,40,80,0.7)':'rgba(0,20,50,0.4)';
+    roundRect(ctx,x,y,cardW,cardH,6);ctx.fill();
+    ctx.strokeStyle=full?'rgba(60,80,100,0.3)':hov?'#00ccff':w.color;ctx.lineWidth=hov&&!full?2:1;
+    roundRect(ctx,x,y,cardW,cardH,6);ctx.stroke();
+    ctx.font='14px "Courier New"';ctx.fillStyle=full?'rgba(80,100,120,0.5)':w.color;
+    ctx.textAlign='center';ctx.fillText(GLYPHS[wIdx]||'?',x+16,y+cardH/2+5);
+    ctx.font='10px "Courier New"';ctx.fillStyle=full?'rgba(80,100,120,0.5)':hov?'#ffffff':'rgba(150,180,210,0.75)';
+    ctx.textAlign='left';ctx.fillText(w.name,x+30,y+cardH/2+4);ctx.textAlign='center';
+  }
+  const dbw=200,dbh=44,dbx=cx-dbw/2,dby=H-80;
+  const dhov=mouse.x>dbx&&mouse.x<dbx+dbw&&mouse.y>dby&&mouse.y<dby+dbh;
+  ctx.shadowBlur=dhov?24:10;ctx.shadowColor='#00ff88';
+  ctx.fillStyle=dhov?'#00ff88':'rgba(0,0,0,0.7)';
+  roundRect(ctx,dbx,dby,dbw,dbh,8);ctx.fill();
+  ctx.strokeStyle='#00ff88';ctx.lineWidth=2;
+  roundRect(ctx,dbx,dby,dbw,dbh,8);ctx.stroke();ctx.shadowBlur=0;
+  ctx.font='bold 14px "Courier New"';ctx.fillStyle=dhov?'#000':'#00ff88';
+  ctx.fillText('DONE',cx,dby+dbh/2+5);
+  ctx.textAlign='left';
+}
 function drawMinimap(){
   const mw=160,mh=108,mx=canvas.width-mw-18,my=trLayout().mmY,scx=mw/WORLD_W,scy=mh/WORLD_H;
   ctx.fillStyle='rgba(4,10,22,0.80)';ctx.fillRect(mx,my,mw,mh);ctx.strokeStyle='rgba(0,140,210,0.35)';ctx.lineWidth=1;ctx.strokeRect(mx,my,mw,mh);
@@ -7062,6 +7130,47 @@ function _doClick(){
       if(mouse.x>sx&&mouse.x<sx+slotW&&mouse.y>barY&&mouse.y<barY+slotH){P.weaponIdx=P.loadout[i];mouse.down=false;SFX.select();return;}
     }
   }
+  if(gameState==='loadoutEdit'){
+    const cx=canvas.width/2,W=canvas.width,H=canvas.height;
+    const c=CRAFTS[P.craftIdx];
+    const cardW=120,cardH=38,cardGap=8;
+    const loadedTotalW=c.maxSlots*(cardW+cardGap)-cardGap;
+    const loadedStartX=cx-loadedTotalW/2;
+    const loadedY=114;
+    for(let i=0;i<P.loadout.length;i++){
+      const x=loadedStartX+i*(cardW+cardGap),y=loadedY;
+      if(mouse.x>x&&mouse.x<x+cardW&&mouse.y>y&&mouse.y<y+cardH){
+        if(P.loadout.length>1){
+          const removed=P.loadout.splice(i,1)[0];
+          if(P.weaponIdx===removed) P.weaponIdx=P.loadout[0];
+          SFX.select();
+        }
+        return;
+      }
+    }
+    const available=[...P.unlockedW].filter(i=>!P.loadout.includes(i)).sort((a,b)=>a-b);
+    const availY=loadedY+cardH+40;
+    const availCols=Math.max(1,Math.min(available.length,Math.floor((W-40)/(cardW+cardGap))));
+    const availTotalW=Math.min(available.length,availCols)*(cardW+cardGap)-cardGap;
+    const availStartX=cx-availTotalW/2;
+    for(let i=0;i<available.length;i++){
+      const col=i%availCols,row=Math.floor(i/availCols);
+      const x=availStartX+col*(cardW+cardGap),y=availY+row*(cardH+cardGap);
+      if(mouse.x>x&&mouse.x<x+cardW&&mouse.y>y&&mouse.y<y+cardH){
+        if(P.loadout.length<c.maxSlots){
+          P.loadout.push(available[i]);
+          SFX.select();
+        }
+        return;
+      }
+    }
+    const dbw=200,dbh=44,dbx=cx-dbw/2,dby=H-80;
+    if(mouse.x>dbx&&mouse.x<dbx+dbw&&mouse.y>dby&&mouse.y<dby+dbh){
+      _saveLoadout(c.id,P.loadout);
+      gameState='paused';SFX.confirm();return;
+    }
+    return;
+  }
   // Resume + Abort buttons on pause screen
   if(gameState==='paused'){
     if(screenLockMs<=0){
@@ -8212,6 +8321,16 @@ function loop(now){
     }
     drawHUD(); drawMinimap(); drawTouchSticks(); drawMiniMe(); drawLaserFlash();drawLeechFlash();drawShockwaveFlash();
     drawPauseScreen();
+  } else if(gameState==='loadoutEdit'){
+    const wallSpin=Date.now()/80;
+    drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawBullets();
+    for(const e of enemies){
+      const sx=e.x-camX,sy=e.y-camY;
+      if(sx<-90||sx>canvas.width+90||sy<-90||sy>canvas.height+90)continue;
+      drawEnemyDrone(sx,sy,e.aim,e.size,e.color,e.accent,wallSpin*(enemies.indexOf(e)%2===0?1:-1.3),e.hp/e.maxHp);
+    }
+    if(P.alive){const sx=P.x-camX,sy=P.y-camY;drawPlayerCraft(sx,sy,P.aim,P.size,P.color,lighten(P.color,90),wallSpin,P.hp/P.maxHp);}
+    drawLoadoutEdit();
   } else if(gameState==='waveClear'&&gameMode==='battle'){
     tickParticles(dt);tickPickups(dt);
     drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawPlayer();drawHUD();drawMinimap();
