@@ -2211,6 +2211,130 @@ function _drawBrute(x,y,aim,sz,col,acc,spin,hp=1){
   if(hp<0.3&&Math.floor(Date.now()/120)%2===0){ctx.beginPath();ctx.arc(0,0,sz*0.85,0,Math.PI*2);ctx.fillStyle='rgba(255,80,0,0.2)';ctx.fill();}
   ctx.restore();
 }
+function drawRavager(x,y,aim,sz,col,acc,spin,hp){
+  ctx.save();ctx.translate(x,y);ctx.rotate(aim);
+  ctx.shadowBlur=18;ctx.shadowColor=col;
+  ctx.beginPath();ctx.moveTo(sz*1.4,0);ctx.lineTo(-sz*0.7,sz*0.9);ctx.lineTo(-sz*0.7,-sz*0.9);ctx.closePath();
+  ctx.fillStyle='rgba(4,9,22,0.92)';ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=2;ctx.stroke();
+  ctx.strokeStyle=acc;ctx.lineWidth=2.5;ctx.shadowColor=acc;ctx.beginPath();ctx.moveTo(sz*1.4,0);ctx.lineTo(sz*2.6,0);ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,sz*0.28,0,Math.PI*2);ctx.fillStyle=acc;ctx.shadowBlur=12;ctx.fill();
+  if(hp<0.3&&Math.floor(Date.now()/120)%2===0){ctx.beginPath();ctx.arc(0,0,sz*0.8,0,Math.PI*2);ctx.fillStyle='rgba(255,80,0,0.2)';ctx.fill();}
+  ctx.restore();
+}
+function drawSplitter(x,y,aim,sz,col,acc,spin,hp){
+  ctx.save();ctx.translate(x,y);ctx.rotate(spin);
+  ctx.shadowBlur=16;ctx.shadowColor=col;
+  ctx.beginPath();for(let i=0;i<6;i++){const a=(Math.PI/3)*i;i===0?ctx.moveTo(Math.cos(a)*sz,Math.sin(a)*sz):ctx.lineTo(Math.cos(a)*sz,Math.sin(a)*sz);}ctx.closePath();
+  ctx.fillStyle='rgba(4,9,22,0.92)';ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=2;ctx.stroke();
+  ctx.strokeStyle=acc;ctx.lineWidth=1.2;ctx.shadowColor=acc;ctx.shadowBlur=8;ctx.globalAlpha=0.7;
+  ctx.beginPath();ctx.moveTo(-sz*0.7,sz*0.2);ctx.lineTo(sz*0.7,-sz*0.2);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(-sz*0.4,-sz*0.7);ctx.lineTo(sz*0.4,sz*0.5);ctx.stroke();
+  ctx.globalAlpha=1;
+  ctx.save();ctx.rotate(aim-spin);ctx.strokeStyle=acc;ctx.lineWidth=2;ctx.shadowBlur=8;ctx.shadowColor=acc;ctx.beginPath();ctx.moveTo(sz*0.5,0);ctx.lineTo(sz*1.3,0);ctx.stroke();ctx.restore();
+  ctx.beginPath();ctx.arc(0,0,sz*0.25,0,Math.PI*2);ctx.fillStyle=acc;ctx.shadowBlur=12;ctx.fill();
+  if(hp<0.3&&Math.floor(Date.now()/120)%2===0){ctx.beginPath();ctx.arc(0,0,sz*0.8,0,Math.PI*2);ctx.fillStyle='rgba(255,80,0,0.2)';ctx.fill();}
+  ctx.restore();
+}
+function drawShard(x,y,aim,sz,col,acc,spin,hp){
+  ctx.save();ctx.translate(x,y);ctx.rotate(spin);
+  ctx.shadowBlur=14;ctx.shadowColor=col;
+  const pts=[[sz*1.1,0],[sz*0.3,sz*0.8],[-sz*0.9,sz*0.5],[-sz*0.7,-sz*0.6],[sz*0.4,-sz*0.9]];
+  ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]);ctx.closePath();
+  ctx.fillStyle='rgba(4,9,22,0.92)';ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=1.8;ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,sz*0.28,0,Math.PI*2);ctx.fillStyle=acc;ctx.shadowBlur=10;ctx.fill();
+  if(hp<0.3&&Math.floor(Date.now()/120)%2===0){ctx.beginPath();ctx.arc(0,0,sz*0.8,0,Math.PI*2);ctx.fillStyle='rgba(255,80,0,0.2)';ctx.fill();}
+  ctx.restore();
+}
+function drawCloaker(x,y,aim,sz,col,acc,spin,hp,visibleMs){
+  ctx.save();ctx.translate(x,y);
+  ctx.globalAlpha=visibleMs>0?1.0:0.08;
+  ctx.rotate(aim);ctx.shadowBlur=16;ctx.shadowColor=col;
+  ctx.beginPath();ctx.moveTo(sz*1.2,0);ctx.lineTo(0,sz*0.7);ctx.lineTo(-sz*0.9,0);ctx.lineTo(0,-sz*0.7);ctx.closePath();
+  ctx.fillStyle='rgba(4,9,22,0.92)';ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=1.8;ctx.stroke();
+  ctx.beginPath();ctx.arc(sz*1.2,0,2.5,0,Math.PI*2);ctx.fillStyle='#fff';ctx.shadowBlur=8;ctx.fill();
+  ctx.beginPath();ctx.arc(0,0,sz*0.25,0,Math.PI*2);ctx.fillStyle=acc;ctx.fill();
+  if(visibleMs>0){
+    ctx.rotate(-aim);
+    const pulse=0.5+0.5*Math.sin(Date.now()/80);
+    ctx.strokeStyle=`rgba(136,255,238,${0.6*pulse})`;ctx.lineWidth=1.5;ctx.shadowBlur=10;ctx.shadowColor=acc;
+    ctx.beginPath();ctx.arc(0,0,sz*1.9,0,Math.PI*2);ctx.stroke();
+  }
+  if(hp<0.3&&Math.floor(Date.now()/120)%2===0){ctx.globalAlpha=1;ctx.beginPath();ctx.arc(0,0,sz*0.8,0,Math.PI*2);ctx.fillStyle='rgba(255,80,0,0.2)';ctx.fill();}
+  ctx.restore();
+}
+function drawDemolisher(x,y,aim,sz,col,acc,spin,hp){
+  ctx.save();ctx.translate(x,y);ctx.rotate(aim);
+  ctx.shadowBlur=18;ctx.shadowColor=col;
+  ctx.save();ctx.scale(1.0,0.65);
+  ctx.beginPath();ctx.arc(0,0,sz,0,Math.PI*2);
+  ctx.fillStyle='rgba(4,9,22,0.92)';ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=2;ctx.stroke();
+  ctx.restore();
+  ctx.strokeStyle=acc;ctx.lineWidth=4;ctx.shadowColor=acc;ctx.shadowBlur=12;
+  ctx.beginPath();ctx.moveTo(sz*0.4,0);ctx.lineTo(sz*1.6,0);ctx.stroke();
+  ctx.beginPath();ctx.arc(sz*1.6,0,4,0,Math.PI*2);ctx.fillStyle=acc;ctx.fill();
+  ctx.strokeStyle=col;ctx.lineWidth=2;ctx.shadowBlur=8;ctx.shadowColor=col;
+  ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-sz*0.3,sz*1.1);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-sz*0.3,-sz*1.1);ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,sz*0.28,0,Math.PI*2);ctx.fillStyle=acc;ctx.shadowBlur=10;ctx.fill();
+  if(hp<0.3&&Math.floor(Date.now()/120)%2===0){ctx.beginPath();ctx.arc(0,0,sz*0.75,0,Math.PI*2);ctx.fillStyle='rgba(255,80,0,0.2)';ctx.fill();}
+  ctx.restore();
+}
+function drawHunter(x,y,aim,sz,col,acc,spin,hp){
+  ctx.save();ctx.translate(x,y);ctx.rotate(aim);
+  ctx.shadowBlur=14;ctx.shadowColor=col;
+  ctx.beginPath();ctx.moveTo(sz*1.3,0);ctx.lineTo(-sz*0.8,sz*0.7);ctx.lineTo(-sz*0.4,0);ctx.lineTo(-sz*0.8,-sz*0.7);ctx.closePath();
+  ctx.fillStyle='rgba(4,9,22,0.92)';ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=1.6;ctx.stroke();
+  const pulse=0.5+0.5*Math.sin(Date.now()/50);
+  ctx.globalAlpha=0.6*pulse;ctx.fillStyle=acc;ctx.shadowColor=acc;ctx.shadowBlur=10;
+  ctx.beginPath();ctx.moveTo(-sz*0.4,0);ctx.lineTo(-sz*1.4,sz*0.3);ctx.lineTo(-sz*1.1,0);ctx.lineTo(-sz*1.4,-sz*0.3);ctx.closePath();ctx.fill();
+  ctx.globalAlpha=1;
+  ctx.beginPath();ctx.arc(0,0,sz*0.22,0,Math.PI*2);ctx.fillStyle=acc;ctx.shadowBlur=10;ctx.fill();
+  if(hp<0.3&&Math.floor(Date.now()/120)%2===0){ctx.beginPath();ctx.arc(0,0,sz*0.75,0,Math.PI*2);ctx.fillStyle='rgba(255,80,0,0.2)';ctx.fill();}
+  ctx.restore();
+}
+function drawDreadnought(x,y,aim,sz,col,acc,spin,hp,phase){
+  ctx.save();ctx.translate(x,y);
+  ctx.shadowBlur=22;ctx.shadowColor=col;
+  if(phase===1){
+    ctx.save();ctx.rotate(spin*0.3);
+    ctx.strokeStyle=col;ctx.lineWidth=5;ctx.beginPath();ctx.arc(0,0,sz*1.05,0,Math.PI*2);ctx.stroke();
+    ctx.strokeStyle=acc;ctx.lineWidth=3;
+    for(let i=0;i<4;i++){const a=(Math.PI/2)*i;ctx.beginPath();ctx.arc(0,0,sz*1.05,a+0.15,a+Math.PI/2-0.15);ctx.stroke();}
+    ctx.restore();
+  } else {
+    const pulse=0.5+0.5*Math.sin(Date.now()/100);
+    ctx.beginPath();ctx.arc(0,0,sz*0.85,0,Math.PI*2);ctx.fillStyle=`rgba(255,102,0,${0.18*pulse})`;ctx.fill();
+    ctx.strokeStyle=`rgba(255,204,68,${0.7+0.3*pulse})`;ctx.lineWidth=2;ctx.shadowColor=acc;ctx.shadowBlur=28*pulse;ctx.stroke();ctx.shadowBlur=22;
+  }
+  ctx.rotate(aim);
+  const bs=sz*0.55;
+  ctx.beginPath();for(let i=0;i<6;i++){const a=(Math.PI/3)*i;i===0?ctx.moveTo(Math.cos(a)*bs,Math.sin(a)*bs):ctx.lineTo(Math.cos(a)*bs,Math.sin(a)*bs);}ctx.closePath();
+  ctx.fillStyle='rgba(4,9,22,0.95)';ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=2.2;ctx.stroke();
+  ctx.strokeStyle=acc;ctx.lineWidth=2.5;ctx.shadowColor=acc;
+  ctx.beginPath();ctx.moveTo(bs*0.4,0);ctx.lineTo(bs*1.5,0);ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,sz*0.22,0,Math.PI*2);ctx.fillStyle=phase===2?'#fff':acc;ctx.shadowBlur=16;ctx.fill();
+  if(hp<0.3&&Math.floor(Date.now()/120)%2===0){ctx.beginPath();ctx.arc(0,0,sz*0.7,0,Math.PI*2);ctx.fillStyle='rgba(255,80,0,0.2)';ctx.fill();}
+  ctx.restore();
+}
+function drawHarbinger(x,y,aim,sz,col,acc,spin,hp,rageMs){
+  ctx.save();ctx.translate(x,y);
+  const raging=rageMs>0, pulse=raging?0.5+0.5*Math.sin(Date.now()/60):0;
+  ctx.shadowBlur=raging?36:22;ctx.shadowColor=raging?acc:col;
+  ctx.save();ctx.rotate(spin*0.2);
+  ctx.strokeStyle=raging?acc:col;ctx.lineWidth=raging?3+pulse*2:2;
+  ctx.beginPath();for(let i=0;i<6;i++){const a=(Math.PI/3)*i+Math.PI/6;i===0?ctx.moveTo(Math.cos(a)*sz*1.32,Math.sin(a)*sz*1.32):ctx.lineTo(Math.cos(a)*sz*1.32,Math.sin(a)*sz*1.32);}ctx.closePath();ctx.stroke();
+  for(let i=0;i<6;i++){const a=(Math.PI/3)*i+Math.PI/6;ctx.beginPath();ctx.arc(Math.cos(a)*sz*1.32,Math.sin(a)*sz*1.32,raging?5+pulse*3:4,0,Math.PI*2);ctx.fillStyle=raging?acc:col;ctx.fill();}
+  ctx.restore();
+  ctx.rotate(aim);
+  const bs=sz*0.62;
+  ctx.beginPath();for(let i=0;i<6;i++){const a=(Math.PI/3)*i;i===0?ctx.moveTo(Math.cos(a)*bs,Math.sin(a)*bs):ctx.lineTo(Math.cos(a)*bs,Math.sin(a)*bs);}ctx.closePath();
+  ctx.fillStyle='rgba(4,9,22,0.95)';ctx.fill();ctx.strokeStyle=raging?acc:col;ctx.lineWidth=2.5;ctx.stroke();
+  ctx.strokeStyle=acc;ctx.lineWidth=3;ctx.shadowColor=acc;
+  ctx.beginPath();ctx.moveTo(bs*0.45,0);ctx.lineTo(bs*1.4,0);ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,sz*0.25,0,Math.PI*2);ctx.fillStyle=raging?'#fff':acc;ctx.shadowBlur=raging?24:14;ctx.fill();
+  if(hp<0.3&&Math.floor(Date.now()/120)%2===0){ctx.beginPath();ctx.arc(0,0,sz*0.7,0,Math.PI*2);ctx.fillStyle='rgba(255,80,0,0.2)';ctx.fill();}
+  ctx.restore();
+}
 
 function drawEnemies(){
   const now=Date.now();
