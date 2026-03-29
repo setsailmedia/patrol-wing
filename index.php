@@ -6368,7 +6368,7 @@ canvas.addEventListener('mousemove',()=>{
     const rects=getMenuRects();
     for(let i=0;i<rects.length;i++){const {x,y,w,h}=rects[i];if(mouse.x>=x&&mouse.x<=x+w&&mouse.y>=y&&mouse.y<=y+h){menuHover=i;break;}}
   }
-  if(gameState==='droneSelect'||gameState==='hangar'){
+  if(gameState==='droneSelect'){
     const centers=getCardCenters();
     for(let i=0;i<centers.length;i++){const{cx,cy}=centers[i];if(mouse.x>cx-100&&mouse.x<cx+100&&mouse.y>cy-170&&mouse.y<cy+170){hoverCard=i;break;}}
   }
