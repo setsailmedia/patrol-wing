@@ -548,6 +548,7 @@ _loadHangar(); // apply saved craft+color immediately
 // gameState declared at top of file (before resize() call)
 // gameMode declared at top of file (before resize() call)
 let score=0,wave=1,wavePause=0,screenLockMs=0;
+let harbingerRef=null;
 let shake=0,camX=0,camY=0;
 let lastTime=performance.now(),gameStartTime=0,bossWarning=0,lastHullBeepMs=0,gameEndDurationMs=0,gameEndScore=0;
 let empFlash=0;
@@ -1844,6 +1845,16 @@ const ETYPES={
   wraith: {size:14,hp:95, spd:2.4,fireMs:900, dmg:19, color:'#8844ff',accent:'#cc99ff',score:280, det:340,atk:240,patR:120,drag:0.88}, // teleports every 4s, fires burst on arrival
   brute:  {size:28,hp:420,spd:1.1,fireMs:1200,dmg:36, color:'#ff6600',accent:'#ffaa44',score:450, det:300,atk:260,patR:60, drag:0.94}, // large slow tank, fat slow bullets
   phantom:{size:12,hp:80, spd:3.5,fireMs:1600,dmg:15, color:'#44ffaa',accent:'#aaffcc',score:320, det:400,atk:340,patR:180,drag:0.86}, // retreats when wounded, heals slowly, sniper range
+  // ── Phase 3 hostile types ──────────────────────────────────────
+  ravager:    {size:18,hp:60, spd:2.2,fireMs:2000,dmg:10,color:'#ff2200',accent:'#ff8866',score:180, det:220,atk:220,patR:120,drag:0.82},
+  splitter:   {size:20,hp:110,spd:2.0,fireMs:1000,dmg:16,color:'#ffcc00',accent:'#fff088',score:260, det:290,atk:200,patR:130,drag:0.88},
+  shard:      {size:10,hp:30, spd:3.5,fireMs:1300,dmg:8, color:'#ffcc00',accent:'#fff088',score:80,  det:220,atk:160,patR:80, drag:0.85},
+  cloaker:    {size:13,hp:70, spd:3.2,fireMs:1100,dmg:17,color:'#88ffee',accent:'#ccffee',score:240, det:320,atk:240,patR:140,drag:0.86},
+  demolisher: {size:24,hp:280,spd:1.3,fireMs:2200,dmg:0, color:'#cc44ff',accent:'#ee99ff',score:380, det:340,atk:280,patR:80, drag:0.93},
+  hunter:     {size:9, hp:40, spd:6.0,fireMs:1600,dmg:11,color:'#ff44cc',accent:'#ffaaee',score:160, det:280,atk:180,patR:160,drag:0.80},
+  // ── Phase 3 bosses ─────────────────────────────────────────────
+  dreadnought:{size:42,hp:1400,spd:1.6,fireMs:280,dmg:18,color:'#ff6600',accent:'#ffcc44',score:3500,det:500,atk:380,patR:240,drag:0.91},
+  harbinger:  {size:48,hp:1800,spd:1.2,fireMs:380,dmg:20,color:'#9900cc',accent:'#dd66ff',score:4500,det:500,atk:400,patR:280,drag:0.93},
 };
 function mkEnemy(type,x,y){
   const t=ETYPES[type];
@@ -1852,6 +1863,11 @@ function mkEnemy(type,x,y){
   if(type==='dart')   { e.zigTimer=0; e.zigAngle=rng(0,Math.PI*2); }
   if(type==='wraith') { e.blinkTimer=rng(2000,4000); e.blinking=false; e.blinkFlash=0; }
   if(type==='phantom'){ e.retreating=false; e.healTimer=0; }
+  if(type==='ravager')    { e.chargeMs=0; e.chargeVx=0; e.chargeVy=0; }
+  if(type==='cloaker')    { e.visibleMs=0; }
+  if(type==='dreadnought'){ e.phase=1; e.phaseSwitched=false; e.shotCount=0; e.spiralAngle=0; }
+  if(type==='harbinger')  { e.podThresholds=[0.66,0.33]; e.activePods=0; e.rageMs=0; e.spiralAngle=0; }
+  e.fromHarbinger=false;
   return e;
 }
 // Returns a world position for an enemy of given type that:
