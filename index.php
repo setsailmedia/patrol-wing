@@ -1385,7 +1385,7 @@ function fireWeapon(){
     pBullets.push({
       x:P.x+Math.cos(angle)*20, y:P.y+Math.sin(angle)*20,
       vx:Math.cos(angle)*18, vy:Math.sin(angle)*18,
-      dmg:0, bSz:4, col:'#44ddff', stun:false, dinf:false,
+      dmg:0, bSz:4, color:'#44ddff', life:1700, stun:false, dinf:false,
       fromInfected:false, isGrapple:true
     });
     spawnParts(P.x+Math.cos(angle)*16,P.y+Math.sin(angle)*16,'#44ddff',_pCount(4),2,3,180);
