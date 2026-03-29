@@ -4177,7 +4177,6 @@ function _hangarLayout(){
   const swatchCY=swatchLabelY+swatchR+26;
   const spacing=Math.min(220,W*0.22);
   const startX=cx-(HANGAR_VISIBLE-1)*spacing/2;
-  const cardH=340;
   const arrowW=36,arrowH=cardH;
   const arrowLX=startX-arrowW-12, arrowRX=startX+(HANGAR_VISIBLE-1)*spacing+spacing/2+12;
   const cancelW=Math.min(160,W*0.22), saveW=Math.min(220,W*0.3);
