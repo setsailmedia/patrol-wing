@@ -569,6 +569,12 @@ function _loadLoadout(craftId,maxSlots){
     return indices.slice(0,maxSlots);
   }catch(e){return null;}
 }
+function _saveCustomLevels(packs){
+  try{localStorage.setItem('pw_custom_levels',JSON.stringify(packs));}catch(e){}
+}
+function _loadCustomLevels(){
+  try{return JSON.parse(localStorage.getItem('pw_custom_levels'))||[];}catch(e){return[];}
+}
 const SETTINGS_KEY='pw_settings';
 const SETTINGS_DEFAULT={musicVol:1,sfxVol:1,uiVol:1,screenShake:true,particles:'full'};
 let settings=Object.assign({},SETTINGS_DEFAULT);
@@ -625,6 +631,17 @@ let ctFinalScore=0;     // final computed score
 let ctLevelUpMs=0;      // countdown ms for level-up interstitial
 let ctLevelUpName='';   // name of enemy just defeated
 let ctNextPickupMs=0;
+// Custom level state
+let customPack=null;
+let customObjectives=[];
+let customWinCondition='';
+let customWinParams={};
+let customSurviveMs=0;
+let customKeysCollected=0;
+let customKeysTotal=0;
+let customItemHeld=false;
+let customFinishX=0,customFinishY=0;
+let customGoalX=0,customGoalY=0;
 // Level 2 — Nuclear Disarm
 const NUKE_COLORS=['#ff2244','#00eeff','#ffdd00','#44ff88'];
 const NUKE_NAMES=['ALPHA','BETA','GAMMA','DELTA'];
