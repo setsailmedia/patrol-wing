@@ -417,9 +417,8 @@ canvas.addEventListener('mouseup',  e=>{
     SFX.select();return;
   }
   if(gameState!=='playing')return;
-  const arr=[...P.unlockedW].sort((a,b)=>a-b);
-  const ci=arr.indexOf(P.weaponIdx);
-  P.weaponIdx=arr[(ci+1)%arr.length];
+  const ci=P.loadout.indexOf(P.weaponIdx);
+  P.weaponIdx=P.loadout[(ci+1)%P.loadout.length];
 });
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('mouseup',e=>{if(e.button!==0)return; mouse.down=false;});
@@ -2071,9 +2070,9 @@ function tickPlayer(dt,now){
     P.y=clamp(P.y+P.vy*stepDt*60,P.size,WORLD_H-P.size);
     pushOutObs(P,P.size);
   }
-  for(let i=0;i<WEAPONS.length;i++){if(K[`Digit${i+1}`]&&P.unlockedW.has(i)){P.weaponIdx=i;K[`Digit${i+1}`]=false;}}
-  if(K['KeyQ']){const arr=[...P.unlockedW].sort((a,b)=>a-b);const ci=arr.indexOf(P.weaponIdx);P.weaponIdx=arr[(ci-1+arr.length)%arr.length];K['KeyQ']=false;}
-  if(K['KeyE']){const arr=[...P.unlockedW].sort((a,b)=>a-b);const ci=arr.indexOf(P.weaponIdx);P.weaponIdx=arr[(ci+1)%arr.length];K['KeyE']=false;}
+  for(let i=0;i<Math.min(P.loadout.length,10);i++){const k=i<9?`Digit${i+1}`:'Digit0';if(K[k]){P.weaponIdx=P.loadout[i];K[k]=false;}}
+  if(K['KeyQ']){const ci=P.loadout.indexOf(P.weaponIdx);P.weaponIdx=P.loadout[(ci-1+P.loadout.length)%P.loadout.length];K['KeyQ']=false;}
+  if(K['KeyE']){const ci=P.loadout.indexOf(P.weaponIdx);P.weaponIdx=P.loadout[(ci+1)%P.loadout.length];K['KeyE']=false;}
   // Touch right stick — aim; deflection beyond deadzone auto-fires
   if(WEAPONS[P.weaponIdx].id==='sawtooth'){
     // Sawtooth: gun rotates automatically — override aim, ignore mouse/stick
@@ -2146,9 +2145,8 @@ function tickPlayer(dt,now){
       if(P.noAmmoCount>=3){
         P.noAmmoCount=0;
         // Step down to next lower unlocked weapon index
-        const arr=[...P.unlockedW].sort((a,b)=>a-b);
-        const ci=arr.indexOf(P.weaponIdx);
-        if(ci>0) P.weaponIdx=arr[ci-1];
+        const ci=P.loadout.indexOf(P.weaponIdx);
+        if(ci>0) P.weaponIdx=P.loadout[ci-1];
       }
     } else {
       P.noAmmoCount=0;
@@ -7052,12 +7050,11 @@ function _doClick(){
       Music.toggleMute(); return;
     }
     // Weapon bar slot tap (touch & mouse)
-    const slotW=IS_TOUCH?24:38, slotH=IS_TOUCH?24:38, slotGap=IS_TOUCH?3:5, total=WEAPONS.length;
+    const slotW=IS_TOUCH?24:38, slotH=IS_TOUCH?24:38, slotGap=IS_TOUCH?3:5, total=P.loadout.length;
     const barX=(canvas.width-total*(slotW+slotGap)+slotGap)/2, barY=weaponBarY();
-    for(let i=0;i<WEAPONS.length;i++){
-      if(!P.unlockedW.has(i)) continue;
+    for(let i=0;i<P.loadout.length;i++){
       const sx=barX+i*(slotW+slotGap);
-      if(mouse.x>sx&&mouse.x<sx+slotW&&mouse.y>barY&&mouse.y<barY+slotH){P.weaponIdx=i;mouse.down=false;SFX.select();return;}
+      if(mouse.x>sx&&mouse.x<sx+slotW&&mouse.y>barY&&mouse.y<barY+slotH){P.weaponIdx=P.loadout[i];mouse.down=false;SFX.select();return;}
     }
   }
   // Resume + Abort buttons on pause screen
