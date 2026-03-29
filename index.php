@@ -2112,6 +2112,7 @@ function tickEnemies(dt,now){
         for(const yOff of[-60,60]){
           const pod=mkEnemy('turret',e.x,e.y+yOff);
           pod.fromHarbinger=true;
+          pod.lastFired=now;
           enemies.push(pod);
           e.activePods++;
         }
@@ -2406,7 +2407,7 @@ function drawCloaker(x,y,aim,sz,col,acc,spin,hp,visibleMs){
     ctx.strokeStyle=`rgba(136,255,238,${0.6*pulse})`;ctx.lineWidth=1.5;ctx.shadowBlur=10;ctx.shadowColor=acc;
     ctx.beginPath();ctx.arc(0,0,sz*1.9,0,Math.PI*2);ctx.stroke();
   }
-  if(hp<0.3&&Math.floor(Date.now()/120)%2===0){ctx.globalAlpha=1;ctx.beginPath();ctx.arc(0,0,sz*0.8,0,Math.PI*2);ctx.fillStyle='rgba(255,80,0,0.2)';ctx.fill();}
+  if(hp<0.3&&Math.floor(Date.now()/120)%2===0){ctx.beginPath();ctx.arc(0,0,sz*0.8,0,Math.PI*2);ctx.fillStyle='rgba(255,80,0,0.2)';ctx.fill();}
   ctx.restore();
 }
 function drawDemolisher(x,y,aim,sz,col,acc,spin,hp){
@@ -3168,6 +3169,7 @@ function checkCollisions(){
       }
       const hitR=P.size+(b.isBrute?b.bSz*0.6:0);
       if(b.fromInfected) continue; // infected ally bullets never hurt player
+      if(b.isBomb) continue; // bombs detonate via tickBullets, not player collision
       if(dist2(b.x,b.y,P.x,P.y)<hitR*hitR){
         // Invincibility: deflect bullet back outward
         if(P.invincMs>0){
