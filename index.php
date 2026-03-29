@@ -443,22 +443,22 @@ const WEAPONS=[
   {id:'boomr',    name:'BOOMERANG',    color:'#00ffaa',fireMs:500, dmg:25, spd:0, count:1,spread:0,   bSz:0,  stock:100},
   {id:'sawtooth', name:'SAWTOOTH',     color:'#ff6600',fireMs:80,  dmg:19, spd:14,count:3,spread:0.28,bSz:3.0,stock:200},
   {id:'fractal',  name:'FRACTAL FUSION',color:'#ff9900',fireMs:480, dmg:8,  spd:0, count:1,spread:0,   bSz:0,  stock:25},
-  {id:'grapple',   name:'GRAPPLING HOOK',   color:'#44ddff', fireMs:700,  dmg:0,  spd:18, count:1, spread:0, bSz:4,   stock:20},
+  {id:'grapple',  name:'GRAPPLING HOOK',color:'#44ddff',fireMs:700, dmg:0,  spd:18,count:1,spread:0,   bSz:4,  stock:20},
   {id:'plasma',   name:'PLASMA CANNON',color:'#ff44cc',fireMs:540, dmg:96, spd:10,count:1,spread:0,   bSz:8.5,stock:50},
   {id:'minime',   name:'J R',           color:'#44ffcc',fireMs:0,   dmg:0,  spd:0, count:0,spread:0,   bSz:0,  stock:null},
   {id:'tractor',  name:'TRACTOR FORCE', color:'#44aaff',fireMs:0,   dmg:0,  spd:0, count:1,spread:0,   bSz:0,  stock:50000},
   {id:'burst',    name:'BURST CANNON', color:'#cc55ff',fireMs:340, dmg:25, spd:16,count:3,spread:0.07,bSz:3.2,stock:500},
   {id:'rico',     name:'RICO CANNON',  color:'#cc88ff',fireMs:600, dmg:96, spd:10,count:1,spread:0,   bSz:8.5,stock:30},
-  {id:'faraday',   name:'FARADAY CAGE',     color:'#88ffcc', fireMs:800,  dmg:0,  spd:0,  count:1, spread:0, bSz:0,   stock:25},
+  {id:'faraday',  name:'FARADAY CAGE',    color:'#88ffcc',fireMs:800, dmg:0,  spd:0, count:1,spread:0,   bSz:0,  stock:25},
   {id:'mine',     name:'PROX MINE',    color:'#ff2200',fireMs:600, dmg:0,  spd:0, count:1,spread:0,   bSz:0,  stock:null},
   {id:'laser',    name:'LASER',        color:'#ff66ff',fireMs:3000,dmg:150,spd:0, count:1,spread:0,   bSz:0,  stock:20},
   {id:'rocket',   name:'ROCKET LAUNCHER',color:'#ff5500',fireMs:700, dmg:65, spd:12,count:1,spread:0,   bSz:0,  stock:15},
   {id:'seekr',    name:'SEEK MISSILE', color:'#ffaa00',fireMs:500, dmg:0,  spd:0, count:1,spread:0,   bSz:0,  stock:null},
   {id:'dinf',     name:'DIGITAL INFECTION',color:'#00ff88',fireMs:72,dmg:14,spd:20,count:1,spread:0,  bSz:2.5,stock:800},
-  {id:'grenade',   name:'GRENADE LAUNCHER', color:'#ffaa22', fireMs:900,  dmg:0,  spd:11, count:1, spread:0, bSz:6,   stock:15},
-  {id:'gravwell',  name:'GRAVITY WELL',     color:'#cc44ff', fireMs:1800, dmg:0,  spd:0,  count:1, spread:0, bSz:0,   stock:8},
-  {id:'leech',     name:'LEECH RAY',        color:'#00ff88', fireMs:800,  dmg:60, spd:0,  count:1, spread:0, bSz:0,   stock:12},
-  {id:'shockwave', name:'SHOCKWAVE CANNON', color:'#ff8844', fireMs:1400, dmg:50, spd:0,  count:1, spread:0, bSz:0,   stock:8},
+  {id:'grenade',  name:'GRENADE LAUNCHER',color:'#ffaa22',fireMs:900, dmg:0,  spd:11,count:1,spread:0,   bSz:6,  stock:15},
+  {id:'gravwell', name:'GRAVITY WELL',    color:'#cc44ff',fireMs:1800,dmg:0,  spd:0, count:1,spread:0,   bSz:0,  stock:8},
+  {id:'leech',    name:'LEECH RAY',       color:'#00ff88',fireMs:800, dmg:60, spd:0, count:1,spread:0,   bSz:0,  stock:12},
+  {id:'shockwave',name:'SHOCKWAVE CANNON',color:'#ff8844',fireMs:1400,dmg:50, spd:0, count:1,spread:0,   bSz:0,  stock:8},
 ];
 const MINE_TRIGGER_R=110;
 const MINE_BLAST_R  =145;
@@ -657,21 +657,21 @@ const SEEKR_BLAST_R =50;    // explosion radius
 const SEEKR_LIFE    =8000;  // ms before self-destruct if no kill
 const SEEKR_COL     ='#ffaa00';
 const SEEKR_ACC     ='#ffddaa';
-const GRAPPLE_LEASH    = 55;
-const GRENADE_BLAST_R  = 80;
-const GRENADE_BLAST_DMG= 90;
+const GRAPPLE_LEASH    =55;
+const GRENADE_BLAST_R  =80;
+const GRENADE_BLAST_DMG=90;
 const GRENADE_MAX_BOUNCES=5;
-const GRENADE_LIFE     = 3200;
-const GRENADE_PROX_R   = 70;
-const GRAVWELL_R       = 200;
-const GRAVWELL_CRUSH_R = 80;
-const GRAVWELL_DPS     = 12;
-const GRAVWELL_PULL    = 1.8;
-const GRAVWELL_LIFE    = 4000;
-const FARADAY_TRIGGER_R= 100;
-const FARADAY_LIFE     = 8000;
-const SHOCKWAVE_R      = 280;
-const SHOCKWAVE_KB     = 14;
+const GRENADE_LIFE     =3200;
+const GRENADE_PROX_R   =70;
+const GRAVWELL_R       =200;
+const GRAVWELL_CRUSH_R =80;
+const GRAVWELL_DPS     =12;
+const GRAVWELL_PULL    =1.8;
+const GRAVWELL_LIFE    =4000;
+const FARADAY_TRIGGER_R=100;
+const FARADAY_LIFE     =8000;
+const SHOCKWAVE_R      =280;
+const SHOCKWAVE_KB     =14;
 
 // ─── PARTICLES ───────────────────────────────────────────────────
 function _pCount(n){
