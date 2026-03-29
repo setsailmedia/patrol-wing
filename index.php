@@ -1806,8 +1806,8 @@ function triggerEMP(){
 }
 function _initCarrierDrones(){
   carrierDrones=[
-    {angle:0,       hp:40,maxHp:40,respawnMs:0,x:P.x,y:P.y,lastFired:0},
-    {angle:Math.PI, hp:40,maxHp:40,respawnMs:0,x:P.x,y:P.y,lastFired:0},
+    {angle:0,       hp:40,maxHp:40,respawnMs:-1,x:P.x,y:P.y,lastFired:0},
+    {angle:Math.PI, hp:40,maxHp:40,respawnMs:-1,x:P.x,y:P.y,lastFired:0},
   ];
 }
 function tickCarrierDrones(dt,now){
@@ -1817,7 +1817,7 @@ function tickCarrierDrones(dt,now){
     const dr=carrierDrones[d];
     if(dr.hp<=0){
       dr.respawnMs-=dt*1000;
-      if(dr.respawnMs<=0){dr.hp=dr.maxHp;dr.respawnMs=0;}
+      if(dr.respawnMs<=0){dr.hp=dr.maxHp;dr.respawnMs=-1;}
       continue;
     }
     dr.angle=P.rotor+d*Math.PI;
@@ -3049,6 +3049,22 @@ function checkCollisions(){
           if(settings.screenShake)shake=10;SFX.mmdead();
         }
         continue;
+      }
+      // Carrier drones intercept enemy bullets
+      if(carrierDrones.length){
+        let droneHit=false;
+        for(let d=0;d<carrierDrones.length;d++){
+          const dr=carrierDrones[d];
+          if(dr.hp<=0) continue;
+          if(dist2(b.x,b.y,dr.x,dr.y)<10*10){
+            dr.hp-=b.dmg;
+            spawnParts(b.x,b.y,'#00aaff',_pCount(5),2,3,200);
+            eBullets.splice(bi,1);
+            if(dr.hp<=0){dr.hp=0;dr.respawnMs=10000;spawnParts(dr.x,dr.y,'#00aaff',_pCount(12),3,5,500);if(settings.screenShake)shake=6;}
+            droneHit=true;break;
+          }
+        }
+        if(droneHit) continue;
       }
       const hitR=P.size+(b.isBrute?b.bSz*0.6:0);
       if(b.fromInfected) continue; // infected ally bullets never hurt player
