@@ -1405,6 +1405,12 @@ function fireWeapon(){
     SFX.mineset();
     return;
   }
+  if(w.id==='gravwell'){
+    gravityWells.push({x:P.x,y:P.y,life:GRAVWELL_LIFE,blasting:false,blastT:0});
+    spawnParts(P.x,P.y,'#cc44ff',_pCount(14),4,6,500);
+    SFX.emp();
+    return;
+  }
   for(let i=0;i<w.count;i++)firePBullet(P.x,P.y,P.aim+(i-half)*w.spread,dmg,w.spd,w.bSz,w.color);
   spawnParts(P.x+Math.cos(P.aim)*36,P.y+Math.sin(P.aim)*36,w.color,_pCount(3+w.count),2,2.5,130);
   SFX[w.id]();P.vx-=Math.cos(P.aim)*0.9;P.vy-=Math.sin(P.aim)*0.9;
@@ -3230,6 +3236,66 @@ function drawGrenades(){
   }
 }
 // ─── /GRENADES ───────────────────────────────────────────────────
+function tickGravityWells(dt){
+  for(let wi=gravityWells.length-1;wi>=0;wi--){
+    const gw=gravityWells[wi];
+    if(gw.blasting){gw.blastT-=dt*1000;if(gw.blastT<=0)gravityWells.splice(wi,1);continue;}
+    gw.life-=dt*1000;
+    if(gw.life<=0){
+      gw.blasting=true;gw.blastT=600;
+      spawnParts(gw.x,gw.y,'#cc44ff',_pCount(30),7,8,700);
+      spawnParts(gw.x,gw.y,'#ffffff',_pCount(10),3,4,400);
+      if(settings.screenShake)shake=Math.max(shake,10);
+      continue;
+    }
+    for(let ei=0;ei<enemies.length;ei++){
+      const e=enemies[ei];
+      const dx=gw.x-e.x,dy=gw.y-e.y;
+      const d2=dx*dx+dy*dy;
+      if(d2>GRAVWELL_R*GRAVWELL_R)continue;
+      const d=Math.sqrt(d2)||1;
+      const pullStr=GRAVWELL_PULL*(1-d/GRAVWELL_R)*dt*60;
+      e.vx+=(dx/d)*pullStr;
+      e.vy+=(dy/d)*pullStr;
+      if(d2<GRAVWELL_CRUSH_R*GRAVWELL_CRUSH_R){
+        e.hp-=GRAVWELL_DPS*dt;
+        if(e.hp<=0){SFX.boom();killEnemy(ei);ei--;}
+      }
+    }
+  }
+}
+function drawGravityWells(){
+  const t=Date.now()/1000;
+  for(const gw of gravityWells){
+    const sx=gw.x-camX,sy=gw.y-camY;
+    if(sx<-260||sx>canvas.width+260||sy<-260||sy>canvas.height+260)continue;
+    ctx.save();ctx.translate(sx,sy);
+    if(gw.blasting){
+      const prog=1-(gw.blastT/600);
+      ctx.globalAlpha=Math.max(0,(1-prog)*0.65);
+      ctx.beginPath();ctx.arc(0,0,GRAVWELL_R*prog*0.8,0,Math.PI*2);
+      ctx.strokeStyle='#cc44ff';ctx.lineWidth=2;ctx.shadowBlur=24;ctx.shadowColor='#cc44ff';ctx.stroke();
+      ctx.shadowBlur=0;ctx.globalAlpha=1;ctx.restore();continue;
+    }
+    const lifeFrac=gw.life/GRAVWELL_LIFE;
+    ctx.globalAlpha=0.08+0.04*Math.sin(t*2);
+    ctx.beginPath();ctx.arc(0,0,GRAVWELL_R,0,Math.PI*2);
+    ctx.strokeStyle='#cc44ff';ctx.lineWidth=1;ctx.stroke();ctx.globalAlpha=1;
+    ctx.save();ctx.rotate(t*1.8);
+    ctx.beginPath();ctx.ellipse(0,0,GRAVWELL_CRUSH_R*1.4,GRAVWELL_CRUSH_R*0.55,0,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(200,68,255,${0.35+0.2*Math.sin(t*3)})`;ctx.lineWidth=1.5;
+    ctx.shadowBlur=10;ctx.shadowColor='#cc44ff';ctx.stroke();ctx.shadowBlur=0;
+    ctx.restore();
+    const coreR=8+4*Math.sin(t*4)*lifeFrac;
+    ctx.beginPath();ctx.arc(0,0,coreR,0,Math.PI*2);
+    const grad=ctx.createRadialGradient(0,0,0,0,0,coreR);
+    grad.addColorStop(0,'rgba(255,255,255,0.9)');
+    grad.addColorStop(0.4,'rgba(200,68,255,0.7)');
+    grad.addColorStop(1,'rgba(60,0,100,0)');
+    ctx.fillStyle=grad;ctx.fill();
+    ctx.restore();
+  }
+}
 // ─── /MINES ──────────────────────────────────────────────────────
 function tickSeekers(dt,now){
   const step=dt*60;
@@ -7931,12 +7997,12 @@ function loop(now){
     if(portalActive){
       // Freeze all game ticks — only tick portal countdown and particles
       tickParticles(dt);tickPortal(dt);
-      drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawFaradayCages();drawRockets();drawGrenades();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();
+      drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawFaradayCages();drawRockets();drawGrenades();drawGravityWells();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();
       if(gameMode==='timetrial') drawFinishLine();
       drawHUD();drawMinimap();drawCrosshair();drawTouchSticks();drawMiniMe();drawPortals();
     } else {
-    tickPlayer(dt,now);tickCarrierDrones(dt,now);tickEnemies(dt,now);tickMiniMe(dt,now);tickBullets(dt);tickMines(dt);tickFaradayCages(dt);tickRockets(dt);tickGrenades(dt);tickSeekers(dt,now);tickBoomerangs(dt);tickHazards(dt,now);tickFractals(dt);tickParticles(dt);tickPickups(dt);tickLaserFlash(dt);tickPortal(dt);if(ttLevel===2)tickNukes(dt);if(ttLevel===4)tickJRRescue(dt);if(ttLevel===5)tickTNG(dt);tickHullBeep(now);checkCollisions();
-    drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawFaradayCages();drawRockets();drawGrenades();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();drawCarrierDrones();
+    tickPlayer(dt,now);tickCarrierDrones(dt,now);tickEnemies(dt,now);tickMiniMe(dt,now);tickBullets(dt);tickMines(dt);tickFaradayCages(dt);tickRockets(dt);tickGrenades(dt);tickGravityWells(dt);tickSeekers(dt,now);tickBoomerangs(dt);tickHazards(dt,now);tickFractals(dt);tickParticles(dt);tickPickups(dt);tickLaserFlash(dt);tickPortal(dt);if(ttLevel===2)tickNukes(dt);if(ttLevel===4)tickJRRescue(dt);if(ttLevel===5)tickTNG(dt);tickHullBeep(now);checkCollisions();
+    drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawFaradayCages();drawRockets();drawGrenades();drawGravityWells();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();drawCarrierDrones();
     if(slipstreamMs>0&&P.alive&&CRAFTS[P.craftIdx].id==='skirmisher'){
       const sx=P.x-camX, sy=P.y-camY;
       const alphaBase=slipstreamMs/400;
