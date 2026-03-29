@@ -509,6 +509,7 @@ const CRAFTS=[
     defaultColor:'#aa44ff',
   },
 ];
+const HANGAR_VISIBLE=4;
 
 // ─── SELECTION STATE ─────────────────────────────────────────────
 const HANGAR_CRAFT_KEY='pw_hangar_craft';
@@ -534,7 +535,7 @@ function _applyVolumes(){
 }
 let selectedCraft=0,selectedColor='#00ddff',hoverCard=-1,hoverSwatch=-1;
 // Hangar state — separate working copies while editing in the Hangar screen
-let hangarCraft=0,hangarColor='#00ddff';
+let hangarCraft=0,hangarColor='#00ddff',hangarScroll=0;
 const SWATCHES=['#00ddff','#ff3300','#ffee00','#00ff88','#ff00aa','#aa44ff','#ffffff','#44ffcc','#ff8800','#88aaff'];
 colorPick.addEventListener('input',e=>{
   // Update whichever context is active
@@ -3611,15 +3612,18 @@ function _hangarLayout(){
   const rowStartX=cx-rowW/2;
   const swatchCY=swatchLabelY+swatchR+26;
   const spacing=Math.min(220,W*0.22);
-  const startX=cx-(CRAFTS.length-1)*spacing/2;
+  const startX=cx-(HANGAR_VISIBLE-1)*spacing/2;
+  const cardH=340;
+  const arrowW=36,arrowH=cardH;
+  const arrowLX=startX-arrowW-12, arrowRX=startX+(HANGAR_VISIBLE-1)*spacing+spacing/2+12;
   const cancelW=Math.min(160,W*0.22), saveW=Math.min(220,W*0.3);
   const totalBtnW=cancelW+saveW+36;
   const cancelX=cx-totalBtnW/2, saveX=cancelX+cancelW+36;
-  return {W,H,cx,btnH,btnY,previewSize,previewCY,cardsCY,swatchLabelY,swatchR,rowW,itemStep,rowStartX,swatchCY,spacing,startX,cancelW,saveW,cancelX,saveX};
+  return {W,H,cx,btnH,btnY,previewSize,previewCY,cardsCY,swatchLabelY,swatchR,rowW,itemStep,rowStartX,swatchCY,spacing,startX,arrowW,arrowH,arrowLX,arrowRX,cancelW,saveW,cancelX,saveX};
 }
 function drawHangarScreen(){
   const t=Date.now()/1000;
-  const {W,H,cx,btnH,btnY,previewSize,previewCY,cardsCY,swatchLabelY,swatchR,rowW,itemStep,rowStartX,swatchCY,spacing,startX,cancelW,saveW,cancelX,saveX}=_hangarLayout();
+  const {W,H,cx,btnH,btnY,previewSize,previewCY,cardsCY,swatchLabelY,swatchR,rowW,itemStep,rowStartX,swatchCY,spacing,startX,arrowW,arrowH,arrowLX,arrowRX,cancelW,saveW,cancelX,saveX}=_hangarLayout();
   const previewGlow=previewSize*1.9;
 
   // Background + grid
@@ -3645,13 +3649,51 @@ function drawHangarScreen(){
   if(craft.id==='phantom')drawPhantom(cx,previewCY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,hangarColor,lighten(hangarColor),spin);
   else if(craft.id==='viper')drawViper(cx,previewCY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,hangarColor,lighten(hangarColor),spin);
   else if(craft.id==='titan')drawTitan(cx,previewCY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,hangarColor,lighten(hangarColor),spin);
-  else drawSpecter(cx,previewCY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,hangarColor,lighten(hangarColor),spin);
+  else if(craft.id==='specter')drawSpecter(cx,previewCY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,hangarColor,lighten(hangarColor),spin);
+  else drawEnemyDrone(cx,previewCY,Math.PI*0.75+Math.sin(t*0.6)*0.3,previewSize,hangarColor,lighten(hangarColor),spin);
   // Hex label below preview
   ctx.font=`bold ${Math.min(11,previewSize*0.35)}px "Courier New"`;ctx.fillStyle=hangarColor;ctx.shadowBlur=6;ctx.shadowColor=hangarColor;
   ctx.fillText(hangarColor.toUpperCase(),cx,previewCY+previewSize+14);ctx.shadowBlur=0;
 
   // ── Craft cards row ──────────────────────────────────────────
-  CRAFTS.forEach((_,i)=>drawCraftCard(CRAFTS[i],startX+i*spacing,cardsCY,i,hoverCard,hangarCraft));
+  // Cards — visible window only
+  for(let i=hangarScroll;i<Math.min(hangarScroll+HANGAR_VISIBLE,CRAFTS.length);i++){
+    drawCraftCard(CRAFTS[i],startX+(i-hangarScroll)*spacing,cardsCY,i,hoverCard,hangarCraft);
+  }
+  // Scroll arrows
+  const aDisL=hangarScroll===0;
+  const aDisR=hangarScroll>=CRAFTS.length-HANGAR_VISIBLE;
+  const aLhov=!aDisL&&mouse.x>arrowLX&&mouse.x<arrowLX+arrowW&&mouse.y>cardsCY-arrowH/2&&mouse.y<cardsCY+arrowH/2;
+  const aRhov=!aDisR&&mouse.x>arrowRX&&mouse.x<arrowRX+arrowW&&mouse.y>cardsCY-arrowH/2&&mouse.y<cardsCY+arrowH/2;
+  roundRect(ctx,arrowLX,cardsCY-arrowH/2,arrowW,arrowH,6);
+  ctx.fillStyle=aDisL?'rgba(30,30,60,0.3)':aLhov?'rgba(0,200,255,0.18)':'rgba(0,100,180,0.12)';ctx.fill();
+  roundRect(ctx,arrowLX,cardsCY-arrowH/2,arrowW,arrowH,6);
+  ctx.strokeStyle=aDisL?'rgba(60,60,100,0.3)':aLhov?'rgba(0,200,255,0.8)':'rgba(0,120,200,0.45)';ctx.lineWidth=1.5;ctx.stroke();
+  ctx.font='bold 22px "Courier New"';ctx.textAlign='center';
+  ctx.fillStyle=aDisL?'rgba(80,80,120,0.4)':aLhov?'#00ddff':'rgba(0,180,255,0.6)';
+  ctx.shadowBlur=aLhov?12:0;ctx.shadowColor='#00ddff';
+  ctx.fillText('◀',arrowLX+arrowW/2,cardsCY+8);ctx.shadowBlur=0;
+  roundRect(ctx,arrowRX,cardsCY-arrowH/2,arrowW,arrowH,6);
+  ctx.fillStyle=aDisR?'rgba(30,30,60,0.3)':aRhov?'rgba(0,200,255,0.18)':'rgba(0,100,180,0.12)';ctx.fill();
+  roundRect(ctx,arrowRX,cardsCY-arrowH/2,arrowW,arrowH,6);
+  ctx.strokeStyle=aDisR?'rgba(60,60,100,0.3)':aRhov?'rgba(0,200,255,0.8)':'rgba(0,120,200,0.45)';ctx.lineWidth=1.5;ctx.stroke();
+  ctx.font='bold 22px "Courier New"';
+  ctx.fillStyle=aDisR?'rgba(80,80,120,0.4)':aRhov?'#00ddff':'rgba(0,180,255,0.6)';
+  ctx.shadowBlur=aRhov?12:0;ctx.shadowColor='#00ddff';
+  ctx.fillText('▶',arrowRX+arrowW/2,cardsCY+8);ctx.shadowBlur=0;
+  // Position dots
+  const dotY=cardsCY+170+16;
+  const dotGap=14;
+  const dotTotalW=(CRAFTS.length-1)*dotGap;
+  const dotStartX=cx-dotTotalW/2;
+  for(let i=0;i<CRAFTS.length;i++){
+    const dx=dotStartX+i*dotGap;
+    const inWindow=i>=hangarScroll&&i<hangarScroll+HANGAR_VISIBLE;
+    ctx.beginPath();ctx.arc(dx,dotY,i===hangarCraft?5:3.5,0,Math.PI*2);
+    ctx.fillStyle=i===hangarCraft?'#00ddff':inWindow?'rgba(0,180,255,0.45)':'rgba(80,120,180,0.25)';
+    ctx.shadowBlur=i===hangarCraft?10:0;ctx.shadowColor='#00ddff';
+    ctx.fill();ctx.shadowBlur=0;
+  }
 
   // ── Color forge — single row ─────────────────────────────────
   ctx.font='bold 10px "Courier New"';ctx.fillStyle='rgba(180,120,50,0.65)';ctx.textAlign='center';
@@ -4842,7 +4884,7 @@ function startCombatTraining(){
   particles.length=0; pickups.length=0; pBullets.length=0; eBullets.length=0;
   mines.length=0; seekers.length=0; boomerangs.length=0; fractals.length=0; hazards.length=0;
   miniMe.active=false; miniMe.lost=false; miniMe.hp=MM_HP; miniMe.iframes=0;
-  resetPlayer();
+  hangarScroll=0; resetPlayer();
   P.x=WORLD_W*0.18; P.y=WORLD_H/2; camX=0; camY=0;
   generateCTObstacles();
   _ctSpawnEnemy();
@@ -5923,7 +5965,7 @@ function startBattle(){
   portalActive=false; portalPositions=[];
   particles.length=0; pickups.length=0; pBullets.length=0; eBullets.length=0; mines.length=0; seekers.length=0; boomerangs.length=0; fractals.length=0; hazards.length=0;
   miniMe.active=false; miniMe.lost=false; miniMe.hp=MM_HP; miniMe.iframes=0;
-  resetPlayer(); camX=P.x-canvas.width/2; camY=P.y-canvas.height/2;
+  hangarScroll=0; resetPlayer(); camX=P.x-canvas.width/2; camY=P.y-canvas.height/2;
   spawnWave(1); gameStartTime=Date.now(); gameState='playing'; _snapMouseToPlayer();
 }
 
@@ -6169,11 +6211,22 @@ function _doClick(){
   }
 
   if(gameState==='hangar'){
-    const {btnH,btnY,cardsCY,swatchR,rowStartX,itemStep,swatchCY,startX,cancelW,saveW,cancelX,saveX}=_hangarLayout();
-    for(let i=0;i<CRAFTS.length;i++){
-      const cardX=startX+i*Math.min(220,canvas.width*0.22);
+    const {btnH,btnY,cardsCY,swatchR,rowStartX,itemStep,swatchCY,startX,arrowW,arrowH,arrowLX,arrowRX,cancelW,saveW,cancelX,saveX}=_hangarLayout();
+    const spacing=Math.min(220,canvas.width*0.22);
+    if(mouse.x>arrowLX&&mouse.x<arrowLX+arrowW&&mouse.y>cardsCY-arrowH/2&&mouse.y<cardsCY+arrowH/2&&hangarScroll>0){
+      hangarScroll=Math.max(0,hangarScroll-1);SFX.select();return;
+    }
+    if(mouse.x>arrowRX&&mouse.x<arrowRX+arrowW&&mouse.y>cardsCY-arrowH/2&&mouse.y<cardsCY+arrowH/2&&hangarScroll<CRAFTS.length-HANGAR_VISIBLE){
+      hangarScroll=Math.min(CRAFTS.length-HANGAR_VISIBLE,hangarScroll+1);SFX.select();return;
+    }
+    for(let i=hangarScroll;i<Math.min(hangarScroll+HANGAR_VISIBLE,CRAFTS.length);i++){
+      const cardX=startX+(i-hangarScroll)*spacing;
       if(mouse.x>cardX-100&&mouse.x<cardX+100&&mouse.y>cardsCY-170&&mouse.y<cardsCY+170){
-        hangarCraft=i;hangarColor=CRAFTS[i].defaultColor;colorPick.value=hangarColor;SFX.select();return;
+        hangarCraft=i;
+        // Auto-scroll to keep selection visible
+        if(i<hangarScroll) hangarScroll=i;
+        else if(i>=hangarScroll+HANGAR_VISIBLE) hangarScroll=Math.min(i-HANGAR_VISIBLE+1,Math.max(0,CRAFTS.length-HANGAR_VISIBLE));
+        hangarColor=CRAFTS[i].defaultColor;colorPick.value=hangarColor;SFX.select();return;
       }
     }
     for(let i=0;i<SWATCHES.length;i++){
@@ -6315,7 +6368,7 @@ canvas.addEventListener('mousemove',()=>{
     const rects=getMenuRects();
     for(let i=0;i<rects.length;i++){const {x,y,w,h}=rects[i];if(mouse.x>=x&&mouse.x<=x+w&&mouse.y>=y&&mouse.y<=y+h){menuHover=i;break;}}
   }
-  if(gameState==='droneSelect'||gameState==='hangar'){
+  if(gameState==='droneSelect'){
     const centers=getCardCenters();
     for(let i=0;i<centers.length;i++){const{cx,cy}=centers[i];if(mouse.x>cx-100&&mouse.x<cx+100&&mouse.y>cy-170&&mouse.y<cy+170){hoverCard=i;break;}}
   }
@@ -6326,7 +6379,7 @@ canvas.addEventListener('mousemove',()=>{
   if(gameState==='hangar'){
     const {cardsCY,swatchR,rowStartX,itemStep,swatchCY,startX}=_hangarLayout();
     const spacing=Math.min(220,canvas.width*0.22);
-    for(let i=0;i<CRAFTS.length;i++){const cardX=startX+i*spacing;if(mouse.x>cardX-100&&mouse.x<cardX+100&&mouse.y>cardsCY-170&&mouse.y<cardsCY+170){hoverCard=i;break;}}
+    for(let i=hangarScroll;i<Math.min(hangarScroll+HANGAR_VISIBLE,CRAFTS.length);i++){const cardX=startX+(i-hangarScroll)*spacing;if(mouse.x>cardX-100&&mouse.x<cardX+100&&mouse.y>cardsCY-170&&mouse.y<cardsCY+170){hoverCard=i;break;}}
     for(let i=0;i<SWATCHES.length;i++){const sx=rowStartX+i*itemStep;if(dist(mouse.x,mouse.y,sx,swatchCY)<swatchR+8){hoverSwatch=i;break;}}
   }
   // Pointer cursor
