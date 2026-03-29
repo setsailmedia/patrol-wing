@@ -4178,7 +4178,7 @@ function _hangarLayout(){
   const spacing=Math.min(220,W*0.22);
   const startX=cx-(HANGAR_VISIBLE-1)*spacing/2;
   const arrowW=36,arrowH=cardH;
-  const arrowLX=startX-arrowW-12, arrowRX=startX+(HANGAR_VISIBLE-1)*spacing+spacing/2+12;
+  const arrowLX=startX-100-arrowW-12, arrowRX=startX+(HANGAR_VISIBLE-1)*spacing+spacing/2+12;
   const cancelW=Math.min(160,W*0.22), saveW=Math.min(220,W*0.3);
   const totalBtnW=cancelW+saveW+36;
   const cancelX=cx-totalBtnW/2, saveX=cancelX+cancelW+36;
@@ -6609,6 +6609,10 @@ function _doClick(){
   if(gameState==='intro'){
     const cx=canvas.width/2,bw=200,bh=36,by=canvas.height-80;
     const bx=introShowSkip?cx+8:cx-bw/2;
+    const _sPad=Math.max(14,canvas.width*0.02);
+    const _sW=Math.max(80,canvas.width*0.075),_sH=Math.max(28,canvas.height*0.042);
+    const _sX=canvas.width-_sPad-_sW,_sY=_sPad;
+    if(mouse.x>=_sX&&mouse.x<=_sX+_sW&&mouse.y>=_sY&&mouse.y<=_sY+_sH){initAudio();Music.toggleMute();return;}
     if(introShowSkip){
       const sw=140,sx=cx-8-sw;
       if(mouse.x>sx&&mouse.x<sx+sw&&mouse.y>by&&mouse.y<by+bh){_iSkipIntro();return;}
@@ -6681,7 +6685,7 @@ function _doClick(){
         if(item.label==='Battle Waves'){ activeBriefing='brief_battle'; gameState='briefing'; SFX.select(); }
         if(item.label==='Time Trials'){  gameMode='timetrial'; gameState='ttLevelSelect'; SFX.select(); }
         if(item.label==='Combat Training'){ activeBriefing='brief_ct'; gameState='briefing'; SFX.select(); }
-        if(item.label==='Aircraft Hangar'){ hangarCraft=selectedCraft; hangarColor=selectedColor; gameState='hangar'; SFX.select(); }
+        if(item.label==='Aircraft Hangar'){ hangarCraft=selectedCraft; hangarColor=selectedColor; hangarScroll=Math.max(0,Math.min(hangarCraft,CRAFTS.length-HANGAR_VISIBLE)); gameState='hangar'; SFX.select(); }
         if(item.label==='Hall of Fame'){ hofTab=0; gameState='hallOfFame'; SFX.select(); }
         if(item.label==='Setup'){ gameState='setup'; SFX.select(); }
         return;
@@ -7102,6 +7106,26 @@ function _iButtons(last){
   ctx.textAlign='center'; ctx.font='bold 12px "Courier New"';
   ctx.fillStyle=bhov?'#000':`rgba(0,255,136,${0.18+0.82*pct})`;
   ctx.fillText(last?'▶  FINAL PREPARATIONS':'▶  CONTINUE',bx+bw/2,by+24);
+  ctx.restore();
+  // Sound toggle — top-right corner
+  const W=canvas.width,H=canvas.height;
+  const _sPad=Math.max(14,W*0.02);
+  const _sW=Math.max(80,W*0.075),_sH=Math.max(28,H*0.042);
+  const _sX=W-_sPad-_sW,_sY=_sPad;
+  const _sMuted=Music.isMuted();
+  const _sHov=mouse.x>=_sX&&mouse.x<=_sX+_sW&&mouse.y>=_sY&&mouse.y<=_sY+_sH;
+  ctx.save();
+  ctx.fillStyle=_sHov?'rgba(0,180,255,0.18)':'rgba(0,55,115,0.55)';
+  ctx.fillRect(_sX,_sY,_sW,_sH);
+  ctx.strokeStyle=_sHov?'#00ccff':'rgba(0,140,220,0.75)';
+  ctx.lineWidth=_sHov?2:1;
+  ctx.shadowBlur=_sHov?20:0;ctx.shadowColor='#00ccff';
+  ctx.strokeRect(_sX,_sY,_sW,_sH);ctx.shadowBlur=0;
+  const _sSz=Math.max(9,Math.min(_sH*0.38,13));
+  ctx.font=`bold ${_sSz}px "Courier New"`;
+  ctx.textAlign='center';
+  ctx.fillStyle=_sHov?'#00eeff':'rgba(150,205,255,0.92)';
+  ctx.fillText(_sMuted?'✕ SOUND OFF':'♪ SOUND ON',_sX+_sW/2,_sY+_sH/2+_sSz*0.36);
   ctx.restore();
 }
 function _iFadeIn(ms,start,ramp){return Math.min(1,Math.max(0,(ms-start)/ramp));}
