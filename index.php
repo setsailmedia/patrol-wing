@@ -558,7 +558,7 @@ let laserFlash=null; // {x1,y1,x2,y2,life,maxLife,forks,hitEnemy}
 let ttStartTime=0,ttElapsed=0,ttFinished=false,ttFinalScore=0,ttTotalEnemies=0;
 let ttLevel=1; // 1=Ghost Run, 2=Nuclear Disarm
 // ── Combat Training globals ──────────────────────────────────────
-const CT_SEQUENCE=['dart','scout','guard','phantom','wraith','turret','brute','boss'];
+const CT_SEQUENCE=['dart','scout','guard','phantom','wraith','turret','brute','boss','dreadnought','harbinger'];
 let ctLevel=0;          // index into CT_SEQUENCE
 let ctStartTime=0;      // performance.now() when current round started
 let ctTotalScore=0;     // accumulated score across rounds
@@ -1959,9 +1959,16 @@ function spawnWaveEnemies(n){
   };
   if(n===1)add('scout',5);
   else if(n===2){add('scout',5);add('guard',2);}
-  else if(n===3){add('scout',4);add('guard',3);add('turret',2);add('dart',2);add('brute',1);}
-  else if(n===4){add('scout',4);add('guard',3);add('turret',2);add('dart',3);add('wraith',2);add('brute',1);add('phantom',1);}
-  else{add('scout',3);add('guard',3);add('turret',2);add('dart',2);add('wraith',2);add('brute',2);add('phantom',2);add('boss',1);bossWarning=3500;SFX.boss();}
+  else if(n===3){add('scout',3);add('guard',2);add('turret',2);add('dart',2);add('brute',1);add('ravager',1);add('cloaker',1);}
+  else if(n===4){add('scout',3);add('guard',2);add('turret',2);add('dart',2);add('wraith',2);add('brute',1);add('phantom',1);add('splitter',1);add('hunter',1);add('demolisher',1);}
+  else{
+    add('scout',2);add('guard',2);add('turret',2);add('dart',2);add('wraith',2);add('brute',2);add('phantom',1);add('ravager',1);add('splitter',1);add('cloaker',1);add('hunter',1);add('demolisher',1);
+    const _bPool=['boss','dreadnought','harbinger'];
+    const _bType=_bPool[Math.floor(Math.random()*_bPool.length)];
+    add(_bType,1);
+    if(_bType==='harbinger') harbingerRef=enemies[enemies.length-1];
+    bossWarning=3500;SFX.boss();
+  }
 }
 function tickEnemies(dt,now){
   for(const e of enemies){
@@ -2596,8 +2603,23 @@ function _infectEnemy(e){
 }
 function killEnemy(idx){
   const e=enemies[idx];
+  // Splitter: spawn 2 shards before removing
+  if(e.type==='splitter'){
+    for(const yOff of[-20,20]){
+      const se=mkEnemy('shard',e.x,e.y+yOff);
+      se.state='chase';
+      enemies.push(se);
+    }
+  }
+  // Harbinger pod: notify parent, trigger rage when all pods dead
+  if(e.fromHarbinger&&harbingerRef&&harbingerRef.hp>0){
+    harbingerRef.activePods=Math.max(0,harbingerRef.activePods-1);
+    if(harbingerRef.activePods===0){harbingerRef.rageMs=4000;harbingerRef.fireMs=80;}
+  }
+  // Harbinger itself dying: clear the ref
+  if(e.type==='harbinger') harbingerRef=null;
   score+=e.score; P.kills++;
-  if(e.type==='boss') score+=100; // Big Boss bonus
+  if(e.type==='boss'||e.type==='dreadnought'||e.type==='harbinger') score+=100;
   spawnParts(e.x,e.y,e.color,_pCount(24),6.5,8.5,800);
   spawnParts(e.x,e.y,'#fff',_pCount(10),4,3,500);
   spawnParts(e.x,e.y,'#ffaa00',_pCount(15),5.5,6,650);
@@ -4464,6 +4486,14 @@ function spawnTTEnemies(){
   // Hazards scattered along the corridor
   spawnHazardZaps(22, 800, TT_WORLD_W-400, MARGIN+10, H-MARGIN-10, 70,140);
   spawnHazardMines(18, 800, TT_WORLD_W-400, MARGIN+10, H-MARGIN-10, P.x, P.y, 500);
+  // Boss near finish line (Ghost Run L1)
+  {
+    const _bPool=['dreadnought','harbinger'];
+    const _bType=_bPool[Math.floor(Math.random()*_bPool.length)];
+    const _bE=mkEnemy(_bType,TT_FINISH_X-600,WORLD_H/2);
+    enemies.push(_bE);
+    if(_bType==='harbinger') harbingerRef=_bE;
+  }
 }
 
 function formatTTTime(ms){
@@ -5068,6 +5098,14 @@ function spawnDBDEnemies(){
   // Heavy hazard presence — replacing the missing hostiles with environmental danger
   spawnHazardZaps(38, 600, DBD_WORLD_W-400, MARGIN+10, H-MARGIN-10, 70,150);
   spawnHazardMines(28, 600, DBD_WORLD_W-400, MARGIN+10, H-MARGIN-10, P.x, P.y, 500);
+  // Boss near finish line (Dance Birdie Dance L3)
+  {
+    const _bPool=['dreadnought','harbinger'];
+    const _bType=_bPool[Math.floor(Math.random()*_bPool.length)];
+    const _bE=mkEnemy(_bType,DBD_FINISH_X-600,WORLD_H/2);
+    enemies.push(_bE);
+    if(_bType==='harbinger') harbingerRef=_bE;
+  }
 }
 
 function startDanceBirdie(){
