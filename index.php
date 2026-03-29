@@ -2089,7 +2089,46 @@ function tickEnemies(dt,now){
       e.y=clamp(e.y+e.vy*dt*60,e.size,WORLD_H-e.size);
       pushOutObs(e,e.size);
     }
-    if(e.type!=='turret'&&e.type!=='hunter'&&!moveStunned){
+    // ── DREADNOUGHT: phase 1→2 transition at 50% HP ──
+    if(e.type==='dreadnought'&&e.phase===1&&!e.phaseSwitched&&e.hp<e.maxHp*0.5){
+      e.phase=2;e.phaseSwitched=true;
+      e.spd=2.8;e.fireMs=200;
+      spawnParts(e.x,e.y,e.color,_pCount(30),7,9,900);
+      spawnParts(e.x,e.y,'#ffffff',_pCount(20),5,6,700);
+      if(settings.screenShake)shake=Math.max(shake,28);SFX.boss();
+    }
+    // ── HARBINGER: figure-8 movement + pod spawning + rage ──
+    if(e.type==='harbinger'){
+      // Pod threshold check
+      if(e.podThresholds.length>0&&e.hp<=e.maxHp*e.podThresholds[0]){
+        e.podThresholds.shift();
+        for(const yOff of[-60,60]){
+          const pod=mkEnemy('turret',e.x,e.y+yOff);
+          pod.fromHarbinger=true;
+          enemies.push(pod);
+          e.activePods++;
+        }
+        spawnParts(e.x,e.y,e.accent,_pCount(16),4,6,500);
+      }
+      // Rage countdown
+      if(e.rageMs>0){
+        e.rageMs-=dt*1000;
+        if(e.rageMs<=0) e.fireMs=380;
+      }
+      // Figure-8 movement
+      if(!moveStunned){
+        const t=Date.now()/1000;
+        const ftx=e.patCx+Math.cos(t*0.4)*e.patR;
+        const fty=e.patCy+Math.sin(t*0.8)*e.patR*0.5;
+        const ftd=dist(e.x,e.y,ftx,fty)||1;
+        e.vx+=(ftx-e.x)/ftd*e.spd;e.vy+=(fty-e.y)/ftd*e.spd;
+        e.vx*=e.drag;e.vy*=e.drag;
+        e.x=clamp(e.x+e.vx*dt*60,e.size,WORLD_W-e.size);
+        e.y=clamp(e.y+e.vy*dt*60,e.size,WORLD_H-e.size);
+        pushOutObs(e,e.size);
+      }
+    }
+    if(e.type!=='turret'&&e.type!=='hunter'&&e.type!=='harbinger'&&!moveStunned){
       if(e.state==='chase'){e.vx+=(dx/d)*e.spd;e.vy+=(dy/d)*e.spd;}
       else if(e.state==='attack'){const ideal=e.atk*0.6,f=d<ideal?-0.7:d>ideal*1.35?0.5:0;e.vx+=(dx/d)*e.spd*f;e.vy+=(dy/d)*e.spd*f;e.vx+=(-dy/d)*e.spd*0.36;e.vy+=(dx/d)*e.spd*0.36;}
       else{e.patA+=dt*0.65;const tx=e.patCx+Math.cos(e.patA)*e.patR,ty=e.patCy+Math.sin(e.patA)*e.patR,pd=dist(e.x,e.y,tx,ty)||1;e.vx+=((tx-e.x)/pd)*e.spd*0.55;e.vy+=((ty-e.y)/pd)*e.spd*0.55;}
@@ -2124,6 +2163,22 @@ function tickEnemies(dt,now){
       else if(e.type==='phantom'){
         // Sniper shot — fast, accurate, no spread (only fires at long detection range)
         if(d<e.det) fireEBullet(e.x,e.y,e.aim,11,e.dmg);
+      }
+      else if(e.type==='dreadnought'){
+        e.shotCount++;
+        if(e.phase===1){
+          for(const off of[-0.28,0,0.28]) fireEBullet(e.x,e.y,e.aim+off,7.5,e.dmg);
+          if(e.shotCount%4===0) fireEBullet(e.x,e.y,e.aim,4,e.dmg*1.5);
+        } else {
+          for(let s=0;s<8;s++) fireEBullet(e.x,e.y,e.spiralAngle+s*(Math.PI/4),6.5,e.dmg*0.8);
+          e.spiralAngle+=0.18;
+        }
+        spawnParts(e.x,e.y,e.color,_pCount(6),3,4.5,220);
+      }
+      else if(e.type==='harbinger'){
+        e.spiralAngle+=0.22;
+        fireEBullet(e.x,e.y,e.spiralAngle,5.5,e.dmg);
+        spawnParts(e.x,e.y,e.color,_pCount(4),2.5,3.5,180);
       }
       else if(e.type==='demolisher'){
         const angle=e.aim+(Math.random()-0.5)*0.1;
@@ -3048,7 +3103,8 @@ function checkCollisions(){
           spawnParts(b.x,b.y,'#ffffff',_pCount(5),2,3,200);
         } else {
           score+=10;
-          e.hp-=b.dmg; spawnParts(b.x,b.y,e.color,_pCount(6),2.8,3.5,230);
+          const dmgMult=(e.type==='dreadnought'&&e.phase===2)?2.0:1.0;
+          e.hp-=b.dmg*dmgMult; spawnParts(b.x,b.y,e.color,_pCount(6),2.8,3.5,230);
           // Alert: enemy detects player on hit regardless of range (except turret stays put)
           if(e.type!=='turret'&&e.state==='patrol'){
             e.state=dist(P.x,P.y,e.x,e.y)<e.atk?'attack':'chase';
