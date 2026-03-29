@@ -2049,7 +2049,47 @@ function tickEnemies(dt,now){
         e.state='patrol'; // suppress standard movement below
       }
     }
-    if(e.type!=='turret'&&!moveStunned){
+    // ── CLOAKER: decrement visibility timer ──
+    if(e.type==='cloaker'&&e.visibleMs>0) e.visibleMs-=dt*1000;
+    // ── RAVAGER: charge attack ──
+    if(e.type==='ravager'&&!moveStunned){
+      if(e.chargeMs>0){
+        e.chargeMs-=dt*1000;
+        e.x=clamp(e.x+e.chargeVx*dt*60,e.size,WORLD_W-e.size);
+        e.y=clamp(e.y+e.chargeVy*dt*60,e.size,WORLD_H-e.size);
+        pushOutObs(e,e.size);
+        if(P.alive&&P.iframes===0&&dist(e.x,e.y,P.x,P.y)<e.size+P.size){
+          if(P.shieldMs>0){P.shieldMs=0;spawnParts(P.x,P.y,'#44aaff',_pCount(14),4,5,400);SFX.shbreak();P.iframes=400;}
+          else{P.hp-=38*P.damageMult;P.iframes=600;if(settings.screenShake)shake=Math.max(shake,18);SFX.hit();if(P.hp<=0)P.alive=false;Music.onHit();}
+          e.chargeMs=-1500;
+        }
+        continue;
+      }
+      if(e.chargeMs<=0&&e.state==='attack'&&dist(e.x,e.y,P.x,P.y)<220){
+        const dd=dist(e.x,e.y,P.x,P.y)||1;
+        e.chargeMs=600;
+        e.chargeVx=(P.x-e.x)/dd*11;
+        e.chargeVy=(P.y-e.y)/dd*11;
+        continue;
+      }
+    }
+    // ── HUNTER: retarget to carrier drones when available ──
+    if(e.type==='hunter'&&!moveStunned){
+      let htx=P.x,hty=P.y;
+      if(typeof carrierDrones!=='undefined'&&CRAFTS[P.craftIdx].id==='carrier'){
+        let bestD=Infinity,bestDr=null;
+        for(const dr of carrierDrones){if(dr.hp>0){const dd=dist(e.x,e.y,dr.x,dr.y);if(dd<bestD){bestD=dd;bestDr=dr;}}}
+        if(bestDr){htx=bestDr.x;hty=bestDr.y;}
+      }
+      e.aim=Math.atan2(hty-e.y,htx-e.x);
+      const htd=dist(e.x,e.y,htx,hty)||1;
+      if(e.state==='chase'||e.state==='attack'){e.vx+=(htx-e.x)/htd*e.spd;e.vy+=(hty-e.y)/htd*e.spd;}
+      e.vx*=e.drag;e.vy*=e.drag;
+      e.x=clamp(e.x+e.vx*dt*60,e.size,WORLD_W-e.size);
+      e.y=clamp(e.y+e.vy*dt*60,e.size,WORLD_H-e.size);
+      pushOutObs(e,e.size);
+    }
+    if(e.type!=='turret'&&e.type!=='hunter'&&!moveStunned){
       if(e.state==='chase'){e.vx+=(dx/d)*e.spd;e.vy+=(dy/d)*e.spd;}
       else if(e.state==='attack'){const ideal=e.atk*0.6,f=d<ideal?-0.7:d>ideal*1.35?0.5:0;e.vx+=(dx/d)*e.spd*f;e.vy+=(dy/d)*e.spd*f;e.vx+=(-dy/d)*e.spd*0.36;e.vy+=(dx/d)*e.spd*0.36;}
       else{e.patA+=dt*0.65;const tx=e.patCx+Math.cos(e.patA)*e.patR,ty=e.patCy+Math.sin(e.patA)*e.patR,pd=dist(e.x,e.y,tx,ty)||1;e.vx+=((tx-e.x)/pd)*e.spd*0.55;e.vy+=((ty-e.y)/pd)*e.spd*0.55;}
@@ -2092,6 +2132,7 @@ function tickEnemies(dt,now){
       }
       else fireEBullet(e.x,e.y,e.aim+sp,7.5,e.dmg);
       e.lastFired=now;
+      if(e.type==='cloaker') e.visibleMs=420;
     }
   }
   // Self-destruct: if only one enemy remains and it's infected, slowly drain its HP
