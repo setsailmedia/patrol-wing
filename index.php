@@ -1333,6 +1333,16 @@ function tickBullets(dt){
   }
   for(let i=eBullets.length-1;i>=0;i--){
     const b=eBullets[i];b.x+=b.vx*step;b.y+=b.vy*step;b.life-=dt*1000;
+    // Demolisher plasma bomb — check before normal expiry
+    if(b.isBomb){
+      if(b.life<=0||dist(b.x,b.y,b.ox,b.oy)>600||circleVsObs(b.x,b.y,b.bSz)){
+        hazards.push({type:'plasma_zone',x:b.x,y:b.y,r:55,duration:2500,t:0});
+        spawnParts(b.x,b.y,'#cc44ff',_pCount(14),4,6,600);
+        if(settings.screenShake)shake=Math.max(shake,12);
+        eBullets.splice(i,1);
+      }
+      continue;
+    }
     if(b.life<=0||b.x<-50||b.x>WORLD_W+50||b.y<-50||b.y>WORLD_H+50){eBullets.splice(i,1);continue;}
     const ebs=b.isBrute?b.bSz:3.5;
     if(circleVsObs(b.x,b.y,ebs)){spawnParts(b.x,b.y,'rgba(220,120,0,0.8)',_pCount(b.isBrute?8:3),1.5,2,b.isBrute?300:180);eBullets.splice(i,1);continue;}
@@ -2056,6 +2066,11 @@ function tickEnemies(dt,now){
       else if(e.type==='phantom'){
         // Sniper shot — fast, accurate, no spread (only fires at long detection range)
         if(d<e.det) fireEBullet(e.x,e.y,e.aim,11,e.dmg);
+      }
+      else if(e.type==='demolisher'){
+        const angle=e.aim+(Math.random()-0.5)*0.1;
+        eBullets.push({x:e.x,y:e.y,vx:Math.cos(angle)*3.5,vy:Math.sin(angle)*3.5,life:2000,dmg:0,bSz:10,isBomb:true,ox:e.x,oy:e.y});
+        spawnParts(e.x,e.y,e.color,_pCount(6),2,3.5,280);
       }
       else fireEBullet(e.x,e.y,e.aim+sp,7.5,e.dmg);
       e.lastFired=now;
