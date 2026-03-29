@@ -3789,7 +3789,7 @@ function checkCollisions(){
               P.weaponIdx=next;
               weaponFlash={name:WEAPONS[next].name,ms:3000};
             } else {
-              weaponFlash={prefix:'UNLOCKED',name:`${WEAPONS[next].name} — LOADOUT FULL`,ms:3000};
+              weaponFlash={prefix:'UNLOCKED',name:`${WEAPONS[next].name} - LOADOUT FULL`,ms:3000};
             }
             score+=100;
             spawnParts(pk.x,pk.y,WEAPONS[next].color,_pCount(22),5,7,550); SFX.weapon();
