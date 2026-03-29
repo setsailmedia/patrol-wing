@@ -4178,7 +4178,7 @@ function drawLoadoutEdit(){
   ctx.font='12px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.7)';
   ctx.fillText(`${c.name}  —  ${lo.length}/${c.maxSlots} SLOTS`,cx,72);
   const GLYPHS=['•','►','»','↩','∿','↯','|','↪','⊙','‖','⊸','◈','◎','⊞','⊛','⇝','⬆','⊕','⌬','◉','⊗','≋','※'];
-  const cardW=120,cardH=38,cardGap=8;
+  const cardW=140,cardH=38,cardGap=8;
   ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(0,255,136,0.7)';
   ctx.fillText('▼  LOADED',cx,100);
   const loadedY=114;
@@ -4195,7 +4195,7 @@ function drawLoadoutEdit(){
       roundRect(ctx,x,y,cardW,cardH,6);ctx.stroke();
       ctx.font='14px "Courier New"';ctx.fillStyle=w.color;
       ctx.textAlign='center';ctx.fillText(GLYPHS[wIdx]||'?',x+16,y+cardH/2+5);
-      ctx.font='10px "Courier New"';ctx.fillStyle=hov?'#ffffff':'rgba(180,220,255,0.85)';
+      ctx.font='9px "Courier New"';ctx.fillStyle=hov?'#ffffff':'rgba(180,220,255,0.85)';
       ctx.textAlign='left';ctx.fillText(w.name,x+30,y+cardH/2+4);ctx.textAlign='center';
     } else {
       ctx.strokeStyle='rgba(60,100,140,0.3)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
@@ -4223,7 +4223,7 @@ function drawLoadoutEdit(){
     roundRect(ctx,x,y,cardW,cardH,6);ctx.stroke();
     ctx.font='14px "Courier New"';ctx.fillStyle=full?'rgba(80,100,120,0.5)':w.color;
     ctx.textAlign='center';ctx.fillText(GLYPHS[wIdx]||'?',x+16,y+cardH/2+5);
-    ctx.font='10px "Courier New"';ctx.fillStyle=full?'rgba(80,100,120,0.5)':hov?'#ffffff':'rgba(150,180,210,0.75)';
+    ctx.font='9px "Courier New"';ctx.fillStyle=full?'rgba(80,100,120,0.5)':hov?'#ffffff':'rgba(150,180,210,0.75)';
     ctx.textAlign='left';ctx.fillText(w.name,x+30,y+cardH/2+4);ctx.textAlign='center';
   }
   const dbw=200,dbh=44,dbx=cx-dbw/2,dby=H-80;
@@ -7157,7 +7157,7 @@ function _doClick(){
     const isHangar=loadoutEditFrom==='hangar';
     const c=isHangar?CRAFTS[hangarCraft]:CRAFTS[P.craftIdx];
     const lo=isHangar?hangarLoadout:P.loadout;
-    const cardW=120,cardH=38,cardGap=8;
+    const cardW=140,cardH=38,cardGap=8;
     const loadedTotalW=c.maxSlots*(cardW+cardGap)-cardGap;
     const loadedStartX=cx-loadedTotalW/2;
     const loadedY=114;
