@@ -4789,6 +4789,7 @@ function startDanceBirdie(){
   ttLevel=3; nukes=[];
   WORLD_W=DBD_WORLD_W; WORLD_H=canvas.height;
   score=0;wave=1;bossWarning=0;empFlash=0;weaponFlash={name:'DANCE BIRDIE DANCE',ms:3000};
+  harbingerRef=null;
   portalActive=false;portalPositions=[];
   particles.length=0;pickups.length=0;pBullets.length=0;eBullets.length=0;mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;
   miniMe.active=false;miniMe.lost=false;miniMe.hp=MM_HP;miniMe.iframes=0;
@@ -4854,6 +4855,7 @@ function startCombatTraining(){
   WORLD_W=canvas.width; WORLD_H=canvas.height;
   ctLevel=0; ctTotalScore=0; ctFinalScore=0; ctLevelUpMs=0;
   score=0; wave=1; bossWarning=0; empFlash=0; weaponFlash={name:'COMBAT TRAINING',ms:2500}; lastHullBeepMs=0;
+  harbingerRef=null;
   portalActive=false; portalPositions=[];
   particles.length=0; pickups.length=0; pBullets.length=0; eBullets.length=0;
   mines.length=0; seekers.length=0; boomerangs.length=0; fractals.length=0; hazards.length=0;
@@ -5936,6 +5938,7 @@ function startBattle(){
   ttLevel=1; nukes=[];
   WORLD_W=2600; WORLD_H=1700;
   score=0; wave=1; bossWarning=0; empFlash=0; weaponFlash={name:'',ms:0}; lastHullBeepMs=0;
+  harbingerRef=null;
   portalActive=false; portalPositions=[];
   particles.length=0; pickups.length=0; pBullets.length=0; eBullets.length=0; mines.length=0; seekers.length=0; boomerangs.length=0; fractals.length=0; hazards.length=0;
   miniMe.active=false; miniMe.lost=false; miniMe.hp=MM_HP; miniMe.iframes=0;
@@ -5949,6 +5952,7 @@ function startTimeTrial(){
   ttLevel=1; nukes=[];
   WORLD_W=TT_WORLD_W; WORLD_H=canvas.height;
   score=0; wave=1; bossWarning=0; empFlash=0; weaponFlash={name:'',ms:0}; lastHullBeepMs=0;
+  harbingerRef=null;
   portalActive=false; portalPositions=[];
   particles.length=0; pickups.length=0; pBullets.length=0; eBullets.length=0; mines.length=0; seekers.length=0; boomerangs.length=0; fractals.length=0; hazards.length=0;
   miniMe.active=false; miniMe.lost=false; miniMe.hp=MM_HP; miniMe.iframes=0;
