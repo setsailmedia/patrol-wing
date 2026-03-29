@@ -606,6 +606,7 @@ let ctTotalScore=0;     // accumulated score across rounds
 let ctFinalScore=0;     // final computed score
 let ctLevelUpMs=0;      // countdown ms for level-up interstitial
 let ctLevelUpName='';   // name of enemy just defeated
+let ctNextPickupMs=0;
 // Level 2 — Nuclear Disarm
 const NUKE_COLORS=['#ff2244','#00eeff','#ffdd00','#44ff88'];
 const NUKE_NAMES=['ALPHA','BETA','GAMMA','DELTA'];
@@ -5815,11 +5816,17 @@ function _ctSpawnEnemy(){
   enemies.push(mkEnemy(type,ex,ey));
 }
 
+function _ctSchedulePickup(){ctNextPickupMs=25000+Math.random()*20000;}
+
 function _ctSpawnPickup(){
-  // One pickup per round: weapon unlock if available, otherwise battery or health
+  // One pickup per round: smart heal/battery if needed, else weapon unlock or random
   const W=WORLD_W, H=WORLD_H;
   const allUnlocked=_allWeaponsUnlocked();
-  const type=allUnlocked?(Math.random()<0.5?'battery':'health'):(Math.random()<0.55?'weapon':(Math.random()<0.5?'battery':'health'));
+  let type;
+  if(P.hp<P.maxHp*0.4){type='health';}
+  else if(P.hp<P.maxHp*0.7){type='medkit';}
+  else if(P.bat<P.maxBat*0.35){type='battery';}
+  else{type=allUnlocked?(Math.random()<0.5?'battery':'health'):(Math.random()<0.55?'weapon':(Math.random()<0.5?'battery':'health'));}
   // Place in the middle zone, away from both player and enemy
   let px,py,att=0;
   const ene=enemies[0];
@@ -5847,6 +5854,7 @@ function startCombatTraining(){
   generateCTObstacles();
   _ctSpawnEnemy();
   _ctSpawnPickup();
+  _ctSchedulePickup();
   ctStartTime=performance.now();
   gameStartTime=Date.now();
   gameState='playing';
@@ -5881,6 +5889,7 @@ function tickCTLevelUp(dt){
     generateCTObstacles();
     _ctSpawnEnemy();
     _ctSpawnPickup();
+    _ctSchedulePickup();
     ctStartTime=performance.now();
     gameState='playing';
     weaponFlash={name:`ROUND ${ctLevel+1} — ${CT_SEQUENCE[ctLevel].toUpperCase()}`,ms:2200};
@@ -8096,6 +8105,20 @@ function loop(now){
       drawHUD();drawMinimap();drawCrosshair();drawTouchSticks();drawMiniMe();drawPortals();
     } else {
     tickPlayer(dt,now);tickCarrierDrones(dt,now);tickEnemies(dt,now);tickMiniMe(dt,now);tickBullets(dt);tickMines(dt);tickFaradayCages(dt);tickRockets(dt);tickGrenades(dt);tickGravityWells(dt);tickSeekers(dt,now);tickBoomerangs(dt);tickHazards(dt,now);tickFractals(dt);tickParticles(dt);tickPickups(dt);tickLaserFlash(dt);tickLeechFlash(dt);tickShockwaveFlash(dt);tickPortal(dt);if(ttLevel===2)tickNukes(dt);if(ttLevel===4)tickJRRescue(dt);if(ttLevel===5)tickTNG(dt);tickHullBeep(now);checkCollisions();
+    if(gameMode==='combattraining'){
+      ctNextPickupMs-=dt*1000;
+      if(ctNextPickupMs<=0){
+        _ctSchedulePickup();
+        const W=WORLD_W,H=WORLD_H;
+        let px,py,att=0;
+        do{px=rng(W*0.15,W*0.85);py=rng(W*0.15,H*0.85);att++;}while(att<60&&circleVsObs(px,py,24));
+        const types=['battery','health','medkit','shield','weapon'];
+        const t=types[Math.floor(Math.random()*types.length)];
+        const idx=pickups.length;
+        spawnPickup(px,py,t,false);
+        if(pickups.length>idx) pickups[pickups.length-1].dropTimer=18000;
+      }
+    }
     drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawFaradayCages();drawRockets();drawGrenades();drawGravityWells();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();drawCarrierDrones();
     if(slipstreamMs>0&&P.alive&&CRAFTS[P.craftIdx].id==='skirmisher'){
       const sx=P.x-camX, sy=P.y-camY;
