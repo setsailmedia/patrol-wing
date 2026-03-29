@@ -368,7 +368,12 @@ window.addEventListener('keydown',e=>{
   // Music mute toggle — M key, works in any state
   if(e.code==='KeyM'){ Music.toggleMute(); }
   // Pause toggle
-  if((e.code==='KeyP'||e.code==='Escape')&&(gameState==='playing'||gameState==='paused')){
+  if((e.code==='KeyP'||e.code==='Escape')&&(gameState==='playing'||gameState==='paused'||gameState==='loadoutEdit')){
+    if(gameState==='loadoutEdit'){
+      if(loadoutEditFrom==='hangar'){_saveLoadout(CRAFTS[hangarCraft].id,hangarLoadout);gameState='hangar';}
+      else{_saveLoadout(CRAFTS[P.craftIdx].id,P.loadout);gameState='paused';}
+      return;
+    }
     if(gameState==='paused'&&screenLockMs>0)return; // locked
     gameState= gameState==='paused' ? 'playing' : 'paused';
     if(gameState==='paused') screenLockMs=2000;
@@ -417,9 +422,8 @@ canvas.addEventListener('mouseup',  e=>{
     SFX.select();return;
   }
   if(gameState!=='playing')return;
-  const arr=[...P.unlockedW].sort((a,b)=>a-b);
-  const ci=arr.indexOf(P.weaponIdx);
-  P.weaponIdx=arr[(ci+1)%arr.length];
+  const ci=P.loadout.indexOf(P.weaponIdx);
+  P.weaponIdx=P.loadout[(ci+1)%P.loadout.length];
 });
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('mouseup',e=>{if(e.button!==0)return; mouse.down=false;});
@@ -485,7 +489,7 @@ const CRAFTS=[
     hp:100,spd:5.2,batDrain:2.4,size:18,drag:0.87,
     ability:'ADAPTIVE  —  Weapon fire rate +5% per wave cleared',
     startWeapon:0,damageMult:1.0,detMult:1.0,
-    defaultColor:'#00ddff',
+    defaultColor:'#00ddff',maxSlots:7,
   },
   {
     id:'viper',name:'VIPER',sub:'ASSAULT CLASS',
@@ -494,7 +498,7 @@ const CRAFTS=[
     hp:72,spd:7.8,batDrain:3.9,size:14,drag:0.84,
     ability:'OVERDRIVE  —  Boost battery drains 60% slower',
     startWeapon:1,damageMult:1.0,detMult:1.0,
-    defaultColor:'#ff3300',
+    defaultColor:'#ff3300',maxSlots:4,
   },
   {
     id:'titan',name:'TITAN',sub:'HEAVY CLASS',
@@ -503,7 +507,7 @@ const CRAFTS=[
     hp:185,spd:3.3,batDrain:1.4,size:24,drag:0.90,
     ability:'IRON CRAFT  —  Incoming damage reduced 28%',
     startWeapon:3,damageMult:0.72,detMult:1.0,
-    defaultColor:'#ff8800',
+    defaultColor:'#ff8800',maxSlots:10,
   },
   {
     id:'specter',name:'SPECTER',sub:'STEALTH CLASS',
@@ -512,7 +516,7 @@ const CRAFTS=[
     hp:78,spd:6.2,batDrain:2.7,size:15,drag:0.85,
     ability:'GHOST FIELD  —  Enemy detection range –38%',
     startWeapon:0,damageMult:1.0,detMult:0.62,startEMP:true,
-    defaultColor:'#aa44ff',
+    defaultColor:'#aa44ff',maxSlots:6,
   },
   {
     id:'sniper',name:'SNIPER',sub:'PRECISION CLASS',
@@ -521,7 +525,7 @@ const CRAFTS=[
     hp:62,spd:6.0,batDrain:2.2,size:15,drag:0.85,
     ability:'DEAD EYE  —  Damage scales ×1–3 with time between shots (max at 2s)',
     startWeapon:11,damageMult:1.0,detMult:1.0,
-    defaultColor:'#44ffcc',
+    defaultColor:'#44ffcc',maxSlots:6,
   },
   {
     id:'carrier',name:'CARRIER',sub:'COMMAND CLASS',
@@ -530,7 +534,7 @@ const CRAFTS=[
     hp:140,spd:3.8,batDrain:1.8,size:22,drag:0.91,
     ability:'COMMAND FIELD  —  2 attack drones + enemy fire rate –25% in range',
     startWeapon:0,damageMult:1.0,detMult:1.0,
-    defaultColor:'#00aaff',
+    defaultColor:'#00aaff',maxSlots:9,
   },
   {
     id:'skirmisher',name:'SKIRMISHER',sub:'AGILITY CLASS',
@@ -539,7 +543,7 @@ const CRAFTS=[
     hp:80,spd:6.5,batDrain:2.9,size:16,drag:0.78,
     ability:'SLIP STREAM  —  Direction reversal under fire grants 0.4s invincibility',
     startWeapon:10,damageMult:1.0,detMult:1.0,
-    defaultColor:'#ff44aa',
+    defaultColor:'#ff44aa',maxSlots:5,
   },
 ];
 const HANGAR_VISIBLE=4;
@@ -553,6 +557,18 @@ const HANGAR_CRAFT_KEY='pw_hangar_craft';
 const HANGAR_COLOR_KEY='pw_hangar_color';
 function _saveHangar(){ try{localStorage.setItem(HANGAR_CRAFT_KEY,selectedCraft);localStorage.setItem(HANGAR_COLOR_KEY,selectedColor);}catch(e){} }
 function _loadHangar(){ try{const c=localStorage.getItem(HANGAR_CRAFT_KEY);const col=localStorage.getItem(HANGAR_COLOR_KEY);if(c!==null){selectedCraft=parseInt(c)||0;}if(col){selectedColor=col;colorPick.value=col;}}catch(e){} }
+function _saveLoadout(craftId,loadout){
+  try{const ids=loadout.map(i=>WEAPONS[i].id);localStorage.setItem('pw_loadout_'+craftId,JSON.stringify(ids));}catch(e){}
+}
+function _loadLoadout(craftId,maxSlots){
+  try{
+    const raw=localStorage.getItem('pw_loadout_'+craftId);
+    if(!raw)return null;
+    const ids=JSON.parse(raw);
+    const indices=ids.map(id=>WEAPONS.findIndex(w=>w.id===id)).filter(i=>i>=0);
+    return indices.slice(0,maxSlots);
+  }catch(e){return null;}
+}
 const SETTINGS_KEY='pw_settings';
 const SETTINGS_DEFAULT={musicVol:1,sfxVol:1,uiVol:1,screenShake:true,particles:'full'};
 let settings=Object.assign({},SETTINGS_DEFAULT);
@@ -573,6 +589,8 @@ function _applyVolumes(){
 let selectedCraft=0,selectedColor='#00ddff',hoverCard=-1,hoverSwatch=-1;
 // Hangar state — separate working copies while editing in the Hangar screen
 let hangarCraft=0,hangarColor='#00ddff',hangarScroll=0;
+let hangarLoadout=[];
+let loadoutEditFrom='pause';
 let deadEyeMs=0, carrierDrones=[], slipstreamMs=0, slipPrevVx=0, slipPrevVy=0;
 const SWATCHES=['#00ddff','#ff3300','#ffee00','#00ff88','#ff00aa','#aa44ff','#ffffff','#44ffcc','#ff8800','#88aaff'];
 colorPick.addEventListener('input',e=>{
@@ -1922,7 +1940,7 @@ const P={
   x:WORLD_W/2,y:WORLD_H/2,vx:0,vy:0,aim:0,
   hp:100,maxHp:100,bat:100,maxBat:100,
   rotor:0,iframes:0,lastShot:0,alive:true,size:18,kills:0,
-  weaponIdx:0,unlockedW:new Set([0]),shieldMs:0,overchargeMs:0,invincMs:0,cloakMs:0,nukeKeys:new Set(),
+  weaponIdx:0,unlockedW:new Set([0]),loadout:[0],shieldMs:0,overchargeMs:0,invincMs:0,cloakMs:0,nukeKeys:new Set(),
   craftIdx:0,color:'#00ddff',
   spd:5.2,batDrain:2.4,drag:0.87,damageMult:1.0,detMult:1.0,
   stocks:{rapid:1000,spread:100,sawtooth:200,laser:20,burst:500,plasma:50,rico:30},mineStock:0,seekStock:0,noAmmoCount:0,
@@ -1939,12 +1957,18 @@ function resetPlayer(){
     x:WORLD_W/2,y:WORLD_H/2,vx:0,vy:0,aim:0,
     hp:c.hp,maxHp:c.hp,bat:100,maxBat:100,
     rotor:0,iframes:0,lastShot:0,alive:true,kills:0,
-    weaponIdx:c.startWeapon||0,unlockedW:new Set([0, c.startWeapon||0]),
+    weaponIdx:c.startWeapon||0,unlockedW:new Set([0, c.startWeapon||0]),loadout:[c.startWeapon||0],
     shieldMs:0,overchargeMs:0,invincMs:0,cloakMs:0,nukeKeys:new Set(),
     spd:c.spd,batDrain:c.batDrain,drag:c.drag,
     damageMult:c.damageMult||1.0,detMult:c.detMult||1.0,
     stocks:mkStocks(),mineStock:0,seekStock:0,noAmmoCount:0,sawtoothAngle:0,
   });
+  const savedLO=_loadLoadout(c.id,c.maxSlots);
+  if(savedLO&&savedLO.length>0){
+    P.loadout=savedLO;
+    P.unlockedW=new Set(savedLO);
+    P.weaponIdx=savedLO[0];
+  }
   if(c.startEMP){empFlash=750;eBullets.length=0;}
   carrierDrones=[];if(c.id==='carrier') _initCarrierDrones();
   deadEyeMs=0;slipstreamMs=0;slipPrevVx=0;slipPrevVy=0;
@@ -2053,9 +2077,9 @@ function tickPlayer(dt,now){
     P.y=clamp(P.y+P.vy*stepDt*60,P.size,WORLD_H-P.size);
     pushOutObs(P,P.size);
   }
-  for(let i=0;i<WEAPONS.length;i++){if(K[`Digit${i+1}`]&&P.unlockedW.has(i)){P.weaponIdx=i;K[`Digit${i+1}`]=false;}}
-  if(K['KeyQ']){const arr=[...P.unlockedW].sort((a,b)=>a-b);const ci=arr.indexOf(P.weaponIdx);P.weaponIdx=arr[(ci-1+arr.length)%arr.length];K['KeyQ']=false;}
-  if(K['KeyE']){const arr=[...P.unlockedW].sort((a,b)=>a-b);const ci=arr.indexOf(P.weaponIdx);P.weaponIdx=arr[(ci+1)%arr.length];K['KeyE']=false;}
+  for(let i=0;i<Math.min(P.loadout.length,10);i++){const k=i<9?`Digit${i+1}`:'Digit0';if(K[k]){P.weaponIdx=P.loadout[i];K[k]=false;}}
+  if(K['KeyQ']){const ci=P.loadout.indexOf(P.weaponIdx);P.weaponIdx=P.loadout[(ci-1+P.loadout.length)%P.loadout.length];K['KeyQ']=false;}
+  if(K['KeyE']){const ci=P.loadout.indexOf(P.weaponIdx);P.weaponIdx=P.loadout[(ci+1)%P.loadout.length];K['KeyE']=false;}
   // Touch right stick — aim; deflection beyond deadzone auto-fires
   if(WEAPONS[P.weaponIdx].id==='sawtooth'){
     // Sawtooth: gun rotates automatically — override aim, ignore mouse/stick
@@ -2128,9 +2152,8 @@ function tickPlayer(dt,now){
       if(P.noAmmoCount>=3){
         P.noAmmoCount=0;
         // Step down to next lower unlocked weapon index
-        const arr=[...P.unlockedW].sort((a,b)=>a-b);
-        const ci=arr.indexOf(P.weaponIdx);
-        if(ci>0) P.weaponIdx=arr[ci-1];
+        const ci=P.loadout.indexOf(P.weaponIdx);
+        if(ci>0) P.weaponIdx=P.loadout[ci-1];
       }
     } else {
       P.noAmmoCount=0;
@@ -3759,9 +3782,16 @@ function checkCollisions(){
         case'weapon':
           if(P.unlockedW.size<WEAPONS.length){
             let next=0; while(P.unlockedW.has(next))next++;
-            P.unlockedW.add(next); P.weaponIdx=next;
+            P.unlockedW.add(next);
+            const maxSl=CRAFTS[P.craftIdx].maxSlots;
+            if(P.loadout.length<maxSl){
+              P.loadout.push(next);
+              P.weaponIdx=next;
+              weaponFlash={name:WEAPONS[next].name,ms:3000};
+            } else {
+              weaponFlash={prefix:'UNLOCKED',name:`${WEAPONS[next].name} - LOADOUT FULL`,ms:3000};
+            }
             score+=100;
-            weaponFlash={name:WEAPONS[next].name,ms:3000};
             spawnParts(pk.x,pk.y,WEAPONS[next].color,_pCount(22),5,7,550); SFX.weapon();
             if(WEAPONS[next].id==='mine') P.mineStock=enemies.length;
             if(WEAPONS[next].id==='seekr'){const half=Math.ceil(enemies.length/2);P.seekStock=half+Math.floor(Math.random()*(enemies.length*3-half+1));}
@@ -3843,66 +3873,58 @@ function hudBar(x,y,w,h,val,max,color,label){
 }
 function drawWeaponBar(){
   const T=IS_TOUCH;
-  const bw=T?24:38, bh=T?24:38, gap=T?3:5;
-  const total=WEAPONS.length, bx=(canvas.width-total*(bw+gap)+gap)/2, by=weaponBarY();
+  const bw=T?28:42, bh=T?28:42, gap=T?4:6;
+  const total=P.loadout.length, bx=(canvas.width-total*(bw+gap)+gap)/2, by=weaponBarY();
   const pad=T?4:8;
   ctx.fillStyle='rgba(0,0,0,0.42)';ctx.fillRect(bx-pad,by-pad,total*(bw+gap)+pad+gap,bh+pad*2+(T?10:16));
   ctx.strokeStyle='rgba(0,100,180,0.3)';ctx.lineWidth=1;ctx.strokeRect(bx-pad,by-pad,total*(bw+gap)+pad+gap,bh+pad*2+(T?10:16));
+  const GLYPHS=['•','►','»','↩','∿','↯','|','↪','⊙','‖','⊸','◈','◎','⊞','⊛','⇝','⬆','⊕','⌬','◉','⊗','≋','※'];
   for(let i=0;i<total;i++){
-    const w=WEAPONS[i],x=bx+i*(bw+gap),un=P.unlockedW.has(i),act=i===P.weaponIdx;
+    const wIdx=P.loadout[i],w=WEAPONS[wIdx],x=bx+i*(bw+gap),act=wIdx===P.weaponIdx;
     const wStock=w.stock!==null&&w.id!=='mine'?P.stocks[w.id]??w.stock:null;
-    const noAmmo=(w.id==='mine'&&P.mineStock<=0&&un)||(w.id==='seekr'&&P.seekStock<=0&&un)||(wStock!==null&&wStock<=0&&un);
-    const mmActive=w.id==='minime'&&miniMe.active&&un;
-    const mmLost  =w.id==='minime'&&miniMe.lost&&un;
-    ctx.fillStyle=act?'rgba(0,0,0,0.9)':un?'rgba(0,0,0,0.5)':'rgba(0,0,0,0.3)';ctx.fillRect(x,by,bw,bh);
-    // Border: teal pulse when minime is active, red when lost, normal otherwise
-    const borderCol=act?(noAmmo||mmLost?'#ff4400':mmActive?MM_COL:w.color):mmActive?MM_COL:mmLost?'rgba(180,50,50,0.5)':un?'rgba(50,80,110,0.6)':'rgba(18,35,55,0.4)';
+    const noAmmo=(w.id==='mine'&&P.mineStock<=0)||(w.id==='seekr'&&P.seekStock<=0)||(wStock!==null&&wStock<=0);
+    const mmActive=w.id==='minime'&&miniMe.active;
+    const mmLost  =w.id==='minime'&&miniMe.lost;
+    ctx.fillStyle=act?'rgba(0,0,0,0.9)':'rgba(0,0,0,0.5)';ctx.fillRect(x,by,bw,bh);
+    const borderCol=act?(noAmmo||mmLost?'#ff4400':mmActive?MM_COL:w.color):mmActive?MM_COL:mmLost?'rgba(180,50,50,0.5)':'rgba(50,80,110,0.6)';
     ctx.strokeStyle=borderCol;
     ctx.lineWidth=act?2:mmActive?1.8:1;ctx.shadowBlur=act?(T?8:16):mmActive?10:0;ctx.shadowColor=mmActive?MM_COL:w.color;ctx.strokeRect(x,by,bw,bh);ctx.shadowBlur=0;
     ctx.textAlign='center';
-    const numSz=T?6:8, iconSz=T?11:16;
-    if(!un){
-      ctx.font=`${T?10:15}px sans-serif`;ctx.fillStyle='rgba(35,55,80,0.5)';ctx.fillText('⬛',x+bw/2,by+bh/2+(T?4:6));
-      ctx.font=`${numSz}px "Courier New"`;ctx.fillStyle='rgba(40,65,90,0.5)';ctx.fillText(`${i+1}`,x+bw-(T?3:5),by+(T?8:12));
-    } else {
-      const iconCol=act?(noAmmo||mmLost?'#ff4400':mmActive?MM_COL:w.color):mmActive?MM_COL:mmLost?'rgba(180,50,50,0.7)':'rgba(65,95,120,0.7)';
-      ctx.font=`${act?'bold ':''}${numSz}px "Courier New"`;ctx.fillStyle=act?(noAmmo||mmLost?'#ff4400':mmActive?MM_COL:w.color):'rgba(70,100,130,0.8)';
-      ctx.fillText(`${i+1}`,x+bw-(T?3:5),by+(T?8:12));
-      ctx.font=`${act?'bold ':''}${iconSz}px "Courier New"`;ctx.fillStyle=iconCol;
-      ctx.fillText(['•','►','»','↩','∿','↯','|','↪','⊙','‖','⊸','◈','◎','⊞','⊛','⇝','⬆','⊕','⌬','◉','⊗','≋','※'][i],x+bw/2,by+bh/2+(T?5:7));
-      // Stock count label (mine uses mineStock; others use wStock; null = unlimited, no label)
-      if(w.id==='mine'){
-        ctx.font=`bold ${T?7:9}px "Courier New"`;
-        ctx.fillStyle=P.mineStock>0?(act?'#ff2200':'rgba(180,60,30,0.8)'):'rgba(100,50,40,0.6)';
-        ctx.fillText(`×${P.mineStock}`,x+bw/2,by+bh-(T?2:4));
-      } else if(w.id==='seekr'){
-        ctx.font=`bold ${T?7:9}px "Courier New"`;
-        ctx.fillStyle=P.seekStock>0?(act?SEEKR_COL:'rgba(180,130,30,0.8)'):'rgba(100,50,40,0.6)';
-        ctx.fillText(`×${P.seekStock}`,x+bw/2,by+bh-(T?2:4));
-      } else if(w.id==='tractor'){
-        const secLeft=(P.stocks['tractor']||0)/1000;
-        ctx.font=`bold ${T?7:9}px "Courier New"`;
-        ctx.fillStyle=secLeft>0?(act?'#44aaff':'rgba(60,130,200,0.8)'):'rgba(60,80,120,0.5)';
-        ctx.fillText(secLeft>0?`${Math.ceil(secLeft)}s`:'OUT',x+bw/2,by+bh-(T?2:4));
-      } else if(wStock!==null){
-        ctx.font=`bold ${T?7:9}px "Courier New"`;
-        // Format: show K suffix for large numbers
-        const label=wStock>=1000?`${Math.floor(wStock/1000)}k`:wStock<=0?'OUT':`×${wStock}`;
-        ctx.fillStyle=wStock>0?(act?w.color:'rgba(120,140,160,0.7)'):'rgba(200,60,60,0.7)';
-        ctx.fillText(label,x+bw/2,by+bh-(T?2:4));
-      }
-      // miniMe HP pip strip when active
-      if(w.id==='minime'&&miniMe.active){
-        const pw=bw-6,ph=T?2:3,px2=x+3,py2=by+bh-(T?3:5);
-        ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(px2,py2,pw,ph);
-        const hpPct=miniMe.hp/MM_HP;
-        ctx.fillStyle=hpPct>0.5?MM_COL:hpPct>0.25?'#ffaa00':'#ff3333';
-        ctx.fillRect(px2,py2,pw*hpPct,ph);
-      }
-      if(w.id==='minime'&&mmLost){
-        ctx.font=`bold ${T?7:9}px "Courier New"`;ctx.fillStyle='rgba(200,60,60,0.8)';
-        ctx.fillText('KIA',x+bw/2,by+bh-(T?2:4));
-      }
+    const numSz=T?7:9, iconSz=T?12:17;
+    const iconCol=act?(noAmmo||mmLost?'#ff4400':mmActive?MM_COL:w.color):mmActive?MM_COL:mmLost?'rgba(180,50,50,0.7)':'rgba(65,95,120,0.7)';
+    ctx.font=`${act?'bold ':''}${numSz}px "Courier New"`;ctx.fillStyle=act?(noAmmo||mmLost?'#ff4400':mmActive?MM_COL:w.color):'rgba(70,100,130,0.8)';
+    ctx.fillText(i<9?`${i+1}`:'0',x+bw-(T?3:5),by+(T?8:12));
+    ctx.font=`${act?'bold ':''}${iconSz}px "Courier New"`;ctx.fillStyle=iconCol;
+    ctx.fillText(GLYPHS[wIdx]||'?',x+bw/2,by+bh/2+(T?5:7));
+    if(w.id==='mine'){
+      ctx.font=`bold ${T?7:9}px "Courier New"`;
+      ctx.fillStyle=P.mineStock>0?(act?'#ff2200':'rgba(180,60,30,0.8)'):'rgba(100,50,40,0.6)';
+      ctx.fillText(`×${P.mineStock}`,x+bw/2,by+bh-(T?2:4));
+    } else if(w.id==='seekr'){
+      ctx.font=`bold ${T?7:9}px "Courier New"`;
+      ctx.fillStyle=P.seekStock>0?(act?SEEKR_COL:'rgba(180,130,30,0.8)'):'rgba(100,50,40,0.6)';
+      ctx.fillText(`×${P.seekStock}`,x+bw/2,by+bh-(T?2:4));
+    } else if(w.id==='tractor'){
+      const secLeft=(P.stocks['tractor']||0)/1000;
+      ctx.font=`bold ${T?7:9}px "Courier New"`;
+      ctx.fillStyle=secLeft>0?(act?'#44aaff':'rgba(60,130,200,0.8)'):'rgba(60,80,120,0.5)';
+      ctx.fillText(secLeft>0?`${Math.ceil(secLeft)}s`:'OUT',x+bw/2,by+bh-(T?2:4));
+    } else if(wStock!==null){
+      ctx.font=`bold ${T?7:9}px "Courier New"`;
+      const label=wStock>=1000?`${Math.floor(wStock/1000)}k`:wStock<=0?'OUT':`×${wStock}`;
+      ctx.fillStyle=wStock>0?(act?w.color:'rgba(120,140,160,0.7)'):'rgba(200,60,60,0.7)';
+      ctx.fillText(label,x+bw/2,by+bh-(T?2:4));
+    }
+    if(w.id==='minime'&&miniMe.active){
+      const pw=bw-6,ph=T?2:3,px2=x+3,py2=by+bh-(T?3:5);
+      ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(px2,py2,pw,ph);
+      const hpPct=miniMe.hp/MM_HP;
+      ctx.fillStyle=hpPct>0.5?MM_COL:hpPct>0.25?'#ffaa00':'#ff3333';
+      ctx.fillRect(px2,py2,pw*hpPct,ph);
+    }
+    if(w.id==='minime'&&mmLost){
+      ctx.font=`bold ${T?7:9}px "Courier New"`;ctx.fillStyle='rgba(200,60,60,0.8)';
+      ctx.fillText('KIA',x+bw/2,by+bh-(T?2:4));
     }
   }
   ctx.textAlign='center';
@@ -4110,14 +4132,27 @@ function drawPauseScreen(){
     ctx.fillStyle='rgba(80,140,200,0.55)';
     ctx.fillText(IS_TOUCH?'TAP  ▶ RETURN TO FLIGHT  to resume':'SPACE · P · ESC  to resume',cx,by+bh+22);
   }
+
+  // Modify Weapons button
+  const mw2=290,mh2=44,mx2=cx-mw2/2,my2=by+bh+40;
+  const mhov=mouse.x>mx2&&mouse.x<mx2+mw2&&mouse.y>my2&&mouse.y<my2+mh2;
+  ctx.shadowBlur=mhov?22:8;ctx.shadowColor='#00ccff';
+  ctx.fillStyle=mhov?'rgba(0,140,200,0.85)':'rgba(0,0,0,0.65)';
+  roundRect(ctx,mx2,my2,mw2,mh2,8);ctx.fill();
+  ctx.strokeStyle=mhov?'#00eeff':'rgba(0,140,220,0.7)';ctx.lineWidth=1.8;
+  roundRect(ctx,mx2,my2,mw2,mh2,8);ctx.stroke();ctx.shadowBlur=0;
+  ctx.font='bold 13px "Courier New"';
+  ctx.fillStyle=mhov?'#000':'rgba(100,200,255,0.9)';
+  ctx.fillText('MODIFY WEAPONS',cx,my2+mh2/2+5);
+
   // Music status
   ctx.font='10px "Courier New"';
   const musicLabel = Music.isMuted() ? '♪ MUSIC OFF' : `♪ MUSIC  [${Music.mode().toUpperCase()}]`;
   ctx.fillStyle = Music.isMuted() ? 'rgba(160,80,50,0.6)' : 'rgba(0,160,180,0.5)';
-  ctx.fillText(`${musicLabel}  ·  M to toggle`,cx,by+bh+40);
+  ctx.fillText(`${musicLabel}  ·  M to toggle`,cx,my2+mh2+18);
 
   // Abort button
-  const aw=290,ah=44,ax=cx-aw/2,ay=by+bh+44;
+  const aw=290,ah=44,ax=cx-aw/2,ay=my2+mh2+30;
   const ahov=mouse.x>ax&&mouse.x<ax+aw&&mouse.y>ay&&mouse.y<ay+ah;
   ctx.shadowBlur=ahov?22:8; ctx.shadowColor='#ff3300';
   ctx.fillStyle=ahov?'rgba(180,30,10,0.92)':'rgba(0,0,0,0.65)';
@@ -4129,6 +4164,77 @@ function drawPauseScreen(){
   ctx.fillStyle=ahov?'#ffccaa':'rgba(200,80,50,0.85)';
   ctx.fillText('✕  ABORT THE MISSION',cx,ay+ah/2+5);
 
+  ctx.textAlign='left';
+}
+function drawLoadoutEdit(){
+  const cx=canvas.width/2,W=canvas.width,H=canvas.height;
+  const isHangar=loadoutEditFrom==='hangar';
+  const c=isHangar?CRAFTS[hangarCraft]:CRAFTS[P.craftIdx];
+  const lo=isHangar?hangarLoadout:P.loadout;
+  ctx.fillStyle='rgba(4,10,26,0.88)';ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  ctx.font='bold 24px "Courier New"';ctx.fillStyle='#00ccff';ctx.shadowBlur=20;ctx.shadowColor='#00aaff';
+  ctx.fillText('WEAPONS LOADOUT',cx,50);ctx.shadowBlur=0;
+  ctx.font='12px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.7)';
+  ctx.fillText(`${c.name}  —  ${lo.length}/${c.maxSlots} SLOTS`,cx,72);
+  const GLYPHS=['•','►','»','↩','∿','↯','|','↪','⊙','‖','⊸','◈','◎','⊞','⊛','⇝','⬆','⊕','⌬','◉','⊗','≋','※'];
+  const cardW=120,cardH=38,cardGap=8;
+  ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(0,255,136,0.7)';
+  ctx.fillText('▼  LOADED',cx,100);
+  const loadedY=114;
+  const loadedTotalW=c.maxSlots*(cardW+cardGap)-cardGap;
+  const loadedStartX=cx-loadedTotalW/2;
+  for(let i=0;i<c.maxSlots;i++){
+    const x=loadedStartX+i*(cardW+cardGap),y=loadedY;
+    if(i<lo.length){
+      const wIdx=lo[i],w=WEAPONS[wIdx];
+      const hov=mouse.x>x&&mouse.x<x+cardW&&mouse.y>y&&mouse.y<y+cardH;
+      ctx.fillStyle=hov?'rgba(0,80,40,0.7)':'rgba(0,40,20,0.5)';
+      roundRect(ctx,x,y,cardW,cardH,6);ctx.fill();
+      ctx.strokeStyle=hov?'#00ff88':w.color;ctx.lineWidth=hov?2:1;
+      roundRect(ctx,x,y,cardW,cardH,6);ctx.stroke();
+      ctx.font='14px "Courier New"';ctx.fillStyle=w.color;
+      ctx.textAlign='center';ctx.fillText(GLYPHS[wIdx]||'?',x+16,y+cardH/2+5);
+      ctx.font='10px "Courier New"';ctx.fillStyle=hov?'#ffffff':'rgba(180,220,255,0.85)';
+      ctx.textAlign='left';ctx.fillText(w.name,x+30,y+cardH/2+4);ctx.textAlign='center';
+    } else {
+      ctx.strokeStyle='rgba(60,100,140,0.3)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+      roundRect(ctx,x,y,cardW,cardH,6);ctx.stroke();ctx.setLineDash([]);
+    }
+  }
+  const available=isHangar
+    ?WEAPONS.map((_,i)=>i).filter(i=>!lo.includes(i))
+    :[...P.unlockedW].filter(i=>!lo.includes(i)).sort((a,b)=>a-b);
+  const availY=loadedY+cardH+40;
+  ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(150,180,220,0.6)';
+  ctx.textAlign='center';ctx.fillText(`▼  AVAILABLE  (${available.length})`,cx,availY-8);
+  const availCols=Math.max(1,Math.min(available.length,Math.floor((W-40)/(cardW+cardGap))));
+  const availTotalW=Math.min(available.length,availCols)*(cardW+cardGap)-cardGap;
+  const availStartX=cx-availTotalW/2;
+  for(let i=0;i<available.length;i++){
+    const col=i%availCols,row=Math.floor(i/availCols);
+    const x=availStartX+col*(cardW+cardGap),y=availY+row*(cardH+cardGap);
+    const wIdx=available[i],w=WEAPONS[wIdx];
+    const hov=mouse.x>x&&mouse.x<x+cardW&&mouse.y>y&&mouse.y<y+cardH;
+    const full=lo.length>=c.maxSlots;
+    ctx.fillStyle=hov&&!full?'rgba(0,40,80,0.7)':'rgba(0,20,50,0.4)';
+    roundRect(ctx,x,y,cardW,cardH,6);ctx.fill();
+    ctx.strokeStyle=full?'rgba(60,80,100,0.3)':hov?'#00ccff':w.color;ctx.lineWidth=hov&&!full?2:1;
+    roundRect(ctx,x,y,cardW,cardH,6);ctx.stroke();
+    ctx.font='14px "Courier New"';ctx.fillStyle=full?'rgba(80,100,120,0.5)':w.color;
+    ctx.textAlign='center';ctx.fillText(GLYPHS[wIdx]||'?',x+16,y+cardH/2+5);
+    ctx.font='10px "Courier New"';ctx.fillStyle=full?'rgba(80,100,120,0.5)':hov?'#ffffff':'rgba(150,180,210,0.75)';
+    ctx.textAlign='left';ctx.fillText(w.name,x+30,y+cardH/2+4);ctx.textAlign='center';
+  }
+  const dbw=200,dbh=44,dbx=cx-dbw/2,dby=H-80;
+  const dhov=mouse.x>dbx&&mouse.x<dbx+dbw&&mouse.y>dby&&mouse.y<dby+dbh;
+  ctx.shadowBlur=dhov?24:10;ctx.shadowColor='#00ff88';
+  ctx.fillStyle=dhov?'#00ff88':'rgba(0,0,0,0.7)';
+  roundRect(ctx,dbx,dby,dbw,dbh,8);ctx.fill();
+  ctx.strokeStyle='#00ff88';ctx.lineWidth=2;
+  roundRect(ctx,dbx,dby,dbw,dbh,8);ctx.stroke();ctx.shadowBlur=0;
+  ctx.font='bold 14px "Courier New"';ctx.fillStyle=dhov?'#000':'#00ff88';
+  ctx.fillText('DONE',cx,dby+dbh/2+5);
   ctx.textAlign='left';
 }
 function drawMinimap(){
@@ -4657,6 +4763,18 @@ function drawHangarScreen(){
   ctx.strokeStyle='rgba(80,140,220,0.6)';ctx.lineWidth=1.3;ctx.stroke();
   ctx.font=`${Math.max(7,swatchR*0.55)}px "Courier New"`;ctx.fillStyle='rgba(180,210,255,0.8)';ctx.textAlign='center';
   ctx.fillText('🎨',cbX,cbY+5);
+
+  // Edit Loadout button
+  const elW=200,elH=38,elX=cx-elW/2,elY=btnY-54;
+  const elHov=mouse.x>elX&&mouse.x<elX+elW&&mouse.y>elY&&mouse.y<elY+elH;
+  ctx.shadowBlur=elHov?20:8;ctx.shadowColor='#00ccff';
+  ctx.fillStyle=elHov?'rgba(0,140,200,0.85)':'rgba(0,0,0,0.65)';
+  roundRect(ctx,elX,elY,elW,elH,6);ctx.fill();
+  ctx.strokeStyle=elHov?'#00eeff':'rgba(0,140,220,0.6)';ctx.lineWidth=1.5;
+  roundRect(ctx,elX,elY,elW,elH,6);ctx.stroke();ctx.shadowBlur=0;
+  ctx.textAlign='center';ctx.font='bold 12px "Courier New"';
+  ctx.fillStyle=elHov?'#000':'rgba(100,200,255,0.9)';
+  ctx.fillText('EDIT LOADOUT',cx,elY+elH/2+4);ctx.textAlign='left';
 
   // ── Bottom buttons ───────────────────────────────────────────
   const cancelHov=mouse.x>cancelX&&mouse.x<cancelX+cancelW&&mouse.y>btnY&&mouse.y<btnY+btnH;
@@ -7027,13 +7145,63 @@ function _doClick(){
       Music.toggleMute(); return;
     }
     // Weapon bar slot tap (touch & mouse)
-    const slotW=IS_TOUCH?24:38, slotH=IS_TOUCH?24:38, slotGap=IS_TOUCH?3:5, total=WEAPONS.length;
+    const slotW=IS_TOUCH?24:38, slotH=IS_TOUCH?24:38, slotGap=IS_TOUCH?3:5, total=P.loadout.length;
     const barX=(canvas.width-total*(slotW+slotGap)+slotGap)/2, barY=weaponBarY();
-    for(let i=0;i<WEAPONS.length;i++){
-      if(!P.unlockedW.has(i)) continue;
+    for(let i=0;i<P.loadout.length;i++){
       const sx=barX+i*(slotW+slotGap);
-      if(mouse.x>sx&&mouse.x<sx+slotW&&mouse.y>barY&&mouse.y<barY+slotH){P.weaponIdx=i;mouse.down=false;SFX.select();return;}
+      if(mouse.x>sx&&mouse.x<sx+slotW&&mouse.y>barY&&mouse.y<barY+slotH){P.weaponIdx=P.loadout[i];mouse.down=false;SFX.select();return;}
     }
+  }
+  if(gameState==='loadoutEdit'){
+    const cx=canvas.width/2,W=canvas.width,H=canvas.height;
+    const isHangar=loadoutEditFrom==='hangar';
+    const c=isHangar?CRAFTS[hangarCraft]:CRAFTS[P.craftIdx];
+    const lo=isHangar?hangarLoadout:P.loadout;
+    const cardW=120,cardH=38,cardGap=8;
+    const loadedTotalW=c.maxSlots*(cardW+cardGap)-cardGap;
+    const loadedStartX=cx-loadedTotalW/2;
+    const loadedY=114;
+    for(let i=0;i<lo.length;i++){
+      const x=loadedStartX+i*(cardW+cardGap),y=loadedY;
+      if(mouse.x>x&&mouse.x<x+cardW&&mouse.y>y&&mouse.y<y+cardH){
+        if(lo.length>1){
+          const removed=lo.splice(i,1)[0];
+          if(!isHangar&&P.weaponIdx===removed) P.weaponIdx=lo[0];
+          SFX.select();
+        }
+        return;
+      }
+    }
+    const available=isHangar
+      ?WEAPONS.map((_,i)=>i).filter(i=>!lo.includes(i))
+      :[...P.unlockedW].filter(i=>!lo.includes(i)).sort((a,b)=>a-b);
+    const availY=loadedY+cardH+40;
+    const availCols=Math.max(1,Math.min(available.length,Math.floor((W-40)/(cardW+cardGap))));
+    const availTotalW=Math.min(available.length,availCols)*(cardW+cardGap)-cardGap;
+    const availStartX=cx-availTotalW/2;
+    for(let i=0;i<available.length;i++){
+      const col=i%availCols,row=Math.floor(i/availCols);
+      const x=availStartX+col*(cardW+cardGap),y=availY+row*(cardH+cardGap);
+      if(mouse.x>x&&mouse.x<x+cardW&&mouse.y>y&&mouse.y<y+cardH){
+        if(lo.length<c.maxSlots){
+          lo.push(available[i]);
+          SFX.select();
+        }
+        return;
+      }
+    }
+    const dbw=200,dbh=44,dbx=cx-dbw/2,dby=H-80;
+    if(mouse.x>dbx&&mouse.x<dbx+dbw&&mouse.y>dby&&mouse.y<dby+dbh){
+      if(isHangar){
+        _saveLoadout(c.id,hangarLoadout);
+        gameState='hangar';
+      } else {
+        _saveLoadout(c.id,P.loadout);
+        gameState='paused';
+      }
+      SFX.confirm();return;
+    }
+    return;
   }
   // Resume + Abort buttons on pause screen
   if(gameState==='paused'){
@@ -7042,8 +7210,13 @@ function _doClick(){
       if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){
         gameState='playing'; lastTime=performance.now(); return;
       }
+      // Modify Weapons button
+      const mw2=290,mh2=44,mx2=cx-mw2/2,my2=by+bh+40;
+      if(mouse.x>mx2&&mouse.x<mx2+mw2&&mouse.y>my2&&mouse.y<my2+mh2){
+        loadoutEditFrom='pause';gameState='loadoutEdit';SFX.select();return;
+      }
       // Abort button
-      const aw=290,ah=44,ax=cx-aw/2,ay=by+bh+44;
+      const aw=290,ah=44,ax=cx-aw/2,ay=my2+mh2+30;
       if(mouse.x>ax&&mouse.x<ax+aw&&mouse.y>ay&&mouse.y<ay+ah){
         gameState='start'; releaseLock();
         WORLD_W=2600;WORLD_H=1700;ttLevel=1;nukes=[];jrCaptives=[];jrCarrying=-1;tngPads=[];tngSeq=1;tngOnPad=-1;tngHoldMs=0;
@@ -7212,6 +7385,16 @@ function _doClick(){
     }
     const cbX=rowStartX+10*itemStep;
     if(dist(mouse.x,mouse.y,cbX,swatchCY)<swatchR+8){colorPick.click();return;}
+    // Edit Loadout button
+    const elW=200,elH=38,elX=canvas.width/2-elW/2,elY=btnY-54;
+    if(mouse.x>elX&&mouse.x<elX+elW&&mouse.y>elY&&mouse.y<elY+elH){
+      const cId=CRAFTS[hangarCraft].id;
+      const maxSl=CRAFTS[hangarCraft].maxSlots;
+      hangarLoadout=_loadLoadout(cId,maxSl)||[CRAFTS[hangarCraft].startWeapon||0];
+      loadoutEditFrom='hangar';
+      gameState='loadoutEdit';
+      SFX.select();return;
+    }
     if(mouse.x>cancelX&&mouse.x<cancelX+cancelW&&mouse.y>btnY&&mouse.y<btnY+btnH){
       _loadHangar();hangarCraft=selectedCraft;hangarColor=selectedColor;
       gameState='start';SFX.select();return;
@@ -8180,6 +8363,16 @@ function loop(now){
     }
     drawHUD(); drawMinimap(); drawTouchSticks(); drawMiniMe(); drawLaserFlash();drawLeechFlash();drawShockwaveFlash();
     drawPauseScreen();
+  } else if(gameState==='loadoutEdit'){
+    const wallSpin=Date.now()/80;
+    drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawBullets();
+    for(const e of enemies){
+      const sx=e.x-camX,sy=e.y-camY;
+      if(sx<-90||sx>canvas.width+90||sy<-90||sy>canvas.height+90)continue;
+      drawEnemyDrone(sx,sy,e.aim,e.size,e.color,e.accent,wallSpin*(enemies.indexOf(e)%2===0?1:-1.3),e.hp/e.maxHp);
+    }
+    if(P.alive){const sx=P.x-camX,sy=P.y-camY;drawPlayerCraft(sx,sy,P.aim,P.size,P.color,lighten(P.color,90),wallSpin,P.hp/P.maxHp);}
+    drawLoadoutEdit();
   } else if(gameState==='waveClear'&&gameMode==='battle'){
     tickParticles(dt);tickPickups(dt);
     drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawPlayer();drawHUD();drawMinimap();
