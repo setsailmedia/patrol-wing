@@ -1957,6 +1957,7 @@ function tickPlayer(dt,now){
         '#44aaff',_pCount(1),1.2,2.5,200
       );
     }
+    if(P.craftIdx===SNIPER_IDX()) deadEyeMs=0;
     P.lastShot=now;
   }
   // Detect weapons that are out of usable ammo
