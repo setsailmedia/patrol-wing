@@ -1957,6 +1957,12 @@ function resetPlayer(){
     damageMult:c.damageMult||1.0,detMult:c.detMult||1.0,
     stocks:mkStocks(),mineStock:0,seekStock:0,noAmmoCount:0,sawtoothAngle:0,
   });
+  const savedLO=_loadLoadout(c.id,c.maxSlots);
+  if(savedLO&&savedLO.length>0){
+    P.loadout=savedLO;
+    P.unlockedW=new Set(savedLO);
+    P.weaponIdx=savedLO[0];
+  }
   if(c.startEMP){empFlash=750;eBullets.length=0;}
   carrierDrones=[];if(c.id==='carrier') _initCarrierDrones();
   deadEyeMs=0;slipstreamMs=0;slipPrevVx=0;slipPrevVy=0;
@@ -3771,9 +3777,16 @@ function checkCollisions(){
         case'weapon':
           if(P.unlockedW.size<WEAPONS.length){
             let next=0; while(P.unlockedW.has(next))next++;
-            P.unlockedW.add(next); P.weaponIdx=next;
+            P.unlockedW.add(next);
+            const maxSl=CRAFTS[P.craftIdx].maxSlots;
+            if(P.loadout.length<maxSl){
+              P.loadout.push(next);
+              P.weaponIdx=next;
+              weaponFlash={name:WEAPONS[next].name,ms:3000};
+            } else {
+              weaponFlash={prefix:'UNLOCKED',name:`${WEAPONS[next].name} — LOADOUT FULL`,ms:3000};
+            }
             score+=100;
-            weaponFlash={name:WEAPONS[next].name,ms:3000};
             spawnParts(pk.x,pk.y,WEAPONS[next].color,_pCount(22),5,7,550); SFX.weapon();
             if(WEAPONS[next].id==='mine') P.mineStock=enemies.length;
             if(WEAPONS[next].id==='seekr'){const half=Math.ceil(enemies.length/2);P.seekStock=half+Math.floor(Math.random()*(enemies.length*3-half+1));}
