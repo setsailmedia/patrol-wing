@@ -1431,6 +1431,17 @@ function drawBullets(){
   // Regular enemy bullets
   ctx.shadowColor='#ff8800';ctx.fillStyle='#ffaa22';
   for(const b of eBullets){
+    if(b.isBomb){
+      const bsx=b.x-camX,bsy=b.y-camY;
+      if(bsx<-60||bsx>canvas.width+60||bsy<-60||bsy>canvas.height+60) continue;
+      const pulse=0.5+0.5*Math.sin(Date.now()/90);
+      ctx.save();ctx.translate(bsx,bsy);
+      ctx.beginPath();ctx.arc(0,0,b.bSz,0,Math.PI*2);
+      ctx.fillStyle=`rgba(204,68,255,${0.7+0.3*pulse})`;ctx.shadowBlur=16;ctx.shadowColor='#cc44ff';ctx.fill();
+      ctx.strokeStyle='#ee99ff';ctx.lineWidth=1.5;ctx.stroke();
+      ctx.restore();
+      continue;
+    }
     if(b.isBrute) continue; // drawn separately below
     const sx=b.x-camX,sy=b.y-camY;if(sx<-10||sx>canvas.width+10||sy<-10||sy>canvas.height+10)continue;
     ctx.globalAlpha=0.32;ctx.beginPath();ctx.arc(sx-b.vx*2.5,sy-b.vy*2.5,2,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;ctx.beginPath();ctx.arc(sx,sy,3.5,0,Math.PI*2);ctx.fill();
@@ -2387,14 +2398,35 @@ function drawEnemies(){
       ctx.fillStyle=`rgba(68,255,170,${0.10*pulse})`;ctx.fill();
       ctx.strokeStyle=`rgba(68,255,170,${0.45*pulse})`;ctx.lineWidth=1.5;ctx.stroke();
     }
-    // Draw distinct shapes for new types
+    // Set alpha for cloaker stealth
+    const cloakerInvis=e.type==='cloaker'&&e.visibleMs<=0;
+    if(cloakerInvis) ctx.globalAlpha=0.08;
+    // Draw distinct shapes per type
     if(e.type==='dart'){
       _drawDart(sx,sy,e.aim,e.size,e.color,e.accent,e.rotor,e.hp/e.maxHp);
     } else if(e.type==='brute'){
       _drawBrute(sx,sy,e.aim,e.size,e.color,e.accent,e.rotor,e.hp/e.maxHp);
+    } else if(e.type==='ravager'){
+      const rc=e.chargeMs>0?e.accent:e.color;
+      drawRavager(sx,sy,e.aim,e.size,rc,e.accent,e.rotor,e.hp/e.maxHp);
+    } else if(e.type==='splitter'){
+      drawSplitter(sx,sy,e.aim,e.size,e.color,e.accent,e.rotor,e.hp/e.maxHp);
+    } else if(e.type==='shard'){
+      drawShard(sx,sy,e.aim,e.size,e.color,e.accent,e.rotor,e.hp/e.maxHp);
+    } else if(e.type==='cloaker'){
+      drawCloaker(sx,sy,e.aim,e.size,e.color,e.accent,e.rotor,e.hp/e.maxHp,e.visibleMs);
+    } else if(e.type==='demolisher'){
+      drawDemolisher(sx,sy,e.aim,e.size,e.color,e.accent,e.rotor,e.hp/e.maxHp);
+    } else if(e.type==='hunter'){
+      drawHunter(sx,sy,e.aim,e.size,e.color,e.accent,e.rotor,e.hp/e.maxHp);
+    } else if(e.type==='dreadnought'){
+      drawDreadnought(sx,sy,e.aim,e.size,e.color,e.accent,e.rotor,e.hp/e.maxHp,e.phase);
+    } else if(e.type==='harbinger'){
+      drawHarbinger(sx,sy,e.aim,e.size,e.color,e.accent,e.rotor,e.hp/e.maxHp,e.rageMs);
     } else {
       drawEnemyDrone(sx,sy,e.aim,e.size,e.color,e.accent,e.rotor,e.hp/e.maxHp);
     }
+    if(cloakerInvis) ctx.globalAlpha=1;
     const bw=e.size*3.2,bh=5,bx=sx-bw/2,by=sy-e.size*2.4;
     ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(bx-1,by-1,bw+2,bh+2);ctx.fillStyle='#111';ctx.fillRect(bx,by,bw,bh);
     const pct=e.hp/e.maxHp;ctx.fillStyle=pct>0.5?'#22ee88':pct>0.25?'#ffaa00':'#ff3333';ctx.shadowBlur=5;ctx.shadowColor=ctx.fillStyle;ctx.fillRect(bx,by,bw*pct,bh);ctx.shadowBlur=0;
