@@ -1398,6 +1398,13 @@ function fireWeapon(){
     SFX.mineset();
     return;
   }
+  if(w.id==='grenade'){
+    const angle=P.aim;
+    grenades.push({x:P.x+Math.cos(angle)*22,y:P.y+Math.sin(angle)*22,vx:Math.cos(angle)*11,vy:Math.sin(angle)*11,bounces:0,life:GRENADE_LIFE,blasting:false,blastT:0});
+    spawnParts(P.x+Math.cos(angle)*18,P.y+Math.sin(angle)*18,'#ffaa22',_pCount(5),2.5,3.5,200);
+    SFX.mineset();
+    return;
+  }
   for(let i=0;i<w.count;i++)firePBullet(P.x,P.y,P.aim+(i-half)*w.spread,dmg,w.spd,w.bSz,w.color);
   spawnParts(P.x+Math.cos(P.aim)*36,P.y+Math.sin(P.aim)*36,w.color,_pCount(3+w.count),2,2.5,130);
   SFX[w.id]();P.vx-=Math.cos(P.aim)*0.9;P.vy-=Math.sin(P.aim)*0.9;
@@ -3152,6 +3159,77 @@ function drawRockets(){
   }
 }
 // ─── /ROCKETS ────────────────────────────────────────────────────
+// ─── GRENADES ────────────────────────────────────────────────────
+function _detonateGrenade(gi){
+  const g=grenades[gi];
+  g.blasting=true;g.blastT=480;
+  spawnParts(g.x,g.y,'#ffaa22',_pCount(35),8,9,850);
+  spawnParts(g.x,g.y,'#ffffff',_pCount(12),4,5,500);
+  spawnParts(g.x,g.y,'#ff6600',_pCount(20),6,7,650);
+  if(settings.screenShake)shake=Math.max(shake,18);
+  SFX.minedet();
+  const DMG=GRENADE_BLAST_DMG*(P.overchargeMs>0?2:1);
+  for(let ei=enemies.length-1;ei>=0;ei--){
+    const e=enemies[ei];
+    if(dist2(g.x,g.y,e.x,e.y)>GRENADE_BLAST_R*GRENADE_BLAST_R)continue;
+    e.hp-=DMG;
+    spawnParts(e.x,e.y,e.color,_pCount(8),3,4.5,300);
+    if(e.hp<=0){SFX.boom();killEnemy(ei);}
+  }
+}
+function tickGrenades(dt){
+  const step=dt*60;
+  for(let gi=grenades.length-1;gi>=0;gi--){
+    const g=grenades[gi];
+    if(g.blasting){g.blastT-=dt*1000;if(g.blastT<=0)grenades.splice(gi,1);continue;}
+    g.life-=dt*1000;
+    g.x+=g.vx*step;g.y+=g.vy*step;
+    if(g.x<6){g.x=6;g.vx=Math.abs(g.vx);g.bounces++;}
+    if(g.x>WORLD_W-6){g.x=WORLD_W-6;g.vx=-Math.abs(g.vx);g.bounces++;}
+    if(g.y<6){g.y=6;g.vy=Math.abs(g.vy);g.bounces++;}
+    if(g.y>WORLD_H-6){g.y=WORLD_H-6;g.vy=-Math.abs(g.vy);g.bounces++;}
+    const proxy={x:g.x,y:g.y,vx:g.vx,vy:g.vy,bSz:6};
+    if(reflectRicoVsObs(proxy)){
+      g.x=proxy.x;g.y=proxy.y;g.vx=proxy.vx;g.vy=proxy.vy;
+      g.bounces++;
+      spawnParts(g.x,g.y,'#ffaa22',_pCount(3),1.5,2.5,180);
+    }
+    let detonate=g.bounces>=GRENADE_MAX_BOUNCES||g.life<=0;
+    if(!detonate){
+      for(const e of enemies){if(dist2(g.x,g.y,e.x,e.y)<GRENADE_PROX_R*GRENADE_PROX_R){detonate=true;break;}}
+    }
+    if(detonate){_detonateGrenade(gi);}
+    else if(Math.random()<0.4){spawnParts(g.x,g.y,'#888844',_pCount(1),0.5,1.5,300);}
+  }
+}
+function drawGrenades(){
+  const now=Date.now();
+  for(const g of grenades){
+    const sx=g.x-camX,sy=g.y-camY;
+    if(sx<-80||sx>canvas.width+80||sy<-80||sy>canvas.height+80)continue;
+    ctx.save();ctx.translate(sx,sy);
+    if(g.blasting){
+      const prog=1-(g.blastT/480);
+      const br=GRENADE_BLAST_R*prog*1.05;
+      ctx.globalAlpha=Math.max(0,(1-prog)*0.72);
+      ctx.beginPath();ctx.arc(0,0,br,0,Math.PI*2);
+      ctx.fillStyle='rgba(255,140,0,0.28)';ctx.fill();
+      ctx.strokeStyle='#ffaa22';ctx.lineWidth=3*(1-prog)+1;
+      ctx.shadowBlur=26;ctx.shadowColor='#ff6600';
+      ctx.stroke();ctx.shadowBlur=0;ctx.globalAlpha=1;
+      ctx.restore();continue;
+    }
+    const pulse=0.7+0.3*Math.sin(now/120);
+    ctx.shadowBlur=12*pulse;ctx.shadowColor='#ffaa22';
+    ctx.beginPath();ctx.arc(0,0,6,0,Math.PI*2);
+    ctx.fillStyle='#ddaa00';ctx.fill();
+    ctx.strokeStyle='#ffcc44';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.beginPath();ctx.arc(0,-6,2.5,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,${80+Math.floor(120*pulse)},0,${0.8*pulse})`;ctx.fill();
+    ctx.shadowBlur=0;ctx.restore();
+  }
+}
+// ─── /GRENADES ───────────────────────────────────────────────────
 // ─── /MINES ──────────────────────────────────────────────────────
 function tickSeekers(dt,now){
   const step=dt*60;
@@ -7853,12 +7931,12 @@ function loop(now){
     if(portalActive){
       // Freeze all game ticks — only tick portal countdown and particles
       tickParticles(dt);tickPortal(dt);
-      drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawFaradayCages();drawRockets();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();
+      drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawFaradayCages();drawRockets();drawGrenades();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();
       if(gameMode==='timetrial') drawFinishLine();
       drawHUD();drawMinimap();drawCrosshair();drawTouchSticks();drawMiniMe();drawPortals();
     } else {
-    tickPlayer(dt,now);tickCarrierDrones(dt,now);tickEnemies(dt,now);tickMiniMe(dt,now);tickBullets(dt);tickMines(dt);tickFaradayCages(dt);tickRockets(dt);tickSeekers(dt,now);tickBoomerangs(dt);tickHazards(dt,now);tickFractals(dt);tickParticles(dt);tickPickups(dt);tickLaserFlash(dt);tickPortal(dt);if(ttLevel===2)tickNukes(dt);if(ttLevel===4)tickJRRescue(dt);if(ttLevel===5)tickTNG(dt);tickHullBeep(now);checkCollisions();
-    drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawFaradayCages();drawRockets();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();drawCarrierDrones();
+    tickPlayer(dt,now);tickCarrierDrones(dt,now);tickEnemies(dt,now);tickMiniMe(dt,now);tickBullets(dt);tickMines(dt);tickFaradayCages(dt);tickRockets(dt);tickGrenades(dt);tickSeekers(dt,now);tickBoomerangs(dt);tickHazards(dt,now);tickFractals(dt);tickParticles(dt);tickPickups(dt);tickLaserFlash(dt);tickPortal(dt);if(ttLevel===2)tickNukes(dt);if(ttLevel===4)tickJRRescue(dt);if(ttLevel===5)tickTNG(dt);tickHullBeep(now);checkCollisions();
+    drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawFaradayCages();drawRockets();drawGrenades();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();drawCarrierDrones();
     if(slipstreamMs>0&&P.alive&&CRAFTS[P.craftIdx].id==='skirmisher'){
       const sx=P.x-camX, sy=P.y-camY;
       const alphaBase=slipstreamMs/400;
