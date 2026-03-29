@@ -1175,7 +1175,7 @@ function fireWeapon(){
   if(w.id==='mine'){
     if(P.mineStock<=0) return;
     P.mineStock--;
-    mines.push({x:P.x, y:P.y, t:0, armMs:900, armed:false, blastT:0, blasting:false});
+    mines.push({x:P.x, y:P.y, t:0, armMs:350, armed:false, blastT:0, blasting:false});
     SFX.mineset();
     return;
   }
@@ -1442,7 +1442,7 @@ function fireWeapon(){
     return;
   }
   if(w.id==='faraday'){
-    faradayCages.push({x:P.x,y:P.y,life:FARADAY_LIFE,armed:false,armMs:600,trapped:[],blasting:false,blastT:0});
+    faradayCages.push({x:P.x,y:P.y,life:FARADAY_LIFE,armed:false,armMs:250,trapped:[],blasting:false,blastT:0});
     spawnParts(P.x,P.y,'#88ffcc',_pCount(8),2,3.5,300);
     SFX.mineset();
     return;
@@ -3753,8 +3753,8 @@ function checkCollisions(){
       if(jrHit&&!playerHit) spawnParts(pk.x,pk.y,'#44ffcc',_pCount(8),2.5,4,300); // J R pickup sparkle
       switch(pk.type){
         case'battery':P.bat=Math.min(P.maxBat,P.bat+58);score+=50;spawnParts(pk.x,pk.y,'#00ff88',_pCount(14),3.5,5,420);SFX.pickup();weaponFlash={prefix:'COLLECTED',name:'BATTERY PACK +58',ms:1400};break;
-        case'health':P.hp=Math.min(P.maxHp,P.hp+48);score+=50;spawnParts(pk.x,pk.y,'#ff4466',_pCount(14),3.5,5,420);SFX.pickup();weaponFlash={prefix:'COLLECTED',name:'HULL REPAIR +48',ms:1400};break;
-        case'medkit':P.hp=Math.min(P.maxHp,P.hp+22);score+=30;spawnParts(pk.x,pk.y,'#44ffdd',_pCount(12),3,4.5,380);SFX.pickup();weaponFlash={prefix:'COLLECTED',name:'MED KIT +22',ms:1400};break;
+        case'health':P.hp=Math.min(P.maxHp,P.hp+48);if(miniMe.active)miniMe.hp=Math.min(MM_HP,miniMe.hp+24);score+=50;spawnParts(pk.x,pk.y,'#ff4466',_pCount(14),3.5,5,420);SFX.pickup();weaponFlash={prefix:'COLLECTED',name:'HULL REPAIR +48',ms:1400};break;
+        case'medkit':P.hp=Math.min(P.maxHp,P.hp+22);if(miniMe.active)miniMe.hp=Math.min(MM_HP,miniMe.hp+11);score+=30;spawnParts(pk.x,pk.y,'#44ffdd',_pCount(12),3,4.5,380);SFX.pickup();weaponFlash={prefix:'COLLECTED',name:'MED KIT +22',ms:1400};break;
         case'weapon':
           if(P.unlockedW.size<WEAPONS.length){
             let next=0; while(P.unlockedW.has(next))next++;
@@ -5001,8 +5001,8 @@ function drawVictoryScreen(){
 function spawnWave(n){
   pBullets.length=0;eBullets.length=0;mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;
   waveStartTime=Date.now();
-  // Restore miniMe for the new wave
-  miniMe.active=false;miniMe.lost=false;miniMe.hp=MM_HP;miniMe.iframes=0;
+  // JR persists through waves — only reset if not currently active
+  if(!miniMe.active){miniMe.lost=false;}
   generateObstacles();spawnHiddenPickups();spawnWaveEnemies(n);SFX.wave();
   // Hazard obstacles — scale with wave
   if(n>=2) spawnHazardZaps(n>=4?4:2, 200,WORLD_W-200, 200,WORLD_H-200, 80,160);
