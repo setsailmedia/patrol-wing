@@ -1380,6 +1380,18 @@ function fireWeapon(){
     SFX.rapid();P.vx-=Math.cos(P.aim)*0.3;P.vy-=Math.sin(P.aim)*0.3;
     return;
   }
+  if(w.id==='grapple'){
+    const angle=P.aim;
+    pBullets.push({
+      x:P.x+Math.cos(angle)*20, y:P.y+Math.sin(angle)*20,
+      vx:Math.cos(angle)*18, vy:Math.sin(angle)*18,
+      dmg:0, bSz:4, col:'#44ddff', stun:false, dinf:false,
+      fromInfected:false, isGrapple:true
+    });
+    spawnParts(P.x+Math.cos(angle)*16,P.y+Math.sin(angle)*16,'#44ddff',_pCount(4),2,3,180);
+    SFX.select();
+    return;
+  }
   for(let i=0;i<w.count;i++)firePBullet(P.x,P.y,P.aim+(i-half)*w.spread,dmg,w.spd,w.bSz,w.color);
   spawnParts(P.x+Math.cos(P.aim)*36,P.y+Math.sin(P.aim)*36,w.color,_pCount(3+w.count),2,2.5,130);
   SFX[w.id]();P.vx-=Math.cos(P.aim)*0.9;P.vy-=Math.sin(P.aim)*0.9;
@@ -1438,6 +1450,18 @@ function drawBullets(){
   for(const b of pBullets){
     const sx=b.x-camX,sy=b.y-camY;
     if(sx<-20||sx>canvas.width+20||sy<-20||sy>canvas.height+20)continue;
+    if(b.isGrapple){
+      const angle=Math.atan2(b.vy,b.vx);
+      ctx.save();ctx.translate(sx,sy);ctx.rotate(angle);
+      ctx.shadowBlur=14;ctx.shadowColor='#44ddff';
+      ctx.beginPath();
+      ctx.moveTo(6,0);ctx.lineTo(-4,4);ctx.lineTo(-3,0);ctx.lineTo(-4,-4);ctx.closePath();
+      ctx.fillStyle='#44ddff';ctx.fill();
+      ctx.beginPath();ctx.moveTo(-4,0);ctx.lineTo(-14,0);
+      ctx.strokeStyle='rgba(68,221,255,0.6)';ctx.lineWidth=1.5;ctx.stroke();
+      ctx.shadowBlur=0;ctx.restore();
+      continue;
+    }
     if(b.dinf){
       // Digital Infection: elongated green bolt (~40% longer) with electric pulse
       const spd=Math.sqrt(b.vx*b.vx+b.vy*b.vy)||1;
@@ -2429,6 +2453,18 @@ function tickEnemies(dt,now){
       if(e.type==='cloaker') e.visibleMs=420;
     }
   }
+  // Anchor constraint — applied after all movement so it catches every enemy type
+  for(const e of enemies){
+    if(e.anchorX!==undefined){
+      const adx=e.x-e.anchorX,ady=e.y-e.anchorY;
+      const ad=Math.sqrt(adx*adx+ady*ady)||1;
+      if(ad>GRAPPLE_LEASH){
+        e.x=e.anchorX+(adx/ad)*GRAPPLE_LEASH;
+        e.y=e.anchorY+(ady/ad)*GRAPPLE_LEASH;
+        e.vx*=0.25;e.vy*=0.25;
+      }
+    }
+  }
   // Self-destruct: if only one enemy remains and it's infected, slowly drain its HP
   if(enemies.length===1&&enemies[0].infected){
     const e=enemies[0];
@@ -3349,6 +3385,17 @@ function checkCollisions(){
       const e=enemies[ei];
       // infected enemies can still be shot and killed by the player
       if(dist2(b.x,b.y,e.x,e.y)<e.size*e.size*1.21){
+        if(b.isGrapple){
+          e.anchorX=b.x;
+          e.anchorY=b.y;
+          const anchDmg=e.maxHp*0.2;
+          e.hp-=anchDmg;
+          spawnParts(b.x,b.y,'#44ddff',_pCount(10),3,4.5,350);
+          spawnParts(b.x,b.y,'#ffffff',_pCount(5),2,3,250);
+          if(e.hp<=0){SFX.boom();killEnemy(ei);}
+          pBullets.splice(bi,1);
+          continue outer;
+        }
         if(b.stun){
           e.stunMoveMs=Math.max(e.stunMoveMs,1000);
           e.stunFireMs=Math.max(e.stunFireMs,2000);
