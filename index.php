@@ -3868,7 +3868,7 @@ function drawWeaponBar(){
       ctx.font=`${act?'bold ':''}${numSz}px "Courier New"`;ctx.fillStyle=act?(noAmmo||mmLost?'#ff4400':mmActive?MM_COL:w.color):'rgba(70,100,130,0.8)';
       ctx.fillText(`${i+1}`,x+bw-(T?3:5),by+(T?8:12));
       ctx.font=`${act?'bold ':''}${iconSz}px "Courier New"`;ctx.fillStyle=iconCol;
-      ctx.fillText(['•','►','»','↩','∿','↯','|','⊙','‖','⊸','◈','◎','⊛','⇝','⬆','⊕','⌬'][i],x+bw/2,by+bh/2+(T?5:7));
+      ctx.fillText(['•','►','»','↩','∿','↯','|','↪','⊙','‖','⊸','◈','◎','⊞','⊛','⇝','⬆','⊕','⌬','◉','⊗','≋','※'][i],x+bw/2,by+bh/2+(T?5:7));
       // Stock count label (mine uses mineStock; others use wStock; null = unlimited, no label)
       if(w.id==='mine'){
         ctx.font=`bold ${T?7:9}px "Courier New"`;
