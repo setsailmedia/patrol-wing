@@ -3184,10 +3184,10 @@ function tickGrenades(dt){
     if(g.blasting){g.blastT-=dt*1000;if(g.blastT<=0)grenades.splice(gi,1);continue;}
     g.life-=dt*1000;
     g.x+=g.vx*step;g.y+=g.vy*step;
-    if(g.x<6){g.x=6;g.vx=Math.abs(g.vx);g.bounces++;}
-    if(g.x>WORLD_W-6){g.x=WORLD_W-6;g.vx=-Math.abs(g.vx);g.bounces++;}
-    if(g.y<6){g.y=6;g.vy=Math.abs(g.vy);g.bounces++;}
-    if(g.y>WORLD_H-6){g.y=WORLD_H-6;g.vy=-Math.abs(g.vy);g.bounces++;}
+    if(g.x<6){g.x=6;g.vx=Math.abs(g.vx);g.bounces++;spawnParts(g.x,g.y,'#ffaa22',_pCount(2),1.5,2.5,180);}
+    else if(g.x>WORLD_W-6){g.x=WORLD_W-6;g.vx=-Math.abs(g.vx);g.bounces++;spawnParts(g.x,g.y,'#ffaa22',_pCount(2),1.5,2.5,180);}
+    else if(g.y<6){g.y=6;g.vy=Math.abs(g.vy);g.bounces++;spawnParts(g.x,g.y,'#ffaa22',_pCount(2),1.5,2.5,180);}
+    else if(g.y>WORLD_H-6){g.y=WORLD_H-6;g.vy=-Math.abs(g.vy);g.bounces++;spawnParts(g.x,g.y,'#ffaa22',_pCount(2),1.5,2.5,180);}
     const proxy={x:g.x,y:g.y,vx:g.vx,vy:g.vy,bSz:6};
     if(reflectRicoVsObs(proxy)){
       g.x=proxy.x;g.y=proxy.y;g.vx=proxy.vx;g.vy=proxy.vy;
