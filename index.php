@@ -1196,6 +1196,44 @@ function tickHazards(dt,now){
           if(P.hp<=0)P.alive=false;
         }
       }
+    } else if(h.type==='laser_grid'){
+      const arcRad=(h.sweepArc||180)*Math.PI/180;
+      h.sweepAngle=h.sweepAngle||0;
+      h.sweepDir=h.sweepDir||1;
+      h.sweepAngle+=h.sweepSpd*dt*h.sweepDir;
+      if(h.sweepAngle>arcRad/2){h.sweepAngle=arcRad/2;h.sweepDir=-1;}
+      if(h.sweepAngle<-arcRad/2){h.sweepAngle=-arcRad/2;h.sweepDir=1;}
+      const beamAngle=(h.angle||0)+h.sweepAngle;
+      const bx=h.x+Math.cos(beamAngle)*(h.beamLen||250),by=h.y+Math.sin(beamAngle)*(h.beamLen||250);
+      h._bx=bx;h._by=by;
+      h.hitCooldown=h.hitCooldown||0;
+      if(h.hitCooldown>0)h.hitCooldown-=dt*1000;
+      if(P.alive&&P.iframes<=0&&P.invincMs<=0&&h.hitCooldown<=0){
+        if(_pointSegDist2(P.x,P.y,h.x,h.y,bx,by)<12*12){
+          if(P.shieldMs>0){P.shieldMs=0;spawnParts(P.x,P.y,'#44aaff',_pCount(14),4,5,400);SFX.shbreak();P.iframes=400;}
+          else{P.hp-=(h.dmg||25)*P.damageMult;P.iframes=500;if(settings.screenShake)shake=10;SFX.hit();if(P.hp<=0)P.alive=false;Music.onHit();}
+          h.hitCooldown=500;
+        }
+      }
+    } else if(h.type==='emp_pylon'){
+      if(h.cooldownMs===undefined)h.cooldownMs=0;
+      if(h.chargeMs===undefined)h.chargeMs=0;
+      if(h.flashMs===undefined)h.flashMs=0;
+      if(h.flashMs>0)h.flashMs-=dt*1000;
+      if(h.cooldownMs>0){h.cooldownMs-=dt*1000;}
+      else if(h.chargeMs>0){
+        h.chargeMs-=dt*1000;
+        if(h.chargeMs<=0){
+          h.flashMs=400;
+          if(P.alive&&dist(P.x,P.y,h.x,h.y)<(h.pulseRadius||250)){
+            P.weaponDisableMs=h.disableMs||3000;
+            spawnParts(P.x,P.y,'#4488ff',_pCount(10),3,4,300);
+          }
+          h.cooldownMs=h.pulseInterval||12000;h.chargeMs=0;
+        }
+      } else {
+        h.chargeMs=1500;
+      }
     }
   }
 }
@@ -1335,6 +1373,39 @@ function drawHazards(){
         const bs=2+Math.sin(ba*3);
         ctx.beginPath();ctx.arc(bx,by2,bs,0,Math.PI*2);
         ctx.fillStyle=`rgba(80,220,40,${0.3+0.2*Math.sin(ba*4)})`;ctx.fill();
+      }
+    } else if(h.type==='laser_grid'){
+      const sx=h.x-camX,sy=h.y-camY;
+      const bl=h.beamLen||250;
+      if(sx<-bl-10||sx>canvas.width+bl+10||sy<-bl-10||sy>canvas.height+bl+10)continue;
+      const bsx=(h._bx||h.x)-camX,bsy=(h._by||h.y)-camY;
+      ctx.strokeStyle='rgba(255,40,40,0.85)';ctx.lineWidth=3;
+      ctx.shadowBlur=16;ctx.shadowColor='#ff2200';
+      ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(bsx,bsy);ctx.stroke();ctx.shadowBlur=0;
+      ctx.fillStyle='#ff4444';ctx.beginPath();ctx.arc(sx,sy,6,0,Math.PI*2);ctx.fill();
+      const arcRad=(h.sweepArc||180)*Math.PI/180;
+      ctx.globalAlpha=0.1;ctx.beginPath();ctx.arc(sx,sy,bl,h.angle-arcRad/2,h.angle+arcRad/2);
+      ctx.strokeStyle='#ff4444';ctx.lineWidth=1;ctx.stroke();ctx.globalAlpha=1;
+    } else if(h.type==='emp_pylon'){
+      const sx=h.x-camX,sy=h.y-camY;
+      const pr=h.pulseRadius||250;
+      if(sx<-pr-10||sx>canvas.width+pr+10||sy<-pr-10||sy>canvas.height+pr+10)continue;
+      const charging=h.chargeMs>0&&h.chargeMs<1500;
+      const pulse=charging?0.5+0.5*Math.sin(now*12):0.3+0.3*Math.sin(now*2);
+      ctx.fillStyle='rgba(30,40,60,0.9)';ctx.beginPath();ctx.arc(sx,sy,10,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle=charging?`rgba(68,136,255,${pulse})`:'rgba(40,80,180,0.5)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(sx,sy,10,0,Math.PI*2);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(sx,sy-14);ctx.lineTo(sx,sy-8);ctx.strokeStyle=charging?'#4488ff':'#334466';ctx.lineWidth=3;ctx.stroke();
+      if(charging){
+        const chPct=1-(h.chargeMs/1500);
+        ctx.globalAlpha=0.15+0.15*chPct;ctx.beginPath();ctx.arc(sx,sy,pr*chPct,0,Math.PI*2);
+        ctx.strokeStyle='#4488ff';ctx.lineWidth=2;ctx.stroke();ctx.globalAlpha=1;
+      }
+      if(h.flashMs>0){
+        const fp=h.flashMs/400;
+        ctx.globalAlpha=fp*0.4;ctx.beginPath();ctx.arc(sx,sy,pr,0,Math.PI*2);
+        ctx.fillStyle='rgba(68,136,255,0.2)';ctx.fill();
+        ctx.strokeStyle='#4488ff';ctx.lineWidth=3*fp;ctx.stroke();ctx.globalAlpha=1;
       }
     }
   }
@@ -4349,6 +4420,13 @@ function drawWeaponBar(){
     const a=Math.min(1,weaponFlash.ms/700);ctx.globalAlpha=a;
     ctx.font=`bold ${T?11:16}px "Courier New"`;ctx.fillStyle=cw.color;ctx.shadowBlur=T?14:24;ctx.shadowColor=cw.color;
     ctx.fillText(`${weaponFlash.prefix??'⬆ WEAPON:'} ${weaponFlash.name}`,canvas.width/2,by-(T?22:38));ctx.shadowBlur=0;ctx.globalAlpha=1;
+  }
+  if(P.weaponDisableMs>0){
+    const sec=Math.ceil(P.weaponDisableMs/1000);
+    ctx.textAlign='center';ctx.font='bold 14px "Courier New"';ctx.fillStyle='#4488ff';
+    ctx.shadowBlur=12;ctx.shadowColor='#4488ff';
+    ctx.fillText(`WEAPONS DISABLED ${sec}s`,canvas.width/2,by-(T?30:48));
+    ctx.shadowBlur=0;
   }
   ctx.textAlign='left';
 }
