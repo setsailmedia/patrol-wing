@@ -419,7 +419,9 @@ canvas.addEventListener('mousedown',e=>{
       const gy=Math.round((mouse.y+editorCamY)/50)*50;
       for(let i=editorPlacedItems.length-1;i>=0;i--){
         if(_editorHitTest(editorPlacedItems[i],gx,gy)){
-          editorDragIdx=i;editorSelectedGate=editorPlacedItems[i].subtype==='gate'?i:-1;return;
+          editorDragIdx=i;
+          if(editorTool!=='_assignGuard') editorSelectedGate=editorPlacedItems[i].subtype==='gate'?i:-1;
+          return;
         }
       }
     }
@@ -8200,6 +8202,16 @@ function drawLevelEditor(){
         ctx.strokeStyle=`rgba(0,255,136,${0.4+0.4*pulse})`;ctx.lineWidth=3;
         ctx.beginPath();ctx.arc(sx,sy,16,0,Math.PI*2);ctx.stroke();
       }
+      // Show assigned-to-gate indicator
+      if(editorSelectedGate>=0&&editorPlacedItems[editorSelectedGate]&&editorPlacedItems[editorSelectedGate].unlockParams){
+        const gps=editorPlacedItems[editorSelectedGate].unlockParams.guardPositions||[];
+        if(gps.some(gp=>gp[0]===item.x&&gp[1]===item.y)){
+          ctx.strokeStyle='#ff4444';ctx.lineWidth=2;
+          ctx.beginPath();ctx.arc(sx,sy,14,0,Math.PI*2);ctx.stroke();
+          ctx.font='bold 7px "Courier New"';ctx.fillStyle='#ff4444';ctx.textAlign='center';
+          ctx.fillText('GUARD',sx,sy+22);
+        }
+      }
     } else if(item.cat==='pickup'){
       const col=PTYPES[item.subtype]?PTYPES[item.subtype].color:'#ffee00';
       ctx.fillStyle=col;ctx.save();ctx.translate(sx,sy);ctx.rotate(Math.PI/4);
@@ -8247,7 +8259,7 @@ function drawLevelEditor(){
     const gi=editorPlacedItems[editorSelectedGate];
     if(gi.subtype==='gate'){
       const gsx=gi.x-editorCamX+sideW,gsy=gi.y-editorCamY;
-      const tbW=160,tbH=gi.unlockType==='guard'?110:70,tbX=gsx+20,tbY=gsy-tbH-10;
+      const tbW=160,tbH=gi.unlockType==='guard'?110:gi.unlockType==='key'?80:gi.unlockType==='time'?110:70,tbX=gsx+20,tbY=gsy-tbH-10;
       ctx.fillStyle='rgba(0,20,50,0.9)';roundRect(ctx,tbX,tbY,tbW,tbH,6);ctx.fill();
       ctx.strokeStyle='#00ccff';ctx.lineWidth=1;roundRect(ctx,tbX,tbY,tbW,tbH,6);ctx.stroke();
       ctx.textAlign='center';ctx.font='bold 9px "Courier New"';
@@ -8277,9 +8289,43 @@ function drawLevelEditor(){
           ctx.beginPath();ctx.moveTo(gsx,gsy);ctx.lineTo(gpx,gpy);ctx.stroke();ctx.setLineDash([]);
         }
       }
+      if(gi.unlockType==='key'){
+        const kyBtn={x:tbX+4,y:tbY+30,w:148,h:22};
+        const kyHov=mouse.x>kyBtn.x&&mouse.x<kyBtn.x+kyBtn.w&&mouse.y>kyBtn.y&&mouse.y<kyBtn.y+kyBtn.h;
+        ctx.fillStyle=kyHov?'rgba(80,60,0,0.6)':'rgba(40,30,0,0.4)';
+        roundRect(ctx,kyBtn.x,kyBtn.y,kyBtn.w,kyBtn.h,3);ctx.fill();
+        ctx.fillStyle='#ffdd00';ctx.fillText('PLACE KEY',kyBtn.x+kyBtn.w/2,kyBtn.y+15);
+        // Show if key exists
+        const keyId=gi.unlockParams.keyId;
+        const hasKey=editorPlacedItems.some(it=>it.subtype==='gate_key'&&it.keyId===keyId);
+        ctx.font='8px "Courier New"';ctx.fillStyle=hasKey?'rgba(0,255,100,0.7)':'rgba(255,100,50,0.7)';
+        ctx.fillText(hasKey?'Key placed on map':'No key placed!',tbX+tbW/2,tbY+tbH-6);
+        // Draw line to key if it exists
+        if(hasKey){
+          const keyItem=editorPlacedItems.find(it=>it.subtype==='gate_key'&&it.keyId===keyId);
+          if(keyItem){
+            const kx=keyItem.x-editorCamX+sideW,ky=keyItem.y-editorCamY;
+            ctx.strokeStyle='rgba(255,220,0,0.4)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+            ctx.beginPath();ctx.moveTo(gsx,gsy);ctx.lineTo(kx,ky);ctx.stroke();ctx.setLineDash([]);
+          }
+        }
+      }
       if(gi.unlockType==='time'){
-        ctx.font='9px "Courier New"';ctx.fillStyle='rgba(150,200,255,0.7)';
-        ctx.fillText(`${gi.unlockParams.seconds||30}s countdown`,tbX+tbW/2,tbY+tbH-6);
+        const presets=[15,30,45,60,90,120];
+        const pbW=Math.floor((148-5*(presets.length-1))/presets.length),pbH=22;
+        const pbY=tbY+30;
+        for(let p=0;p<presets.length;p++){
+          const pbX=tbX+4+p*(pbW+5);
+          const sel=gi.unlockParams.seconds===presets[p];
+          const phov=mouse.x>pbX&&mouse.x<pbX+pbW&&mouse.y>pbY&&mouse.y<pbY+pbH;
+          ctx.fillStyle=sel?'rgba(0,100,180,0.7)':phov?'rgba(0,60,120,0.5)':'rgba(0,30,60,0.4)';
+          roundRect(ctx,pbX,pbY,pbW,pbH,3);ctx.fill();
+          if(sel){ctx.strokeStyle='#00ccff';ctx.lineWidth=1;roundRect(ctx,pbX,pbY,pbW,pbH,3);ctx.stroke();}
+          ctx.font='bold 9px "Courier New"';ctx.fillStyle=sel?'#00ccff':'rgba(150,200,255,0.7)';
+          ctx.fillText(`${presets[p]}s`,pbX+pbW/2,pbY+15);
+        }
+        ctx.font='8px "Courier New"';ctx.fillStyle='rgba(150,200,255,0.6)';
+        ctx.fillText(`Countdown: ${gi.unlockParams.seconds||30}s`,tbX+tbW/2,tbY+tbH-6);
       }
     }
   }
@@ -8539,7 +8585,7 @@ function _doClick(){
       const gi=editorPlacedItems[editorSelectedGate];
       if(gi.subtype==='gate'){
         const gsx=gi.x-editorCamX+sideW,gsy=gi.y-editorCamY;
-        const tbH=gi.unlockType==='guard'?110:70,tbX=gsx+20,tbY=gsy-tbH-10;
+        const tbH=gi.unlockType==='guard'?110:gi.unlockType==='key'?80:gi.unlockType==='time'?110:70,tbX=gsx+20,tbY=gsy-tbH-10;
         if(mouse.x>tbX+4&&mouse.x<tbX+78&&mouse.y>tbY+4&&mouse.y<tbY+26){
           gi.orient=gi.orient==='h'?'v':'h';
           gi.hinge=gi.orient==='h'?'left':'top';
@@ -8556,6 +8602,31 @@ function _doClick(){
           }
           if(mouse.x>tbX+4&&mouse.x<tbX+152&&mouse.y>tbY+56&&mouse.y<tbY+78){
             gi.unlockParams.guardPositions=[];editorDirty=true;SFX.select();return;
+          }
+        }
+        if(gi.unlockType==='key'){
+          if(mouse.x>tbX+4&&mouse.x<tbX+152&&mouse.y>tbY+30&&mouse.y<tbY+52){
+            // Remove existing key for this gate if any
+            const keyId=gi.unlockParams.keyId;
+            for(let k=editorPlacedItems.length-1;k>=0;k--){
+              if(editorPlacedItems[k].subtype==='gate_key'&&editorPlacedItems[k].keyId===keyId){
+                editorPlacedItems.splice(k,1);break;
+              }
+            }
+            // Place new key 200px from gate
+            editorPlacedItems.push({cat:'objective',subtype:'gate_key',x:gi.x+200,y:gi.y,keyId:keyId});
+            editorDirty=true;SFX.select();return;
+          }
+        }
+        if(gi.unlockType==='time'){
+          const presets=[15,30,45,60,90,120];
+          const pbW=Math.floor((148-5*(presets.length-1))/presets.length),pbH=22,pbY=tbY+30;
+          for(let p=0;p<presets.length;p++){
+            const pbX=tbX+4+p*(pbW+5);
+            if(mouse.x>pbX&&mouse.x<pbX+pbW&&mouse.y>pbY&&mouse.y<pbY+pbH){
+              gi.unlockParams.seconds=presets[p];
+              editorDirty=true;SFX.select();return;
+            }
           }
         }
       }
@@ -8590,7 +8661,7 @@ function _doClick(){
           if(item.cat==='enemy'&&_editorHitTest(item,gx,gy)){
             if(!gate.unlockParams.guardPositions) gate.unlockParams.guardPositions=[];
             gate.unlockParams.guardPositions.push([item.x,item.y]);
-            editorDirty=true;SFX.select();editorTool='';return;
+            editorDirty=true;SFX.confirm();return;
           }
         }
         return;
