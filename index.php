@@ -1234,6 +1234,46 @@ function tickHazards(dt,now){
       } else {
         h.chargeMs=1500;
       }
+    } else if(h.type==='ricochet_turret'){
+      if(h.cooldownMs===undefined)h.cooldownMs=0;
+      if(h.cooldownMs>0){h.cooldownMs-=dt*1000;}
+      else{
+        h.cooldownMs=h.fireInterval||3000;
+        const spd=h.projSpd||6;
+        const fa=h.fireAngle||0;
+        hazardProjectiles.push({x:h.x,y:h.y,vx:Math.cos(fa)*spd,vy:Math.sin(fa)*spd,bounces:0,maxBounces:h.bounceCount||5,dmg:h.dmg||20,life:4000});
+        spawnParts(h.x,h.y,'#ffaa22',_pCount(3),2,3,200);
+      }
+    }
+  }
+}
+
+function tickHazardProjectiles(dt){
+  const step=dt*60;
+  for(let i=hazardProjectiles.length-1;i>=0;i--){
+    const p=hazardProjectiles[i];
+    p.life-=dt*1000;
+    if(p.life<=0){hazardProjectiles.splice(i,1);continue;}
+    p.x+=p.vx*step;p.y+=p.vy*step;
+    if(p.x<6){p.x=6;p.vx=Math.abs(p.vx);p.bounces++;}
+    else if(p.x>WORLD_W-6){p.x=WORLD_W-6;p.vx=-Math.abs(p.vx);p.bounces++;}
+    else if(p.y<6){p.y=6;p.vy=Math.abs(p.vy);p.bounces++;}
+    else if(p.y>WORLD_H-6){p.y=WORLD_H-6;p.vy=-Math.abs(p.vy);p.bounces++;}
+    const proxy={x:p.x,y:p.y,vx:p.vx,vy:p.vy,bSz:5};
+    if(reflectRicoVsObs(proxy)){p.x=proxy.x;p.y=proxy.y;p.vx=proxy.vx;p.vy=proxy.vy;p.bounces++;}
+    if(p.bounces>=p.maxBounces){hazardProjectiles.splice(i,1);continue;}
+    if(P.alive&&P.iframes<=0&&P.invincMs<=0&&dist2(P.x,P.y,p.x,p.y)<(P.size+5)**2){
+      if(P.shieldMs>0){P.shieldMs=0;spawnParts(P.x,P.y,'#44aaff',_pCount(14),4,5,400);SFX.shbreak();P.iframes=400;}
+      else{P.hp-=p.dmg*P.damageMult;P.iframes=500;if(settings.screenShake)shake=8;SFX.hit();if(P.hp<=0)P.alive=false;Music.onHit();}
+      hazardProjectiles.splice(i,1);continue;
+    }
+    for(let ei=enemies.length-1;ei>=0;ei--){
+      const e=enemies[ei];
+      if(dist2(p.x,p.y,e.x,e.y)<(e.size+5)**2){
+        e.hp-=p.dmg;spawnParts(p.x,p.y,e.color,_pCount(4),2,3,200);
+        if(e.hp<=0){SFX.boom();killEnemy(ei);}
+        hazardProjectiles.splice(i,1);break;
+      }
     }
   }
 }
@@ -1407,7 +1447,24 @@ function drawHazards(){
         ctx.fillStyle='rgba(68,136,255,0.2)';ctx.fill();
         ctx.strokeStyle='#4488ff';ctx.lineWidth=3*fp;ctx.stroke();ctx.globalAlpha=1;
       }
+    } else if(h.type==='ricochet_turret'){
+      const sx=h.x-camX,sy=h.y-camY;
+      if(sx<-30||sx>canvas.width+30||sy<-30||sy>canvas.height+30)continue;
+      ctx.fillStyle='rgba(80,80,90,0.9)';ctx.beginPath();ctx.arc(sx,sy,8,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='rgba(150,150,160,0.7)';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(sx,sy,8,0,Math.PI*2);ctx.stroke();
+      const fa=h.fireAngle||0;
+      const bx=sx+Math.cos(fa)*12,by2=sy+Math.sin(fa)*12;
+      ctx.strokeStyle='#aaaaaa';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(bx,by2);ctx.stroke();
     }
+  }
+}
+
+function drawHazardProjectiles(){
+  for(const p of hazardProjectiles){
+    const sx=p.x-camX,sy=p.y-camY;
+    if(sx<-10||sx>canvas.width+10||sy<-10||sy>canvas.height+10)continue;
+    ctx.fillStyle='#ffaa22';ctx.shadowBlur=8;ctx.shadowColor='#ff8800';
+    ctx.beginPath();ctx.arc(sx,sy,4,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
   }
 }
 
@@ -10129,11 +10186,11 @@ function loop(now){
     if(portalActive){
       // Freeze all game ticks — only tick portal countdown and particles
       tickParticles(dt);tickPortal(dt);
-      drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawFaradayCages();drawRockets();drawGrenades();drawGravityWells();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();drawCustomObjectives();
+      drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawFaradayCages();drawRockets();drawGrenades();drawGravityWells();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawHazardProjectiles();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();drawCustomObjectives();
       if(gameMode==='timetrial') drawFinishLine();
       drawHUD();drawMinimap();drawCrosshair();drawTouchSticks();drawMiniMe();drawPortals();drawCustomTransition();
     } else {
-    tickPlayer(dt,now);tickCarrierDrones(dt,now);tickEnemies(dt,now);tickMiniMe(dt,now);tickBullets(dt);tickMines(dt);tickFaradayCages(dt);tickRockets(dt);tickGrenades(dt);tickGravityWells(dt);tickSeekers(dt,now);tickBoomerangs(dt);tickHazards(dt,now);tickGates(dt);tickFractals(dt);tickParticles(dt);tickPickups(dt);tickLaserFlash(dt);tickLeechFlash(dt);tickShockwaveFlash(dt);tickPortal(dt);if(ttLevel===2)tickNukes(dt);if(ttLevel===4)tickJRRescue(dt);if(ttLevel===5)tickTNG(dt);tickHullBeep(now);checkCollisions();tickCustomWinCondition(dt);tickCustomTransition(dt);tickCustomObjectivePickup();
+    tickPlayer(dt,now);tickCarrierDrones(dt,now);tickEnemies(dt,now);tickMiniMe(dt,now);tickBullets(dt);tickMines(dt);tickFaradayCages(dt);tickRockets(dt);tickGrenades(dt);tickGravityWells(dt);tickSeekers(dt,now);tickBoomerangs(dt);tickHazards(dt,now);tickGates(dt);tickHazardProjectiles(dt);tickFractals(dt);tickParticles(dt);tickPickups(dt);tickLaserFlash(dt);tickLeechFlash(dt);tickShockwaveFlash(dt);tickPortal(dt);if(ttLevel===2)tickNukes(dt);if(ttLevel===4)tickJRRescue(dt);if(ttLevel===5)tickTNG(dt);tickHullBeep(now);checkCollisions();tickCustomWinCondition(dt);tickCustomTransition(dt);tickCustomObjectivePickup();
     if(gameMode==='combattraining'){
       ctNextPickupMs-=dt*1000;
       if(ctNextPickupMs<=0){
@@ -10148,7 +10205,7 @@ function loop(now){
         if(pickups.length>idx) pickups[pickups.length-1].dropTimer=18000;
       }
     }
-    drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawFaradayCages();drawRockets();drawGrenades();drawGravityWells();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();drawCustomObjectives();drawCarrierDrones();
+    drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawFaradayCages();drawRockets();drawGrenades();drawGravityWells();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawHazardProjectiles();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();drawCustomObjectives();drawCarrierDrones();
     if(slipstreamMs>0&&P.alive&&CRAFTS[P.craftIdx].id==='skirmisher'){
       const sx=P.x-camX, sy=P.y-camY;
       const alphaBase=slipstreamMs/400;
