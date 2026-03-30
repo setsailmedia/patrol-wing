@@ -400,6 +400,7 @@ canvas.addEventListener('mousedown',e=>{
   }
   if(gameState==='levelEditor'&&e.button===2){
     if(editorTool==='_assignGuard'){editorTool='';return;}
+    if(editorTool==='_placeGateKey'){editorTool='';return;}
     const sideW=180;
     if(mouse.x>sideW){
       const gx=Math.round((mouse.x-sideW+editorCamX)/50)*50;
@@ -420,7 +421,7 @@ canvas.addEventListener('mousedown',e=>{
       for(let i=editorPlacedItems.length-1;i>=0;i--){
         if(_editorHitTest(editorPlacedItems[i],gx,gy)){
           editorDragIdx=i;
-          if(editorTool!=='_assignGuard') editorSelectedGate=editorPlacedItems[i].subtype==='gate'?i:-1;
+          if(editorTool!=='_assignGuard'&&editorTool!=='_placeGateKey') editorSelectedGate=editorPlacedItems[i].subtype==='gate'?i:-1;
           return;
         }
       }
@@ -8294,10 +8295,10 @@ function drawLevelEditor(){
         const kyHov=mouse.x>kyBtn.x&&mouse.x<kyBtn.x+kyBtn.w&&mouse.y>kyBtn.y&&mouse.y<kyBtn.y+kyBtn.h;
         ctx.fillStyle=kyHov?'rgba(80,60,0,0.6)':'rgba(40,30,0,0.4)';
         roundRect(ctx,kyBtn.x,kyBtn.y,kyBtn.w,kyBtn.h,3);ctx.fill();
-        ctx.fillStyle='#ffdd00';ctx.fillText('PLACE KEY',kyBtn.x+kyBtn.w/2,kyBtn.y+15);
         // Show if key exists
         const keyId=gi.unlockParams.keyId;
         const hasKey=editorPlacedItems.some(it=>it.subtype==='gate_key'&&it.keyId===keyId);
+        ctx.fillStyle='#ffdd00';ctx.fillText(hasKey?'MOVE KEY':'PLACE KEY',kyBtn.x+kyBtn.w/2,kyBtn.y+15);
         ctx.font='8px "Courier New"';ctx.fillStyle=hasKey?'rgba(0,255,100,0.7)':'rgba(255,100,50,0.7)';
         ctx.fillText(hasKey?'Key placed on map':'No key placed!',tbX+tbW/2,tbY+tbH-6);
         // Draw line to key if it exists
@@ -8357,6 +8358,12 @@ function drawLevelEditor(){
     ctx.fillStyle='rgba(0,80,40,0.8)';ctx.fillRect(sideW,40,W-sideW,24);
     ctx.textAlign='center';ctx.font='bold 11px "Courier New"';ctx.fillStyle='#00ff88';
     ctx.fillText('CLICK AN ENEMY TO ASSIGN AS GUARD  |  RIGHT-CLICK OR ESC TO CANCEL',sideW+(W-sideW)/2,56);
+    ctx.textAlign='left';
+  }
+  if(editorTool==='_placeGateKey'){
+    ctx.fillStyle='rgba(80,60,0,0.8)';ctx.fillRect(sideW,40,W-sideW,24);
+    ctx.textAlign='center';ctx.font='bold 11px "Courier New"';ctx.fillStyle='#ffdd00';
+    ctx.fillText('CLICK ON THE GRID TO PLACE THE KEY  |  RIGHT-CLICK OR ESC TO CANCEL',sideW+(W-sideW)/2,56);
     ctx.textAlign='left';
   }
 }
@@ -8606,16 +8613,8 @@ function _doClick(){
         }
         if(gi.unlockType==='key'){
           if(mouse.x>tbX+4&&mouse.x<tbX+152&&mouse.y>tbY+30&&mouse.y<tbY+52){
-            // Remove existing key for this gate if any
-            const keyId=gi.unlockParams.keyId;
-            for(let k=editorPlacedItems.length-1;k>=0;k--){
-              if(editorPlacedItems[k].subtype==='gate_key'&&editorPlacedItems[k].keyId===keyId){
-                editorPlacedItems.splice(k,1);break;
-              }
-            }
-            // Place new key 200px from gate
-            editorPlacedItems.push({cat:'objective',subtype:'gate_key',x:gi.x+200,y:gi.y,keyId:keyId});
-            editorDirty=true;SFX.select();return;
+            // Enter key placement mode — next grid click places the key
+            editorTool='_placeGateKey';SFX.select();return;
           }
         }
         if(gi.unlockType==='time'){
@@ -8666,6 +8665,24 @@ function _doClick(){
         }
         return;
       }
+      // Gate key placement mode
+      if(editorTool==='_placeGateKey'&&editorSelectedGate>=0){
+        const gate=editorPlacedItems[editorSelectedGate];
+        if(gate&&gate.subtype==='gate'&&gate.unlockType==='key'){
+          const keyId=gate.unlockParams.keyId;
+          // Remove existing key for this gate if any
+          for(let k=editorPlacedItems.length-1;k>=0;k--){
+            if(editorPlacedItems[k].subtype==='gate_key'&&editorPlacedItems[k].keyId===keyId){
+              editorPlacedItems.splice(k,1);break;
+            }
+          }
+          // Place new key at clicked position
+          editorPlacedItems.push({cat:'objective',subtype:'gate_key',x:gx,y:gy,keyId:keyId});
+          editorDirty=true;SFX.confirm();
+          editorTool='';// exit placement mode after placing
+          return;
+        }
+      }
       // Select gate on click
       for(let i=editorPlacedItems.length-1;i>=0;i--){
         const item=editorPlacedItems[i];
@@ -8696,9 +8713,6 @@ function _doClick(){
         else if(toolDef.unlockType==='time') gate.unlockParams={seconds:30};
         editorPlacedItems.push(gate);
         editorDirty=true;SFX.select();
-        if(toolDef.unlockType==='key'){
-          editorPlacedItems.push({cat:'objective',subtype:'gate_key',x:gx+200,y:gy,keyId:gate.unlockParams.keyId});
-        }
         return;
       }
       // Prevent placing on top of gates
@@ -9933,6 +9947,7 @@ function loop(now){
     if(gameState==='levelEditor'){
       K['Escape']=false;
       if(editorTool==='_assignGuard'){editorTool='';return;}
+      if(editorTool==='_placeGateKey'){editorTool='';return;}
       gameState='customSelect';SFX.select();return;
     }
   }
