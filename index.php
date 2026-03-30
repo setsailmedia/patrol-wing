@@ -922,7 +922,7 @@ function _pickAmmoWeapon(){
   if(!eligible.length) return null;
   return WEAPONS[eligible[Math.floor(Math.random()*eligible.length)]];
 }
-let particles=[],pickups=[],pBullets=[],eBullets=[],enemies=[],obstacles=[],mines=[],seekers=[],boomerangs=[],fractals=[],hazards=[],rockets=[],grenades=[],gravityWells=[],faradayCages=[];
+let particles=[],pickups=[],pBullets=[],eBullets=[],enemies=[],obstacles=[],mines=[],seekers=[],boomerangs=[],fractals=[],hazards=[],rockets=[],grenades=[],gravityWells=[],faradayCages=[],hazardProjectiles=[];
 const SEEKR_SPD     =5.68;  // travel speed (+30% from 4.37)
 const ROCKET_SPD    =12;
 const ROCKET_DMG    =65;
@@ -1510,6 +1510,7 @@ function firePBullet(x,y,angle,dmg,spd,bSz,color,stun=false){pBullets.push({x,y,
 function fireEBullet(x,y,angle,spd=7.5,dmg=20){eBullets.push({x,y,vx:Math.cos(angle)*spd,vy:Math.sin(angle)*spd,life:2400,dmg});}
 function fireWeapon(){
   Music.onShot();
+  if(P.weaponDisableMs>0)return;
   const w=WEAPONS[P.weaponIdx];
   // Deduct stock for weapons that have one (mine handled separately below)
   if(w.stock!==null&&w.id!=='mine'){
@@ -2289,7 +2290,7 @@ const P={
   x:WORLD_W/2,y:WORLD_H/2,vx:0,vy:0,aim:0,
   hp:100,maxHp:100,bat:100,maxBat:100,
   rotor:0,iframes:0,lastShot:0,alive:true,size:18,kills:0,
-  weaponIdx:0,unlockedW:new Set([0]),loadout:[0],shieldMs:0,overchargeMs:0,invincMs:0,cloakMs:0,nukeKeys:new Set(),gateKeys:new Set(),
+  weaponIdx:0,unlockedW:new Set([0]),loadout:[0],shieldMs:0,overchargeMs:0,invincMs:0,cloakMs:0,nukeKeys:new Set(),gateKeys:new Set(),weaponDisableMs:0,
   craftIdx:0,color:'#00ddff',
   spd:5.2,batDrain:2.4,drag:0.87,damageMult:1.0,detMult:1.0,
   stocks:{rapid:1000,spread:100,sawtooth:200,laser:20,burst:500,plasma:50,rico:30},mineStock:0,seekStock:0,noAmmoCount:0,
@@ -2307,7 +2308,7 @@ function resetPlayer(){
     hp:c.hp,maxHp:c.hp,bat:100,maxBat:100,
     rotor:0,iframes:0,lastShot:0,alive:true,kills:0,
     weaponIdx:c.startWeapon||0,unlockedW:new Set([0, c.startWeapon||0]),loadout:[c.startWeapon||0],
-    shieldMs:0,overchargeMs:0,invincMs:0,cloakMs:0,nukeKeys:new Set(),gateKeys:new Set(),
+    shieldMs:0,overchargeMs:0,invincMs:0,cloakMs:0,nukeKeys:new Set(),gateKeys:new Set(),weaponDisableMs:0,
     spd:c.spd,batDrain:c.batDrain,drag:c.drag,
     damageMult:c.damageMult||1.0,detMult:c.detMult||1.0,
     stocks:mkStocks(),mineStock:0,seekStock:0,noAmmoCount:0,sawtoothAngle:0,
@@ -2440,6 +2441,7 @@ function tickPlayer(dt,now){
   P.bat=Math.max(0,P.bat-bd*dt);if(P.bat<=0)P.hp-=9*dt;
   if(P.iframes>0)P.iframes-=dt*1000;if(P.shieldMs>0)P.shieldMs-=dt*1000;
   if(P.overchargeMs>0)P.overchargeMs-=dt*1000;if(P.invincMs>0)P.invincMs-=dt*1000;if(P.cloakMs>0)P.cloakMs-=dt*1000;
+  if(P.weaponDisableMs>0)P.weaponDisableMs-=dt*1000;
   if(weaponFlash.ms>0)weaponFlash.ms-=dt*1000;if(empFlash>0)empFlash-=dt*1000;
   // Firing: mouse/space OR right stick deflected past deadzone; sawtooth always fires
   const touchFiring = IS_TOUCH && touchSticks.R.active &&
@@ -5462,7 +5464,7 @@ function drawVictoryScreen(){
 
 // ─── GAME INIT ────────────────────────────────────────────────────
 function spawnWave(n){
-  pBullets.length=0;eBullets.length=0;mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;
+  pBullets.length=0;eBullets.length=0;mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;hazardProjectiles.length=0;
   waveStartTime=Date.now();
   // JR persists through waves — only reset if not currently active
   if(!miniMe.active){miniMe.lost=false;}
@@ -5953,7 +5955,7 @@ function startNukeDisarm(){
   score=0;wave=1;bossWarning=0;empFlash=0;weaponFlash={name:'',ms:0};
   leechFlash={active:false,tx:0,ty:0,ms:0};shockwaveFlash={ms:0};
   portalActive=false;portalPositions=[];nukes=[];
-  particles.length=0;pickups.length=0;pBullets.length=0;eBullets.length=0;mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;
+  particles.length=0;pickups.length=0;pBullets.length=0;eBullets.length=0;mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;hazardProjectiles.length=0;
   miniMe.active=false;miniMe.lost=false;miniMe.hp=MM_HP;miniMe.iframes=0;
   resetPlayer();
   P.x=WORLD_W/2;P.y=WORLD_H-120;camX=P.x-canvas.width/2;camY=P.y-canvas.height/2;
@@ -6235,7 +6237,7 @@ function startDanceBirdie(){
   leechFlash={active:false,tx:0,ty:0,ms:0};shockwaveFlash={ms:0};
   harbingerRef=null;
   portalActive=false;portalPositions=[];
-  particles.length=0;pickups.length=0;pBullets.length=0;eBullets.length=0;mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;
+  particles.length=0;pickups.length=0;pBullets.length=0;eBullets.length=0;mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;hazardProjectiles.length=0;
   miniMe.active=false;miniMe.lost=false;miniMe.hp=MM_HP;miniMe.iframes=0;
   resetPlayer();
   P.x=P.size+80; P.y=WORLD_H/2; camX=0; camY=0;
@@ -7177,7 +7179,7 @@ function startJRRescue(){
   leechFlash={active:false,tx:0,ty:0,ms:0};shockwaveFlash={ms:0};
   portalActive=false;portalPositions=[];
   particles.length=0;pickups.length=0;pBullets.length=0;eBullets.length=0;
-  mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;
+  mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;hazardProjectiles.length=0;
   miniMe.active=false;miniMe.lost=false;miniMe.hp=MM_HP;miniMe.iframes=0;
   resetPlayer();
   P.x=JRR_WORLD_W/2; P.y=JRR_WORLD_H-150;
@@ -7406,7 +7408,7 @@ function startTouchNGo(){
   leechFlash={active:false,tx:0,ty:0,ms:0};shockwaveFlash={ms:0};
   portalActive=false;portalPositions=[];
   particles.length=0;pickups.length=0;pBullets.length=0;eBullets.length=0;
-  mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;
+  mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;hazardProjectiles.length=0;
   miniMe.active=false;miniMe.lost=false;miniMe.hp=MM_HP;miniMe.iframes=0;
   resetPlayer();
   P.x=TNG_WORLD_W/2;P.y=TNG_WORLD_H-150;
@@ -7437,7 +7439,7 @@ function loadCustomLevel(levelData){
   portalActive=false;portalPositions=[];
   particles.length=0;pickups.length=0;pBullets.length=0;eBullets.length=0;
   mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;
-  hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;enemies.length=0;
+  hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;hazardProjectiles.length=0;enemies.length=0;
   miniMe.active=false;miniMe.lost=false;miniMe.hp=MM_HP;miniMe.iframes=0;
   lastHullBeepMs=0;
   resetPlayer();
@@ -8548,7 +8550,7 @@ function _doClick(){
         WORLD_W=2600;WORLD_H=1700;ttLevel=1;nukes=[];jrCaptives=[];jrCarrying=-1;tngPads=[];tngSeq=1;tngOnPad=-1;tngHoldMs=0;
         if(CRAFTS[P.craftIdx]) P.spd=CRAFTS[P.craftIdx].spd;
         particles.length=0;pickups.length=0;pBullets.length=0;eBullets.length=0;
-        mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;enemies.length=0;
+        mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;hazardProjectiles.length=0;enemies.length=0;
         miniMe.active=false;miniMe.lost=false;
         SFX.select(); return;
       }
