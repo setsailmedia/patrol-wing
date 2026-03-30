@@ -7894,9 +7894,9 @@ function _getEditorCategories(){
       {tool:'wall_hl',label:'Wall H Long',cat:'obstacle',subtype:'wall',w:190,h:26},
       {tool:'wall_vs',label:'Wall V Short',cat:'obstacle',subtype:'wall',w:26,h:90},
       {tool:'wall_vl',label:'Wall V Long',cat:'obstacle',subtype:'wall',w:26,h:190},
-      {tool:'gate_guard',label:'Gate (Guard)',cat:'obstacle',subtype:'gate',unlockType:'guard'},
-      {tool:'gate_key',label:'Gate (Key)',cat:'obstacle',subtype:'gate',unlockType:'key'},
-      {tool:'gate_time',label:'Gate (Time)',cat:'obstacle',subtype:'gate',unlockType:'time'},
+      {tool:'gate_guard',label:'Gate - Guard',cat:'obstacle',subtype:'gate',unlockType:'guard'},
+      {tool:'gate_key',label:'Gate - Key',cat:'obstacle',subtype:'gate',unlockType:'key'},
+      {tool:'gate_time',label:'Gate - Time',cat:'obstacle',subtype:'gate',unlockType:'time'},
     ]},
     {id:'enemy',label:'ENEMIES',items:Object.keys(ETYPES).map(k=>({tool:'enemy_'+k,label:k.toUpperCase(),cat:'enemy',subtype:k}))},
     {id:'pickup',label:'PICKUPS',items:Object.keys(PTYPES).filter(k=>k!=='nuke_key'&&k!=='points').map(k=>({tool:'pickup_'+k,label:k.toUpperCase(),cat:'pickup',subtype:k}))},
@@ -7910,7 +7910,7 @@ function _getEditorCategories(){
       ...(editorWinCondition==='collectAll'?[{tool:'obj_key',label:'Key',cat:'objective',subtype:'key'}]:[]),
       ...(editorWinCondition==='retrieve'?[{tool:'obj_item',label:'Item',cat:'objective',subtype:'item'},{tool:'obj_goal',label:'Goal Zone',cat:'objective',subtype:'goal'}]:[]),
     ]},
-    {id:'tools',label:'TOOLS',items:[{tool:'eraser',label:'Eraser',cat:'special',subtype:'eraser'}]},
+    {id:'tools',label:'TOOLS',items:[{tool:'adjust',label:'Adjust',cat:'special',subtype:'adjust'},{tool:'eraser',label:'Eraser',cat:'special',subtype:'eraser'}]},
   ];
 }
 function _editorHitTest(item,gx,gy){
@@ -8006,6 +8006,12 @@ function _drawEditorSidebar(sideW,H){
           ctx.strokeStyle='#00ddff';ctx.lineWidth=1.5;
           ctx.beginPath();ctx.moveTo(10,cy+11);ctx.lineTo(18,cy+11);ctx.stroke();
           ctx.beginPath();ctx.moveTo(14,cy+7);ctx.lineTo(14,cy+15);ctx.stroke();
+        } else if(item.subtype==='adjust'){
+          ctx.strokeStyle='#44aaff';ctx.lineWidth=1.5;
+          ctx.beginPath();ctx.moveTo(10,cy+11);ctx.lineTo(18,cy+11);ctx.stroke();
+          ctx.beginPath();ctx.moveTo(14,cy+7);ctx.lineTo(14,cy+15);ctx.stroke();
+          ctx.beginPath();ctx.moveTo(16,cy+9);ctx.lineTo(18,cy+11);ctx.lineTo(16,cy+13);ctx.stroke();
+          ctx.beginPath();ctx.moveTo(12,cy+9);ctx.lineTo(10,cy+11);ctx.lineTo(12,cy+13);ctx.stroke();
         } else if(item.subtype==='eraser'){
           ctx.strokeStyle='#ff4444';ctx.lineWidth=2;
           ctx.beginPath();ctx.moveTo(10,cy+7);ctx.lineTo(18,cy+15);ctx.stroke();
@@ -8514,7 +8520,6 @@ function _doClick(){
     }
     // Grid click — place or remove
     if(mouse.x>sideW){
-      editorSelectedGate=-1; // clear unless a gate is re-selected
       if(editorDragIdx>=0){editorDragIdx=-1;return;}
       const gx=Math.round((mouse.x-sideW+editorCamX)/50)*50;
       const gy=Math.round((mouse.y+editorCamY)/50)*50;
@@ -8530,11 +8535,20 @@ function _doClick(){
         }
         editorTool='';return;
       }
+      // Select gate on click
+      for(let i=editorPlacedItems.length-1;i>=0;i--){
+        const item=editorPlacedItems[i];
+        if(item.subtype==='gate'&&_editorHitTest(item,gx,gy)){
+          editorSelectedGate=i;SFX.select();return;
+        }
+      }
+      editorSelectedGate=-1; // clicked empty space, deselect
       const toolDef=_findToolDef(editorTool);
       if(!toolDef)return;
       if(toolDef.cat==='special'&&toolDef.subtype==='spawn'){
         editorSpawnX=gx;editorSpawnY=gy;editorDirty=true;SFX.select();return;
       }
+      if(toolDef.cat==='special'&&toolDef.subtype==='adjust') return; // adjust uses mousedown drag only
       if(toolDef.cat==='special'&&toolDef.subtype==='eraser'){
         for(let i=editorPlacedItems.length-1;i>=0;i--){
           if(_editorHitTest(editorPlacedItems[i],gx,gy)){
