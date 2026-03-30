@@ -1155,6 +1155,35 @@ function tickHazards(dt,now){
   }
 }
 
+function tickGates(dt){
+  for(const o of obstacles){
+    if(o.type!=='gate')continue;
+    if(!o.open){
+      if(o.unlockType==='guard'){
+        const refs=o.unlockParams.guardRefs||[];
+        const allDead=refs.length>0&&refs.every(e=>!e||e.hp<=0);
+        if(allDead){o.open=true;}
+        else{
+          const rad=o.unlockParams.radius||200;
+          const gcx=o.x+(o.orient==='h'?o.len/2:0),gcy=o.y+(o.orient==='v'?o.len/2:0);
+          const allAway=refs.filter(e=>e&&e.hp>0).every(e=>dist(e.x,e.y,gcx,gcy)>rad);
+          o.tempOpen=allAway;
+        }
+      } else if(o.unlockType==='key'){
+        const gcx=o.x+(o.orient==='h'?o.len/2:0),gcy=o.y+(o.orient==='v'?o.len/2:0);
+        if(P.gateKeys.has(o.unlockParams.keyId)&&dist(P.x,P.y,gcx,gcy)<80){o.open=true;}
+      } else if(o.unlockType==='time'){
+        if(o.unlockParams.remaining===undefined) o.unlockParams.remaining=o.unlockParams.seconds||30;
+        o.unlockParams.remaining-=dt;
+        if(o.unlockParams.remaining<=0){o.open=true;o.unlockParams.remaining=0;}
+      }
+    }
+    const target=(o.open||o.tempOpen)?1:0;
+    if(o.openPct<target) o.openPct=Math.min(target,o.openPct+dt*2);
+    else if(o.openPct>target) o.openPct=Math.max(target,o.openPct-dt*2);
+  }
+}
+
 function drawHazards(){
   const now=Date.now()/1000;
   for(const h of hazards){
@@ -1270,6 +1299,30 @@ function drawObstacles(){
       ctx.fillStyle=gr;ctx.fill();ctx.shadowBlur=12;ctx.shadowColor='rgba(0,100,220,0.55)';ctx.strokeStyle='rgba(30,120,230,0.65)';ctx.lineWidth=2.2;ctx.stroke();ctx.shadowBlur=0;
       ctx.strokeStyle='rgba(0,60,160,0.28)';ctx.lineWidth=0.8;for(let j=0;j<3;j++){const a=(Math.PI/3)*j+Math.PI/6;ctx.beginPath();ctx.moveTo(Math.cos(a)*o.r*0.38,Math.sin(a)*o.r*0.38);ctx.lineTo(-Math.cos(a)*o.r*0.38,-Math.sin(a)*o.r*0.38);ctx.stroke();}
       const pulse=0.5+0.5*Math.sin(now/900+o.r);ctx.beginPath();ctx.arc(0,0,3.5,0,Math.PI*2);ctx.fillStyle=`rgba(0,140,255,${0.3*pulse})`;ctx.fill();ctx.restore();
+    }else if(o.type==='gate'){
+      const gr=gateRect(o);
+      const sx=gr.cx-camX,sy=gr.cy-camY;
+      if(sx+gr.hw<-10||sx-gr.hw>canvas.width+10||sy+gr.hh<-10||sy-gr.hh>canvas.height+10)continue;
+      ctx.save();ctx.translate(sx,sy);ctx.rotate(gr.angle);
+      const alpha=o.openPct>0.95?0.5:0.95;
+      ctx.globalAlpha=alpha;
+      ctx.fillStyle='#334455';ctx.fillRect(-gr.hw,-gr.hh,gr.hw*2,gr.hh*2);
+      const accentCol=o.unlockType==='guard'?'#ff4444':o.unlockType==='key'?'#ffdd00':'#00ccff';
+      ctx.fillStyle=accentCol;ctx.fillRect(-gr.hw,-gr.hh,gr.hw*2,3);
+      ctx.strokeStyle=accentCol;ctx.lineWidth=1.5;ctx.strokeRect(-gr.hw,-gr.hh,gr.hw*2,gr.hh*2);
+      ctx.textAlign='center';ctx.font='bold 10px "Courier New"';ctx.fillStyle='#ffffff';
+      if(o.unlockType==='guard'){
+        const alive=(o.unlockParams.guardRefs||[]).filter(e=>e&&e.hp>0).length;
+        ctx.fillText(alive>0?`${alive}G`:'OPEN',0,4);
+      } else if(o.unlockType==='key'){
+        ctx.fillText(o.open?'OPEN':'LOCKED',0,4);
+      } else if(o.unlockType==='time'){
+        const sec=Math.ceil(o.unlockParams.remaining||0);
+        ctx.fillText(o.open?'OPEN':`${sec}s`,0,4);
+      }
+      ctx.globalAlpha=1;ctx.restore();
+      const hx=o.x-camX,hy=o.y-camY;
+      ctx.fillStyle=accentCol;ctx.beginPath();ctx.arc(hx,hy,4,0,Math.PI*2);ctx.fill();
     }else{
       const wx=o.x-camX,wy=o.y-camY;if(wx+o.w<-5||wx>canvas.width+5||wy+o.h<-5||wy>canvas.height+5)continue;
       ctx.fillStyle='rgba(6,16,44,0.98)';ctx.fillRect(wx,wy,o.w,o.h);ctx.shadowBlur=9;ctx.shadowColor='rgba(0,80,200,0.45)';ctx.strokeStyle='rgba(22,100,210,0.6)';ctx.lineWidth=1.8;ctx.strokeRect(wx,wy,o.w,o.h);ctx.shadowBlur=0;
@@ -2224,7 +2277,7 @@ const P={
   x:WORLD_W/2,y:WORLD_H/2,vx:0,vy:0,aim:0,
   hp:100,maxHp:100,bat:100,maxBat:100,
   rotor:0,iframes:0,lastShot:0,alive:true,size:18,kills:0,
-  weaponIdx:0,unlockedW:new Set([0]),loadout:[0],shieldMs:0,overchargeMs:0,invincMs:0,cloakMs:0,nukeKeys:new Set(),
+  weaponIdx:0,unlockedW:new Set([0]),loadout:[0],shieldMs:0,overchargeMs:0,invincMs:0,cloakMs:0,nukeKeys:new Set(),gateKeys:new Set(),
   craftIdx:0,color:'#00ddff',
   spd:5.2,batDrain:2.4,drag:0.87,damageMult:1.0,detMult:1.0,
   stocks:{rapid:1000,spread:100,sawtooth:200,laser:20,burst:500,plasma:50,rico:30},mineStock:0,seekStock:0,noAmmoCount:0,
@@ -2242,7 +2295,7 @@ function resetPlayer(){
     hp:c.hp,maxHp:c.hp,bat:100,maxBat:100,
     rotor:0,iframes:0,lastShot:0,alive:true,kills:0,
     weaponIdx:c.startWeapon||0,unlockedW:new Set([0, c.startWeapon||0]),loadout:[c.startWeapon||0],
-    shieldMs:0,overchargeMs:0,invincMs:0,cloakMs:0,nukeKeys:new Set(),
+    shieldMs:0,overchargeMs:0,invincMs:0,cloakMs:0,nukeKeys:new Set(),gateKeys:new Set(),
     spd:c.spd,batDrain:c.batDrain,drag:c.drag,
     damageMult:c.damageMult||1.0,detMult:c.detMult||1.0,
     stocks:mkStocks(),mineStock:0,seekStock:0,noAmmoCount:0,sawtoothAngle:0,
@@ -9608,7 +9661,7 @@ function loop(now){
       if(gameMode==='timetrial') drawFinishLine();
       drawHUD();drawMinimap();drawCrosshair();drawTouchSticks();drawMiniMe();drawPortals();drawCustomTransition();
     } else {
-    tickPlayer(dt,now);tickCarrierDrones(dt,now);tickEnemies(dt,now);tickMiniMe(dt,now);tickBullets(dt);tickMines(dt);tickFaradayCages(dt);tickRockets(dt);tickGrenades(dt);tickGravityWells(dt);tickSeekers(dt,now);tickBoomerangs(dt);tickHazards(dt,now);tickFractals(dt);tickParticles(dt);tickPickups(dt);tickLaserFlash(dt);tickLeechFlash(dt);tickShockwaveFlash(dt);tickPortal(dt);if(ttLevel===2)tickNukes(dt);if(ttLevel===4)tickJRRescue(dt);if(ttLevel===5)tickTNG(dt);tickHullBeep(now);checkCollisions();tickCustomWinCondition(dt);tickCustomTransition(dt);tickCustomObjectivePickup();
+    tickPlayer(dt,now);tickCarrierDrones(dt,now);tickEnemies(dt,now);tickMiniMe(dt,now);tickBullets(dt);tickMines(dt);tickFaradayCages(dt);tickRockets(dt);tickGrenades(dt);tickGravityWells(dt);tickSeekers(dt,now);tickBoomerangs(dt);tickHazards(dt,now);tickGates(dt);tickFractals(dt);tickParticles(dt);tickPickups(dt);tickLaserFlash(dt);tickLeechFlash(dt);tickShockwaveFlash(dt);tickPortal(dt);if(ttLevel===2)tickNukes(dt);if(ttLevel===4)tickJRRescue(dt);if(ttLevel===5)tickTNG(dt);tickHullBeep(now);checkCollisions();tickCustomWinCondition(dt);tickCustomTransition(dt);tickCustomObjectivePickup();
     if(gameMode==='combattraining'){
       ctNextPickupMs-=dt*1000;
       if(ctNextPickupMs<=0){
