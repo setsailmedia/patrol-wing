@@ -2143,12 +2143,6 @@ function resetPlayer(){
     damageMult:c.damageMult||1.0,detMult:c.detMult||1.0,
     stocks:mkStocks(),mineStock:0,seekStock:0,noAmmoCount:0,sawtoothAngle:0,
   });
-  const savedLO=_loadLoadout(c.id,c.maxSlots);
-  if(savedLO&&savedLO.length>0){
-    P.loadout=savedLO;
-    P.unlockedW=new Set(savedLO);
-    P.weaponIdx=savedLO[0];
-  }
   if(c.startEMP){empFlash=750;eBullets.length=0;}
   carrierDrones=[];if(c.id==='carrier') _initCarrierDrones();
   deadEyeMs=0;slipstreamMs=0;slipPrevVx=0;slipPrevVy=0;
