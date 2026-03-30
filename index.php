@@ -7282,11 +7282,12 @@ function loadCustomLevel(levelData){
   gameState='playing';
 }
 function customLevelWin(){
+  customWinCondition='';// prevent re-entry from tick
   if(customPack&&customPack.currentIdx<customPack.levels.length-1){
     customPack.currentIdx++;
-    weaponFlash={name:'LEVEL COMPLETE',ms:2200};
+    weaponFlash={name:'LEVEL COMPLETE - NEXT LEVEL IN 3s',ms:2800};
     SFX.wave();
-    setTimeout(()=>loadCustomLevel(customPack.levels[customPack.currentIdx]),2200);
+    setTimeout(()=>loadCustomLevel(customPack.levels[customPack.currentIdx]),3000);
   } else {
     gameState='customResult';
     SFX.confirm();
@@ -7388,7 +7389,8 @@ function drawCustomResult(){
     ctx.font='16px "Courier New"';ctx.fillStyle='rgba(100,200,255,0.8)';
     ctx.fillText(customPack.packName||'CUSTOM PACK',cx,H*0.25+40);
     ctx.font='14px "Courier New"';ctx.fillStyle='rgba(150,180,220,0.7)';
-    ctx.fillText(`${customPack.levels.length} LEVEL${customPack.levels.length>1?'S':''} CLEARED`,cx,H*0.25+64);
+    const cleared=customPack.currentIdx+1;
+    ctx.fillText(`${cleared} LEVEL${cleared>1?'S':''} CLEARED`,cx,H*0.25+64);
   }
   const elapsed=Math.floor((Date.now()-gameStartTime)/1000);
   const mins=Math.floor(elapsed/60),secs=elapsed%60;
