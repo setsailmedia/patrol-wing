@@ -7215,6 +7215,34 @@ function drawCustomObjectives(){
   ctx.textAlign='left';
 }
 
+function drawCustomResult(){
+  const W=canvas.width,H=canvas.height,cx=W/2;
+  ctx.fillStyle='#060c18';ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  ctx.font='bold 36px "Courier New"';ctx.fillStyle='#00ff88';ctx.shadowBlur=30;ctx.shadowColor='#00ff88';
+  ctx.fillText('MISSION COMPLETE',cx,H*0.25);ctx.shadowBlur=0;
+  if(customPack){
+    ctx.font='16px "Courier New"';ctx.fillStyle='rgba(100,200,255,0.8)';
+    ctx.fillText(customPack.packName||'CUSTOM PACK',cx,H*0.25+40);
+    ctx.font='14px "Courier New"';ctx.fillStyle='rgba(150,180,220,0.7)';
+    ctx.fillText(`${customPack.levels.length} LEVEL${customPack.levels.length>1?'S':''} CLEARED`,cx,H*0.25+64);
+  }
+  const elapsed=Math.floor((Date.now()-gameStartTime)/1000);
+  const mins=Math.floor(elapsed/60),secs=elapsed%60;
+  ctx.font='14px "Courier New"';ctx.fillStyle='rgba(150,180,220,0.7)';
+  ctx.fillText(`SCORE  ${String(score).padStart(8,'0')}   TIME  ${mins}:${String(secs).padStart(2,'0')}`,cx,H*0.25+96);
+  const bw=240,bh=46,bx=cx-bw/2,by=H*0.6;
+  const bhov=mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh;
+  ctx.shadowBlur=bhov?24:10;ctx.shadowColor='#00ff88';
+  ctx.fillStyle=bhov?'#00ff88':'rgba(0,0,0,0.7)';
+  roundRect(ctx,bx,by,bw,bh,8);ctx.fill();
+  ctx.strokeStyle='#00ff88';ctx.lineWidth=2;
+  roundRect(ctx,bx,by,bw,bh,8);ctx.stroke();ctx.shadowBlur=0;
+  ctx.font='bold 14px "Courier New"';ctx.fillStyle=bhov?'#000':'#00ff88';
+  ctx.fillText('BACK TO MENU',cx,by+bh/2+5);
+  ctx.textAlign='left';
+}
+
 function startBattle(){
   _hideAllAds();
   gameMode='battle';
@@ -7400,6 +7428,14 @@ function _doClick(){
       }
     }
     return; // eat all other clicks while paused
+  }
+
+  if(gameState==='customResult'){
+    const cx=canvas.width/2,bw=240,bh=46,bx=cx-bw/2,by=canvas.height*0.6;
+    if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){
+      gameState='customSelect';SFX.select();return;
+    }
+    return;
   }
 
   if(gameState==='start'){
@@ -8558,6 +8594,8 @@ function loop(now){
     tickParticles(dt);drawWorld();drawParticles();drawDeathScreen();
   } else if(gameState==='victory'){
     tickParticles(dt);drawWorld();drawParticles();drawVictoryScreen();
+  } else if(gameState==='customResult'){
+    drawCustomResult();
   }
 
   ctx.restore();
