@@ -411,6 +411,18 @@ canvas.addEventListener('mousedown',e=>{
     }
     return;
   }
+  if(gameState==='levelEditor'&&e.button===0){
+    const sideW=180;
+    if(mouse.x>sideW&&editorTool!=='eraser'){
+      const gx=Math.round((mouse.x-sideW+editorCamX)/50)*50;
+      const gy=Math.round((mouse.y+editorCamY)/50)*50;
+      for(let i=editorPlacedItems.length-1;i>=0;i--){
+        if(_editorHitTest(editorPlacedItems[i],gx,gy)){
+          editorDragIdx=i;return;
+        }
+      }
+    }
+  }
   if(e.button!==0) return;
   initAudio();
   if(gameState==='setup'){
@@ -8299,14 +8311,6 @@ function _doClick(){
           }
         }
         return;
-      }
-      // Check for drag start on existing item
-      if(editorTool!=='eraser'){
-        for(let i=editorPlacedItems.length-1;i>=0;i--){
-          if(_editorHitTest(editorPlacedItems[i],gx,gy)){
-            editorDragIdx=i;return;
-          }
-        }
       }
       editorPlacedItems.push({...toolDef,x:gx,y:gy});
       editorDirty=true;SFX.select();
