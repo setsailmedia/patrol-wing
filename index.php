@@ -387,13 +387,24 @@ window.addEventListener('keyup',e=>{K[e.code]=false;});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('contextmenu',e=>e.preventDefault());
 canvas.addEventListener('mousedown',e=>{
+  if(gameState==='levelSetup'&&e.button===0){
+    const W=canvas.width,cx=W/2;
+    const panelW=Math.min(500,W*0.8),panelX=cx-panelW/2;
+    const slH=20;
+    let py=100+36+26; // name field + gap
+    if(mouse.y>py&&mouse.y<py+slH&&mouse.x>panelX&&mouse.x<panelX+panelW){editorSliderDrag='width';return;}
+    py+=slH+26;
+    if(mouse.y>py&&mouse.y<py+slH&&mouse.x>panelX&&mouse.x<panelX+panelW){editorSliderDrag='height';return;}
+    py+=slH+22+52*2+6+14; // height slider + gap + win condition cards (2 rows) + gap
+    if(editorWinCondition==='survive'&&mouse.y>py+8&&mouse.y<py+8+slH&&mouse.x>panelX&&mouse.x<panelX+panelW){editorSliderDrag='seconds';return;}
+  }
   if(gameState==='levelEditor'&&e.button===2){
     const sideW=180;
     if(mouse.x>sideW){
       const gx=Math.round((mouse.x-sideW+editorCamX)/50)*50;
       const gy=Math.round((mouse.y+editorCamY)/50)*50;
       for(let i=editorPlacedItems.length-1;i>=0;i--){
-        if(dist(editorPlacedItems[i].x,editorPlacedItems[i].y,gx,gy)<30){
+        if(_editorHitTest(editorPlacedItems[i],gx,gy)){
           editorPlacedItems.splice(i,1);editorDirty=true;SFX.select();break;
         }
       }
@@ -425,7 +436,7 @@ canvas.addEventListener('mousedown',e=>{
   }
   mouse.down=true; mouse.justDown=true;
 });
-canvas.addEventListener('mouseup',  e=>{if(e.button!==0)return; mouse.down=false; if(setupSliderDrag)setupSliderDrag=null;});
+canvas.addEventListener('mouseup',  e=>{if(e.button!==0)return; mouse.down=false; if(setupSliderDrag)setupSliderDrag=null; if(editorDragIdx>=0){editorDragIdx=-1;}});
 canvas.addEventListener('mouseup',  e=>{
   if(e.button!==2)return;
   // Portal: right-click cycles through portals (same as Space)
@@ -844,6 +855,7 @@ let editorWinCondition='killAll';
 let editorWinSeconds=60;
 let editorDirty=false;
 let editorSliderDrag=null;
+let editorDragIdx=-1;
 let customSelectExpanded=-1;
 let customSelectSelectedLevel=-1;
 // Level 2 — Nuclear Disarm
@@ -7657,20 +7669,24 @@ function drawLevelSetup(){
     {id:'retrieve',label:'RETRIEVE',desc:'Get item, return to goal'},
     {id:'collectAll',label:'COLLECT ALL',desc:'Find all keys'},
   ];
-  const condW=(panelW-4*8)/5,condH=52;
+  const condW=(panelW-2*8)/3,condH=52;
   for(let i=0;i<conditions.length;i++){
-    const c=conditions[i],cx2=panelX+i*(condW+8),sel=editorWinCondition===c.id;
-    const chov=mouse.x>cx2&&mouse.x<cx2+condW&&mouse.y>py&&mouse.y<py+condH;
+    const row=i<3?0:1,col=i<3?i:i-3;
+    const rowW=row===0?3:2;
+    const rowStartX=panelX+(panelW-(rowW*(condW+8)-8))/2;
+    const c=conditions[i],cx2=rowStartX+col*(condW+8),cy2=py+row*(condH+6);
+    const sel=editorWinCondition===c.id;
+    const chov=mouse.x>cx2&&mouse.x<cx2+condW&&mouse.y>cy2&&mouse.y<cy2+condH;
     ctx.fillStyle=sel?'rgba(0,80,40,0.7)':chov?'rgba(0,40,80,0.7)':'rgba(0,20,50,0.4)';
-    roundRect(ctx,cx2,py,condW,condH,6);ctx.fill();
+    roundRect(ctx,cx2,cy2,condW,condH,6);ctx.fill();
     ctx.strokeStyle=sel?'#00ff88':chov?'#00ccff':'rgba(0,100,180,0.3)';ctx.lineWidth=sel?2:1;
-    roundRect(ctx,cx2,py,condW,condH,6);ctx.stroke();
-    ctx.textAlign='center';ctx.font='bold 9px "Courier New"';ctx.fillStyle=sel?'#00ff88':'rgba(150,200,255,0.8)';
-    ctx.fillText(c.label,cx2+condW/2,py+22);
+    roundRect(ctx,cx2,cy2,condW,condH,6);ctx.stroke();
+    ctx.textAlign='center';ctx.font='bold 10px "Courier New"';ctx.fillStyle=sel?'#00ff88':'rgba(150,200,255,0.8)';
+    ctx.fillText(c.label,cx2+condW/2,cy2+22);
     ctx.font='8px "Courier New"';ctx.fillStyle='rgba(100,150,200,0.6)';
-    ctx.fillText(c.desc,cx2+condW/2,py+38);
+    ctx.fillText(c.desc,cx2+condW/2,cy2+38);
   }
-  py+=condH+14;
+  py+=condH*2+6+14;
 
   // Survive seconds (contextual)
   if(editorWinCondition==='survive'){
@@ -7684,6 +7700,24 @@ function drawLevelSetup(){
     ctx.fillStyle='#00ccff';ctx.beginPath();ctx.arc(thumbXS,py+slH/2,8,0,Math.PI*2);ctx.fill();
     py+=slH+22;
   }
+
+  // Future options (disabled)
+  ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.7)';
+  ctx.textAlign='left';ctx.fillText('OPTIONS',panelX,py);py+=8;
+  const optW=(panelW-8)/2,optH=34;
+  // Track Leaders
+  ctx.fillStyle='rgba(0,20,50,0.3)';roundRect(ctx,panelX,py,optW,optH,6);ctx.fill();
+  ctx.strokeStyle='rgba(60,80,100,0.3)';ctx.lineWidth=1;roundRect(ctx,panelX,py,optW,optH,6);ctx.stroke();
+  ctx.textAlign='center';ctx.font='10px "Courier New"';ctx.fillStyle='rgba(80,100,120,0.5)';
+  ctx.fillText('TRACK LEADERS',panelX+optW/2,py+16);
+  ctx.font='8px "Courier New"';ctx.fillText('Coming soon',panelX+optW/2,py+28);
+  // Award Prizes
+  ctx.fillStyle='rgba(0,20,50,0.3)';roundRect(ctx,panelX+optW+8,py,optW,optH,6);ctx.fill();
+  ctx.strokeStyle='rgba(60,80,100,0.3)';ctx.lineWidth=1;roundRect(ctx,panelX+optW+8,py,optW,optH,6);ctx.stroke();
+  ctx.fillStyle='rgba(80,100,120,0.5)';ctx.font='10px "Courier New"';
+  ctx.fillText('AWARD PRIZES',panelX+optW+8+optW/2,py+16);
+  ctx.font='8px "Courier New"';ctx.fillText('Coming soon',panelX+optW+8+optW/2,py+28);
+  py+=optH+16;
 
   // Buttons
   ctx.textAlign='center';
@@ -7735,6 +7769,15 @@ function _getEditorCategories(){
     ]},
     {id:'tools',label:'TOOLS',items:[{tool:'eraser',label:'Eraser',cat:'special',subtype:'eraser'}]},
   ];
+}
+function _editorHitTest(item,gx,gy){
+  if(item.cat==='obstacle'&&item.subtype==='wall'){
+    return gx>=item.x&&gx<=item.x+(item.w||26)&&gy>=item.y&&gy<=item.y+(item.h||100);
+  }
+  if(item.cat==='obstacle'&&item.subtype==='pillar'){
+    return dist(item.x,item.y,gx,gy)<(item.r||35)+10;
+  }
+  return dist(item.x,item.y,gx,gy)<30;
 }
 function _findToolDef(toolId){
   for(const cat of _getEditorCategories()) for(const item of cat.items) if(item.tool===toolId) return item;
@@ -7788,7 +7831,37 @@ function _drawEditorSidebar(sideW,H){
         if(sel){ctx.strokeStyle='#00ff88';ctx.lineWidth=1;ctx.strokeRect(4,cy,sideW-8,22);}
         ctx.font='10px "Courier New"';
         ctx.fillStyle=sel?'#00ff88':ihov?'#ffffff':'rgba(150,190,230,0.8)';
-        ctx.fillText('  '+item.label,10,cy+15);
+        // Icon
+        ctx.save();
+        if(item.cat==='enemy'){
+          const ecol=ETYPES[item.subtype]?ETYPES[item.subtype].color:'#ff4444';
+          ctx.fillStyle=ecol;ctx.beginPath();ctx.arc(14,cy+11,5,0,Math.PI*2);ctx.fill();
+        } else if(item.cat==='pickup'){
+          const pcol=PTYPES[item.subtype]?PTYPES[item.subtype].color:'#ffee00';
+          ctx.fillStyle=pcol;ctx.save();ctx.translate(14,cy+11);ctx.rotate(Math.PI/4);ctx.fillRect(-4,-4,8,8);ctx.restore();
+        } else if(item.cat==='obstacle'){
+          ctx.fillStyle='rgba(120,150,180,0.7)';
+          if(item.subtype==='pillar'){ctx.beginPath();ctx.arc(14,cy+11,5,0,Math.PI*2);ctx.fill();}
+          else{ctx.fillRect(8,cy+7,12,8);}
+        } else if(item.cat==='hazard'){
+          ctx.fillStyle=item.subtype==='zap_pylon'?'#ffdd00':'#ff2200';
+          ctx.beginPath();ctx.arc(14,cy+11,5,0,Math.PI*2);ctx.fill();
+        } else if(item.cat==='objective'){
+          const cols={finish:'#ffdd00',key:'#ffdd00',item:'#ff8800',goal:'#00ff88'};
+          ctx.fillStyle=cols[item.subtype]||'#00ccff';
+          ctx.beginPath();ctx.arc(14,cy+11,5,0,Math.PI*2);ctx.fill();
+        } else if(item.subtype==='spawn'){
+          ctx.strokeStyle='#00ddff';ctx.lineWidth=1.5;
+          ctx.beginPath();ctx.moveTo(10,cy+11);ctx.lineTo(18,cy+11);ctx.stroke();
+          ctx.beginPath();ctx.moveTo(14,cy+7);ctx.lineTo(14,cy+15);ctx.stroke();
+        } else if(item.subtype==='eraser'){
+          ctx.strokeStyle='#ff4444';ctx.lineWidth=2;
+          ctx.beginPath();ctx.moveTo(10,cy+7);ctx.lineTo(18,cy+15);ctx.stroke();
+          ctx.beginPath();ctx.moveTo(18,cy+7);ctx.lineTo(10,cy+15);ctx.stroke();
+        }
+        ctx.restore();
+        ctx.fillStyle=sel?'#00ff88':ihov?'#ffffff':'rgba(150,190,230,0.8)';
+        ctx.fillText(item.label,24,cy+15);
         cy+=24;
       }
     }
@@ -8210,6 +8283,7 @@ function _doClick(){
     }
     // Grid click — place or remove
     if(mouse.x>sideW){
+      if(editorDragIdx>=0){editorDragIdx=-1;return;}
       const gx=Math.round((mouse.x-sideW+editorCamX)/50)*50;
       const gy=Math.round((mouse.y+editorCamY)/50)*50;
       if(gx<0||gx>editorWorldW||gy<0||gy>editorWorldH)return;
@@ -8220,11 +8294,19 @@ function _doClick(){
       }
       if(toolDef.cat==='special'&&toolDef.subtype==='eraser'){
         for(let i=editorPlacedItems.length-1;i>=0;i--){
-          if(dist(editorPlacedItems[i].x,editorPlacedItems[i].y,gx,gy)<30){
+          if(_editorHitTest(editorPlacedItems[i],gx,gy)){
             editorPlacedItems.splice(i,1);editorDirty=true;SFX.select();return;
           }
         }
         return;
+      }
+      // Check for drag start on existing item
+      if(editorTool!=='eraser'){
+        for(let i=editorPlacedItems.length-1;i>=0;i--){
+          if(_editorHitTest(editorPlacedItems[i],gx,gy)){
+            editorDragIdx=i;return;
+          }
+        }
       }
       editorPlacedItems.push({...toolDef,x:gx,y:gy});
       editorDirty=true;SFX.select();
@@ -8253,26 +8335,30 @@ function _doClick(){
     py+=nameH+26;
     // Width slider
     const slW=panelW,slH=20;
-    if(mouse.y>py&&mouse.y<py+slH){editorSliderDrag='width';return;}
     py+=slH+26;
     // Height slider
-    if(mouse.y>py&&mouse.y<py+slH){editorSliderDrag='height';return;}
     py+=slH+22;
-    // Win conditions
-    const condW=(panelW-4*8)/5,condH=52;
-    for(let i=0;i<5;i++){
-      const cx2=panelX+i*(condW+8);
-      if(mouse.x>cx2&&mouse.x<cx2+condW&&mouse.y>py&&mouse.y<py+condH){
-        editorWinCondition=['killAll','reachFinish','survive','retrieve','collectAll'][i];
+    // Win conditions (2-row layout: 3 top, 2 bottom)
+    const conditions=['killAll','reachFinish','survive','retrieve','collectAll'];
+    const condW=(panelW-2*8)/3,condH=52;
+    for(let i=0;i<conditions.length;i++){
+      const row=i<3?0:1,col=i<3?i:i-3;
+      const rowW=row===0?3:2;
+      const rowStartX=panelX+(panelW-(rowW*(condW+8)-8))/2;
+      const cx2=rowStartX+col*(condW+8),cy2=py+row*(condH+6);
+      if(mouse.x>cx2&&mouse.x<cx2+condW&&mouse.y>cy2&&mouse.y<cy2+condH){
+        editorWinCondition=conditions[i];
         SFX.select();return;
       }
     }
-    py+=condH+14;
+    py+=condH*2+6+14;
     // Survive slider
     if(editorWinCondition==='survive'){
-      if(mouse.y>py+8&&mouse.y<py+8+slH){editorSliderDrag='seconds';return;}
       py+=slH+22;
     }
+    // Options (disabled)
+    const optW=(panelW-8)/2,optH=34;
+    py+=8+optH+16;
     // Start editing
     const btnW=200,btnH=44,startX=cx-btnW/2,startY=Math.max(py+20,H-120);
     if(mouse.x>startX&&mouse.x<startX+btnW&&mouse.y>startY&&mouse.y<startY+btnH){
@@ -8728,6 +8814,14 @@ canvas.addEventListener('mousemove',e=>{
     if(editorSliderDrag==='width') editorWorldW=Math.round((400+pct*(4500-400))/100)*100;
     else if(editorSliderDrag==='height') editorWorldH=Math.round((400+pct*(4500-400))/100)*100;
     else if(editorSliderDrag==='seconds') editorWinSeconds=Math.round(10+pct*(180-10));
+  }
+  if(editorDragIdx>=0&&gameState==='levelEditor'){
+    const sideW=180;
+    const gx=Math.round((mouse.x-sideW+editorCamX)/50)*50;
+    const gy=Math.round((mouse.y+editorCamY)/50)*50;
+    editorPlacedItems[editorDragIdx].x=clamp(gx,0,editorWorldW);
+    editorPlacedItems[editorDragIdx].y=clamp(gy,0,editorWorldH);
+    editorDirty=true;
   }
   if(setupSliderDrag){
     settings[setupSliderDrag.key]=Math.max(0,Math.min(1,(mouse.x-setupSliderDrag.trackX)/setupSliderDrag.trackW));
@@ -9413,7 +9507,7 @@ function loop(now){
     }
     if(gameState==='levelEditor'){K['Space']=false;return;}
     if(gameState==='levelSavePrompt'){K['Space']=false;return;}
-    if(gameState==='levelSetup'){K['Space']=false;gameState='customSelect';SFX.select();return;}
+    if(gameState==='levelSetup'&&document.activeElement!==editorNameInput){K['Space']=false;gameState='customSelect';SFX.select();return;}
     if(gameState==='customSelect'){K['Space']=false;gameState='start';SFX.select();return;}
     if(gameState==='customResult'){K['Space']=false;gameState='customSelect';SFX.select();return;}
     if(gameState==='paused'&&screenLockMs<=0){K['Space']=false;gameState='playing';lastTime=performance.now();}
