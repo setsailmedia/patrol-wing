@@ -7141,7 +7141,7 @@ function tickCustomWinCondition(dt){
   } else if(customWinCondition==='retrieve'){
     if(customItemHeld&&dist(P.x,P.y,customGoalX,customGoalY)<50) customLevelWin();
   } else if(customWinCondition==='collectAll'){
-    if(customKeysCollected>=customKeysTotal) customLevelWin();
+    if(customKeysTotal>0&&customKeysCollected>=customKeysTotal) customLevelWin();
   }
 }
 function tickCustomObjectivePickup(){
@@ -7492,7 +7492,7 @@ function _doClick(){
       if(mouse.x>delX&&mouse.x<delX+delW&&mouse.y>delY&&mouse.y<delY+delH){
         packs.splice(i,1);_saveCustomLevels(packs);SFX.select();return;
       }
-      if(mouse.x>cx-cardW/2&&mouse.x<cx+cardW/2&&mouse.y>y&&mouse.y<y+cardH){
+      if(mouse.x>cx-cardW/2&&mouse.x<cx+cardW/2-delW-16&&mouse.y>y&&mouse.y<y+cardH){
         const pk=packs[i];
         if(pk.levels&&pk.levels.length>0){
           customPack={packName:pk.packName,levels:pk.levels,currentIdx:0};
