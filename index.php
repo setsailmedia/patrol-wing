@@ -975,12 +975,14 @@ function generateObstacles(spawnX,spawnY){
 function circleVsObs(cx,cy,cr){
   for(const o of obstacles){
     if(o.type==='pillar'){if(dist2(cx,cy,o.x,o.y)<(cr+o.r)**2)return true;}
+    else if(o.type==='gate'){if(circleVsRotRect(cx,cy,cr,gateRect(o)))return true;}
     else{const nx=clamp(cx,o.x,o.x+o.w),ny=clamp(cy,o.y,o.y+o.h);if(dist2(cx,cy,nx,ny)<cr*cr)return true;}
   }return false;
 }
 function pushOutObs(obj,r){
   for(const o of obstacles){
     if(o.type==='pillar'){const dx=obj.x-o.x,dy=obj.y-o.y,d=Math.sqrt(dx*dx+dy*dy)||1,m=r+o.r;if(d<m){obj.x=o.x+(dx/d)*m;obj.y=o.y+(dy/d)*m;const dot=obj.vx*(dx/d)+obj.vy*(dy/d);if(dot<0){obj.vx-=dot*(dx/d);obj.vy-=dot*(dy/d);}}}
+    else if(o.type==='gate'){const r2=pushOutRotRect(obj.x,obj.y,r,gateRect(o));if(r2.pushed){obj.x=r2.x;obj.y=r2.y;const dot=obj.vx*r2.wnx+obj.vy*r2.wny;if(dot<0){obj.vx-=dot*r2.wnx;obj.vy-=dot*r2.wny;}}}
     else{const nx=clamp(obj.x,o.x,o.x+o.w),ny=clamp(obj.y,o.y,o.y+o.h),dx=obj.x-nx,dy=obj.y-ny,d=Math.sqrt(dx*dx+dy*dy)||1;if(d<r){obj.x=nx+(dx/d)*r;obj.y=ny+(dy/d)*r;const dot=obj.vx*(dx/d)+obj.vy*(dy/d);if(dot<0){obj.vx-=dot*(dx/d);obj.vy-=dot*(dy/d);}}}
   }
 }
@@ -998,6 +1000,10 @@ function reflectRicoVsObs(b){
         if(dot<0){b.vx-=2*dot*nx;b.vy-=2*dot*ny;}
         bounced=true;
       }
+    } else if(o.type==='gate'){
+      const gr=gateRect(o);
+      const r2=pushOutRotRect(b.x,b.y,r,gr);
+      if(r2.pushed){b.x=r2.x;b.y=r2.y;const dot=b.vx*r2.wnx+b.vy*r2.wny;if(dot<0){b.vx-=2*dot*r2.wnx;b.vy-=2*dot*r2.wny;}bounced=true;}
     } else {
       const cx=clamp(b.x,o.x,o.x+o.w),cy=clamp(b.y,o.y,o.y+o.h);
       const dx=b.x-cx,dy=b.y-cy,d=Math.sqrt(dx*dx+dy*dy)||1;
@@ -1011,6 +1017,39 @@ function reflectRicoVsObs(b){
     }
   }
   return bounced;
+}
+function gateRect(g){
+  const angle0=g.orient==='h'?0:Math.PI/2;
+  const openDir=(g.hinge==='left'||g.hinge==='top')?1:-1;
+  const angle=angle0+g.openPct*(Math.PI/2)*openDir;
+  const cx=g.x+Math.cos(angle)*(g.len/2);
+  const cy=g.y+Math.sin(angle)*(g.len/2);
+  return{cx,cy,hw:g.len/2,hh:g.w/2,angle};
+}
+function circleVsRotRect(px,py,pr,rect){
+  const cos=Math.cos(-rect.angle),sin=Math.sin(-rect.angle);
+  const dx=px-rect.cx,dy=py-rect.cy;
+  const lx=dx*cos-dy*sin,ly=dx*sin+dy*cos;
+  const nx=Math.max(-rect.hw,Math.min(rect.hw,lx));
+  const ny=Math.max(-rect.hh,Math.min(rect.hh,ly));
+  const ddx=lx-nx,ddy=ly-ny;
+  return ddx*ddx+ddy*ddy<pr*pr;
+}
+function pushOutRotRect(px,py,pr,rect){
+  const cos=Math.cos(-rect.angle),sin=Math.sin(-rect.angle);
+  const dx=px-rect.cx,dy=py-rect.cy;
+  const lx=dx*cos-dy*sin,ly=dx*sin+dy*cos;
+  const nx=Math.max(-rect.hw,Math.min(rect.hw,lx));
+  const ny=Math.max(-rect.hh,Math.min(rect.hh,ly));
+  const ddx=lx-nx,ddy=ly-ny;
+  const d2=ddx*ddx+ddy*ddy;
+  if(d2>=pr*pr)return{pushed:false,x:px,y:py,wnx:0,wny:0};
+  const d=Math.sqrt(d2)||1;
+  const pen=pr-d;
+  const lnx=ddx/d,lny=ddy/d;
+  const nlx=lx+lnx*pen,nly=ly+lny*pen;
+  const cosR=Math.cos(rect.angle),sinR=Math.sin(rect.angle);
+  return{pushed:true,x:rect.cx+nlx*cosR-nly*sinR,y:rect.cy+nlx*sinR+nly*cosR,wnx:lnx*cosR-lny*sinR,wny:lnx*sinR+lny*cosR};
 }
 // ═══════════════════════════════════════════════════════════════
 // HAZARD OBSTACLES  (damage-dealing environmental objects)
