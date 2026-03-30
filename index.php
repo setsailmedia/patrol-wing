@@ -23,6 +23,7 @@ canvas{display:block;cursor:none;position:absolute;top:0;left:0;}
 <body>
 <canvas id="c"></canvas>
 <input type="color" id="colorPick" value="#00ddff">
+<input type="text" id="editorNameInput" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;" maxlength="40">
 <div id="adSlot1" class="adSlot">
   <div class="adLabel">Advertisement</div>
   <div class="adBox"><span><!-- Google AdSense 300×250 --><br>Replace with AdSense tag</span></div>
@@ -33,6 +34,7 @@ canvas{display:block;cursor:none;position:absolute;top:0;left:0;}
 // ================================================================
 const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
 const colorPick=document.getElementById('colorPick');
+const editorNameInput=document.getElementById('editorNameInput');
 let gameMode='battle';  // hoisted — needed by resize() before main game state block
 let gameState='intro';  // hoisted — needed by resize() before main game state block
 function resize(){
@@ -805,6 +807,24 @@ let customKeysTotal=0;
 let customItemHeld=false;
 let customFinishX=0,customFinishY=0;
 let customGoalX=0,customGoalY=0;
+// Level editor state
+let editorPack=null;
+let editorLevel=null;
+let editorTool='';
+let editorCamX=0,editorCamY=0;
+let editorSidebarScroll=0;
+let editorExpandedCat='';
+let editorPlacedItems=[];
+let editorSpawnX=200,editorSpawnY=200;
+let editorPackName='';
+let editorLevelName='Untitled Level';
+let editorWorldW=2600,editorWorldH=1700;
+let editorWinCondition='killAll';
+let editorWinSeconds=60;
+let editorDirty=false;
+let editorSliderDrag=null;
+let customSelectExpanded=-1;
+let customSelectSelectedLevel=-1;
 // Level 2 — Nuclear Disarm
 const NUKE_COLORS=['#ff2244','#00eeff','#ffdd00','#44ff88'];
 const NUKE_NAMES=['ALPHA','BETA','GAMMA','DELTA'];
