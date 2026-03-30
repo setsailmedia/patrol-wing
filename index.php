@@ -7452,6 +7452,15 @@ function drawCustomSelect(){
   ctx.textAlign='center';
   ctx.font='bold 28px "Courier New"';ctx.fillStyle='#00ccff';ctx.shadowBlur=20;ctx.shadowColor='#00aaff';
   ctx.fillText('CUSTOM LEVELS',cx,52);ctx.shadowBlur=0;
+  const newW=200,newH=40,newX=cx-newW/2,newY=82;
+  const nhov=mouse.x>newX&&mouse.x<newX+newW&&mouse.y>newY&&mouse.y<newY+newH;
+  ctx.shadowBlur=nhov?18:6;ctx.shadowColor='#00ff88';
+  ctx.fillStyle=nhov?'#00ff88':'rgba(0,40,20,0.6)';
+  roundRect(ctx,newX,newY,newW,newH,6);ctx.fill();
+  ctx.strokeStyle=nhov?'#00ff88':'rgba(0,180,100,0.5)';ctx.lineWidth=1.5;
+  roundRect(ctx,newX,newY,newW,newH,6);ctx.stroke();ctx.shadowBlur=0;
+  ctx.textAlign='center';ctx.font='bold 13px "Courier New"';ctx.fillStyle=nhov?'#000':'#00ff88';
+  ctx.fillText('+ CREATE NEW',cx,newY+newH/2+5);
   const packs=_loadCustomLevels();
   if(packs.length===0){
     ctx.font='14px "Courier New"';ctx.fillStyle='rgba(100,140,180,0.6)';
@@ -7459,7 +7468,7 @@ function drawCustomSelect(){
     ctx.fillText('Use the Level Editor to create levels',cx,H/2+24);
   } else {
     const cardW=Math.min(400,W*0.7),cardH=64,cardGap=10;
-    const startY=90;
+    const startY=140;
     for(let i=0;i<packs.length;i++){
       const pk=packs[i];
       const y=startY+i*(cardH+cardGap);
@@ -7493,6 +7502,114 @@ function drawCustomSelect(){
   roundRect(ctx,bbx,bby,bbw,bbh,6);ctx.stroke();ctx.shadowBlur=0;
   ctx.font='bold 12px "Courier New"';ctx.fillStyle=bhov?'#000':'rgba(100,200,255,0.9)';
   ctx.fillText('BACK',cx,bby+bbh/2+4);
+  ctx.textAlign='left';
+}
+
+function drawLevelSetup(){
+  const W=canvas.width,H=canvas.height,cx=W/2;
+  ctx.fillStyle='#060c18';ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  ctx.font='bold 24px "Courier New"';ctx.fillStyle='#00ccff';ctx.shadowBlur=20;ctx.shadowColor='#00aaff';
+  ctx.fillText('LEVEL SETUP',cx,60);ctx.shadowBlur=0;
+
+  const panelW=Math.min(500,W*0.8),panelX=cx-panelW/2;
+  let py=100;
+
+  // Level name
+  ctx.textAlign='left';ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.7)';
+  ctx.fillText('LEVEL NAME',panelX,py);py+=6;
+  const nameW=panelW,nameH=36;
+  const nameHov=mouse.x>panelX&&mouse.x<panelX+nameW&&mouse.y>py&&mouse.y<py+nameH;
+  ctx.fillStyle=nameHov?'rgba(0,40,80,0.7)':'rgba(0,20,50,0.5)';
+  roundRect(ctx,panelX,py,nameW,nameH,6);ctx.fill();
+  ctx.strokeStyle=nameHov?'#00ccff':'rgba(0,100,180,0.4)';ctx.lineWidth=1;
+  roundRect(ctx,panelX,py,nameW,nameH,6);ctx.stroke();
+  ctx.font='14px "Courier New"';ctx.fillStyle='rgba(180,220,255,0.9)';
+  ctx.fillText(editorLevelName||'Click to name...',panelX+12,py+24);
+  py+=nameH+20;
+
+  // World Width slider
+  ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.7)';
+  ctx.fillText(`WORLD WIDTH: ${editorWorldW}`,panelX,py);py+=8;
+  const slW=panelW,slH=20,slPct=(editorWorldW-400)/(4500-400);
+  ctx.fillStyle='rgba(0,20,50,0.5)';roundRect(ctx,panelX,py,slW,slH,4);ctx.fill();
+  ctx.fillStyle='rgba(0,100,200,0.6)';roundRect(ctx,panelX,py,slW*slPct,slH,4);ctx.fill();
+  ctx.strokeStyle='rgba(0,100,180,0.4)';ctx.lineWidth=1;roundRect(ctx,panelX,py,slW,slH,4);ctx.stroke();
+  const thumbX=panelX+slW*slPct;
+  ctx.fillStyle='#00ccff';ctx.beginPath();ctx.arc(thumbX,py+slH/2,8,0,Math.PI*2);ctx.fill();
+  py+=slH+18;
+
+  // World Height slider
+  ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.7)';
+  ctx.fillText(`WORLD HEIGHT: ${editorWorldH}`,panelX,py);py+=8;
+  const slPctH=(editorWorldH-400)/(4500-400);
+  ctx.fillStyle='rgba(0,20,50,0.5)';roundRect(ctx,panelX,py,slW,slH,4);ctx.fill();
+  ctx.fillStyle='rgba(0,100,200,0.6)';roundRect(ctx,panelX,py,slW*slPctH,slH,4);ctx.fill();
+  ctx.strokeStyle='rgba(0,100,180,0.4)';ctx.lineWidth=1;roundRect(ctx,panelX,py,slW,slH,4);ctx.stroke();
+  const thumbXH=panelX+slW*slPctH;
+  ctx.fillStyle='#00ccff';ctx.beginPath();ctx.arc(thumbXH,py+slH/2,8,0,Math.PI*2);ctx.fill();
+  py+=slH+22;
+
+  // Win condition selector
+  ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.7)';
+  ctx.fillText('WIN CONDITION',panelX,py);py+=8;
+  const conditions=[
+    {id:'killAll',label:'KILL ALL',desc:'Eliminate all hostiles'},
+    {id:'reachFinish',label:'REACH FINISH',desc:'Reach the finish line'},
+    {id:'survive',label:'SURVIVE',desc:'Survive for set duration'},
+    {id:'retrieve',label:'RETRIEVE',desc:'Get item, return to goal'},
+    {id:'collectAll',label:'COLLECT ALL',desc:'Find all keys'},
+  ];
+  const condW=(panelW-4*8)/5,condH=52;
+  for(let i=0;i<conditions.length;i++){
+    const c=conditions[i],cx2=panelX+i*(condW+8),sel=editorWinCondition===c.id;
+    const chov=mouse.x>cx2&&mouse.x<cx2+condW&&mouse.y>py&&mouse.y<py+condH;
+    ctx.fillStyle=sel?'rgba(0,80,40,0.7)':chov?'rgba(0,40,80,0.7)':'rgba(0,20,50,0.4)';
+    roundRect(ctx,cx2,py,condW,condH,6);ctx.fill();
+    ctx.strokeStyle=sel?'#00ff88':chov?'#00ccff':'rgba(0,100,180,0.3)';ctx.lineWidth=sel?2:1;
+    roundRect(ctx,cx2,py,condW,condH,6);ctx.stroke();
+    ctx.textAlign='center';ctx.font='bold 9px "Courier New"';ctx.fillStyle=sel?'#00ff88':'rgba(150,200,255,0.8)';
+    ctx.fillText(c.label,cx2+condW/2,py+22);
+    ctx.font='8px "Courier New"';ctx.fillStyle='rgba(100,150,200,0.6)';
+    ctx.fillText(c.desc,cx2+condW/2,py+38);
+  }
+  py+=condH+14;
+
+  // Survive seconds (contextual)
+  if(editorWinCondition==='survive'){
+    ctx.textAlign='left';ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.7)';
+    ctx.fillText(`SURVIVE SECONDS: ${editorWinSeconds}`,panelX,py);py+=8;
+    const secPct=(editorWinSeconds-10)/(180-10);
+    ctx.fillStyle='rgba(0,20,50,0.5)';roundRect(ctx,panelX,py,slW,slH,4);ctx.fill();
+    ctx.fillStyle='rgba(0,100,200,0.6)';roundRect(ctx,panelX,py,slW*secPct,slH,4);ctx.fill();
+    ctx.strokeStyle='rgba(0,100,180,0.4)';ctx.lineWidth=1;roundRect(ctx,panelX,py,slW,slH,4);ctx.stroke();
+    const thumbXS=panelX+slW*secPct;
+    ctx.fillStyle='#00ccff';ctx.beginPath();ctx.arc(thumbXS,py+slH/2,8,0,Math.PI*2);ctx.fill();
+    py+=slH+22;
+  }
+
+  // Buttons
+  ctx.textAlign='center';
+  const btnW=200,btnH=44;
+  const startX=cx-btnW/2,startY=Math.max(py+20,H-120);
+  const shov=mouse.x>startX&&mouse.x<startX+btnW&&mouse.y>startY&&mouse.y<startY+btnH;
+  ctx.shadowBlur=shov?24:10;ctx.shadowColor='#00ff88';
+  ctx.fillStyle=shov?'#00ff88':'rgba(0,0,0,0.7)';
+  roundRect(ctx,startX,startY,btnW,btnH,8);ctx.fill();
+  ctx.strokeStyle='#00ff88';ctx.lineWidth=2;
+  roundRect(ctx,startX,startY,btnW,btnH,8);ctx.stroke();ctx.shadowBlur=0;
+  ctx.font='bold 14px "Courier New"';ctx.fillStyle=shov?'#000':'#00ff88';
+  ctx.fillText('START EDITING',cx,startY+btnH/2+5);
+
+  const backW=120,backH=38,backX=cx-backW/2,backY=startY+btnH+14;
+  const bkhov=mouse.x>backX&&mouse.x<backX+backW&&mouse.y>backY&&mouse.y<backY+backH;
+  ctx.shadowBlur=bkhov?14:4;ctx.shadowColor='#00ccff';
+  ctx.fillStyle=bkhov?'rgba(0,140,200,0.85)':'rgba(0,0,0,0.55)';
+  roundRect(ctx,backX,backY,backW,backH,6);ctx.fill();
+  ctx.strokeStyle=bkhov?'#00eeff':'rgba(0,140,220,0.5)';ctx.lineWidth=1;
+  roundRect(ctx,backX,backY,backW,backH,6);ctx.stroke();ctx.shadowBlur=0;
+  ctx.font='bold 11px "Courier New"';ctx.fillStyle=bkhov?'#000':'rgba(100,200,255,0.9)';
+  ctx.fillText('BACK',cx,backY+backH/2+4);
   ctx.textAlign='left';
 }
 
@@ -7547,6 +7664,7 @@ function startGame(){
 // ─── CLICK / TAP HANDLER ─────────────────────────────────────────
 // Shared logic for both mouse-click and touch-tap (mouse.x/y set before calling)
 function _doClick(){
+  if(editorSliderDrag){editorSliderDrag=null;return;}
   // Portal: click/tap resolves to nearest portal or just resolves
   if(portalActive){
     // Check if click lands on a portal
@@ -7683,11 +7801,83 @@ function _doClick(){
     return; // eat all other clicks while paused
   }
 
+  if(gameState==='levelSetup'){
+    const W=canvas.width,H=canvas.height,cx=W/2;
+    const panelW=Math.min(500,W*0.8),panelX=cx-panelW/2;
+    let py=100;
+    // Name click
+    const nameH=36;
+    if(mouse.x>panelX&&mouse.x<panelX+panelW&&mouse.y>py+6&&mouse.y<py+6+nameH){
+      editorNameInput.style.pointerEvents='auto';editorNameInput.style.opacity='1';
+      editorNameInput.style.position='fixed';editorNameInput.style.left='50%';editorNameInput.style.top='130px';
+      editorNameInput.style.transform='translateX(-50%)';editorNameInput.style.width='300px';editorNameInput.style.height='30px';
+      editorNameInput.style.fontSize='16px';editorNameInput.style.fontFamily='"Courier New"';
+      editorNameInput.style.background='#0a1828';editorNameInput.style.color='#00ccff';editorNameInput.style.border='1px solid #00ccff';
+      editorNameInput.style.textAlign='center';editorNameInput.style.zIndex='100';
+      editorNameInput.value=editorLevelName;editorNameInput.focus();editorNameInput.select();
+      editorNameInput.onblur=()=>{editorLevelName=editorNameInput.value||'Untitled Level';editorNameInput.style.pointerEvents='none';editorNameInput.style.opacity='0';editorNameInput.style.width='1px';editorNameInput.style.height='1px';};
+      editorNameInput.onkeydown=(e)=>{if(e.key==='Enter'){editorNameInput.blur();}};
+      return;
+    }
+    py+=nameH+26;
+    // Width slider
+    const slW=panelW,slH=20;
+    if(mouse.y>py&&mouse.y<py+slH){editorSliderDrag='width';return;}
+    py+=slH+26;
+    // Height slider
+    if(mouse.y>py&&mouse.y<py+slH){editorSliderDrag='height';return;}
+    py+=slH+22;
+    // Win conditions
+    const condW=(panelW-4*8)/5,condH=52;
+    for(let i=0;i<5;i++){
+      const cx2=panelX+i*(condW+8);
+      if(mouse.x>cx2&&mouse.x<cx2+condW&&mouse.y>py&&mouse.y<py+condH){
+        editorWinCondition=['killAll','reachFinish','survive','retrieve','collectAll'][i];
+        SFX.select();return;
+      }
+    }
+    py+=condH+14;
+    // Survive slider
+    if(editorWinCondition==='survive'){
+      if(mouse.y>py+8&&mouse.y<py+8+slH){editorSliderDrag='seconds';return;}
+      py+=slH+22;
+    }
+    // Start editing
+    const btnW=200,btnH=44,startX=cx-btnW/2,startY=Math.max(py+20,H-120);
+    if(mouse.x>startX&&mouse.x<startX+btnW&&mouse.y>startY&&mouse.y<startY+btnH){
+      editorLevel={
+        name:editorLevelName,author:'Player',created:Date.now(),
+        worldW:editorWorldW,worldH:editorWorldH,
+        winCondition:editorWinCondition,
+        winParams:editorWinCondition==='survive'?{seconds:editorWinSeconds}:{},
+        obstacles:[],enemies:[],pickups:[],hazards:[],objectives:[],
+        spawnX:200,spawnY:Math.round(editorWorldH/2),
+        leaderboard:[],awards:[],
+      };
+      editorPlacedItems=[];
+      editorSpawnX=200;editorSpawnY=Math.round(editorWorldH/2);
+      editorCamX=0;editorCamY=0;editorTool='';editorExpandedCat='';editorDirty=false;
+      if(!editorPack) editorPack={packName:editorLevelName,author:'Player',created:Date.now(),levels:[]};
+      gameState='levelEditor';SFX.confirm();return;
+    }
+    // Back
+    const backW=120,backH=38,backX=cx-backW/2,backY=startY+btnH+14;
+    if(mouse.x>backX&&mouse.x<backX+backW&&mouse.y>backY&&mouse.y<backY+backH){
+      gameState='customSelect';SFX.select();return;
+    }
+    return;
+  }
   if(gameState==='customSelect'){
     const cx=canvas.width/2,W=canvas.width,H=canvas.height;
+    const newW=200,newH=40,newX=cx-newW/2,newY=82;
+    if(mouse.x>newX&&mouse.x<newX+newW&&mouse.y>newY&&mouse.y<newY+newH){
+      editorPack=null;editorLevelName='Untitled Level';editorWorldW=2600;editorWorldH=1700;
+      editorWinCondition='killAll';editorWinSeconds=60;
+      gameState='levelSetup';SFX.select();return;
+    }
     const packs=_loadCustomLevels();
     const cardW=Math.min(400,W*0.7),cardH=64,cardGap=10;
-    const startY=90;
+    const startY=140;
     for(let i=0;i<packs.length;i++){
       const y=startY+i*(cardH+cardGap);
       if(y>H-80)break;
@@ -8056,6 +8246,14 @@ function _snapMouseToPlayer(){
 // Free mouse tracking — no pointer lock, no leash
 canvas.addEventListener('mousemove',e=>{
   mouse.x = e.clientX; mouse.y = e.clientY;
+  if(editorSliderDrag&&gameState==='levelSetup'){
+    const W=canvas.width,cx=W/2;
+    const panelW=Math.min(500,W*0.8),panelX=cx-panelW/2;
+    const pct=clamp((mouse.x-panelX)/panelW,0,1);
+    if(editorSliderDrag==='width') editorWorldW=Math.round((400+pct*(4500-400))/100)*100;
+    else if(editorSliderDrag==='height') editorWorldH=Math.round((400+pct*(4500-400))/100)*100;
+    else if(editorSliderDrag==='seconds') editorWinSeconds=Math.round(10+pct*(180-10));
+  }
   if(setupSliderDrag){
     settings[setupSliderDrag.key]=Math.max(0,Math.min(1,(mouse.x-setupSliderDrag.trackX)/setupSliderDrag.trackW));
     _saveSettings();_applyVolumes();
@@ -8738,6 +8936,7 @@ function loop(now){
       camY=(gameMode==='timetrial'&&(ttLevel===1||ttLevel===3))?0:clamp(prev.y-canvas.height/2,0,Math.max(0,WORLD_H-canvas.height));
       SFX.select();return;
     }
+    if(gameState==='levelSetup'){K['Space']=false;gameState='customSelect';SFX.select();return;}
     if(gameState==='customSelect'){K['Space']=false;gameState='start';SFX.select();return;}
     if(gameState==='customResult'){K['Space']=false;gameState='customSelect';SFX.select();return;}
     if(gameState==='paused'&&screenLockMs<=0){K['Space']=false;gameState='playing';lastTime=performance.now();}
@@ -8885,6 +9084,8 @@ function loop(now){
     drawCustomResult();
   } else if(gameState==='customSelect'){
     drawCustomSelect();
+  } else if(gameState==='levelSetup'){
+    drawLevelSetup();
   }
 
   ctx.restore();
