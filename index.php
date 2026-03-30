@@ -7392,6 +7392,7 @@ function loadCustomLevel(levelData){
   miniMe.active=false;miniMe.lost=false;miniMe.hp=MM_HP;miniMe.iframes=0;
   lastHullBeepMs=0;
   resetPlayer();
+  P.gateKeys=new Set();
   P.x=levelData.spawnX||WORLD_W/2;
   P.y=levelData.spawnY||WORLD_H/2;
   camX=clamp(P.x-canvas.width/2,0,Math.max(0,WORLD_W-canvas.width));
@@ -7401,12 +7402,26 @@ function loadCustomLevel(levelData){
     for(const o of levelData.obstacles){
       if(o.type==='pillar') obstacles.push({type:'pillar',x:o.x,y:o.y,r:o.r||35,rot:Math.random()*Math.PI});
       else if(o.type==='wall') obstacles.push({type:'wall',x:o.x,y:o.y,w:o.w||26,h:o.h||100});
+      else if(o.type==='gate') obstacles.push({type:'gate',x:o.x,y:o.y,len:120,w:26,orient:o.orient||'h',hinge:o.hinge||'left',unlockType:o.unlockType||'guard',unlockParams:{...(o.unlockParams||{})},open:false,openPct:0,tempOpen:false});
     }
   }
   if(levelData.enemies){
     for(const en of levelData.enemies){
       const e=mkEnemy(en.type,en.x,en.y);
       if(e){enemies.push(e);if(en.type==='harbinger') harbingerRef=e;}
+    }
+  }
+  // Match guard gates to nearest spawned enemies
+  for(const o of obstacles){
+    if(o.type==='gate'&&o.unlockType==='guard'&&o.unlockParams.guardPositions){
+      o.unlockParams.guardRefs=o.unlockParams.guardPositions.map(pos=>{
+        let best=null,bestD=Infinity;
+        for(const e of enemies){const d=dist(e.x,e.y,pos[0],pos[1]);if(d<bestD){bestD=d;best=e;}}
+        return bestD<100?best:null;
+      }).filter(Boolean);
+    }
+    if(o.type==='gate'&&o.unlockType==='time'){
+      o.unlockParams.remaining=o.unlockParams.seconds||30;
     }
   }
   if(levelData.pickups){
@@ -7478,6 +7493,11 @@ function tickCustomObjectivePickup(){
       spawnParts(obj.x,obj.y,'#ff8800',_pCount(14),3,5,400);SFX.pickup();
       weaponFlash={prefix:'COLLECTED',name:'ITEM - RETURN TO GOAL',ms:2200};
     }
+    if(obj.type==='gate_key'&&!obj.collected&&dist(P.x,P.y,obj.x,obj.y)<40){
+      obj.collected=true;P.gateKeys.add(obj.keyId);
+      spawnParts(obj.x,obj.y,'#ffdd00',_pCount(14),3,5,400);SFX.pickup();
+      weaponFlash={prefix:'COLLECTED',name:'GATE KEY',ms:1800};
+    }
   }
 }
 function drawCustomObjectives(){
@@ -7514,6 +7534,14 @@ function drawCustomObjectives(){
       ctx.shadowBlur=18*pulse;ctx.shadowColor='#00ff88';ctx.stroke();ctx.shadowBlur=0;
       ctx.font='10px "Courier New"';ctx.fillStyle='rgba(0,255,136,0.7)';ctx.textAlign='center';
       ctx.fillText(customWinCondition==='retrieve'?'GOAL':'ZONE',sx,sy+r+14);
+    } else if(obj.type==='gate_key'&&!obj.collected){
+      const pulse=0.6+0.4*Math.sin(t*4+obj.x);
+      ctx.save();ctx.translate(sx,sy);
+      ctx.shadowBlur=14*pulse;ctx.shadowColor='#ffdd00';
+      ctx.beginPath();ctx.moveTo(0,-10);ctx.lineTo(6,-4);ctx.lineTo(6,2);ctx.lineTo(2,2);ctx.lineTo(2,8);ctx.lineTo(-2,8);ctx.lineTo(-2,2);ctx.lineTo(-6,2);ctx.lineTo(-6,-4);ctx.closePath();
+      ctx.fillStyle=`rgba(255,220,0,${0.8+0.2*pulse})`;ctx.fill();
+      ctx.strokeStyle='#ffaa00';ctx.lineWidth=1.5;ctx.stroke();
+      ctx.shadowBlur=0;ctx.restore();
     }
   }
   // Objective HUD text
