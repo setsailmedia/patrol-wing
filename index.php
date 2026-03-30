@@ -427,7 +427,10 @@ canvas.addEventListener('mousedown',e=>{
       for(let i=editorPlacedItems.length-1;i>=0;i--){
         if(_editorHitTest(editorPlacedItems[i],gx,gy)){
           editorDragIdx=i;
-          if(editorTool!=='_assignGuard'&&editorTool!=='_placeGateKey') editorSelectedGate=editorPlacedItems[i].subtype==='gate'?i:-1;
+          if(editorTool!=='_assignGuard'&&editorTool!=='_placeGateKey'){
+            editorSelectedGate=editorPlacedItems[i].subtype==='gate'?i:-1;
+            editorSelectedPickup=editorPlacedItems[i].subtype==='weapon'?i:-1;
+          }
           return;
         }
       }
@@ -8550,6 +8553,11 @@ function drawLevelEditor(){
       ctx.fillRect(-6,-6,12,12);ctx.restore();
       ctx.font='bold 8px "Courier New"';ctx.fillStyle='#000';ctx.textAlign='center';
       ctx.fillText(item.subtype[0].toUpperCase(),sx,sy+3);
+      if(item.subtype==='weapon'&&item.weaponMode&&item.weaponMode!=='generic'){
+        ctx.font='7px "Courier New"';ctx.fillStyle='#ffee00';ctx.textAlign='center';
+        if(item.weaponMode==='specific') ctx.fillText(item.weaponId||'?',sx,sy+16);
+        else ctx.fillText(`POOL:${(item.weaponPool||[]).length}`,sx,sy+16);
+      }
     } else if(item.cat==='hazard'){
       if(item.subtype==='zap_pylon'){
         ctx.fillStyle='#ffdd00';
