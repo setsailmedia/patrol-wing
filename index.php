@@ -569,6 +569,12 @@ function _loadLoadout(craftId,maxSlots){
     return indices.slice(0,maxSlots);
   }catch(e){return null;}
 }
+function _saveCustomLevels(packs){
+  try{localStorage.setItem('pw_custom_levels',JSON.stringify(packs));}catch(e){}
+}
+function _loadCustomLevels(){
+  try{return JSON.parse(localStorage.getItem('pw_custom_levels'))||[];}catch(e){return[];}
+}
 const SETTINGS_KEY='pw_settings';
 const SETTINGS_DEFAULT={musicVol:1,sfxVol:1,uiVol:1,screenShake:true,particles:'full'};
 let settings=Object.assign({},SETTINGS_DEFAULT);
@@ -625,6 +631,17 @@ let ctFinalScore=0;     // final computed score
 let ctLevelUpMs=0;      // countdown ms for level-up interstitial
 let ctLevelUpName='';   // name of enemy just defeated
 let ctNextPickupMs=0;
+// Custom level state
+let customPack=null;
+let customObjectives=[];
+let customWinCondition='';
+let customWinParams={};
+let customSurviveMs=0;
+let customKeysCollected=0;
+let customKeysTotal=0;
+let customItemHeld=false;
+let customFinishX=0,customFinishY=0;
+let customGoalX=0,customGoalY=0;
 // Level 2 — Nuclear Disarm
 const NUKE_COLORS=['#ff2244','#00eeff','#ffdd00','#44ff88'];
 const NUKE_NAMES=['ALPHA','BETA','GAMMA','DELTA'];
@@ -7043,6 +7060,239 @@ function startTouchNGo(){
   gameStartTime=Date.now();gameState='playing';_snapMouseToPlayer();
 }
 
+function loadCustomLevel(levelData){
+  _hideAllAds();
+  gameMode='custom';
+  WORLD_W=Math.min(4500,Math.max(canvas.width,levelData.worldW||2600));
+  WORLD_H=Math.min(4500,Math.max(canvas.height,levelData.worldH||1700));
+  score=0;wave=1;bossWarning=0;empFlash=0;
+  weaponFlash={name:levelData.name||'CUSTOM LEVEL',ms:2500};
+  leechFlash={active:false,tx:0,ty:0,ms:0};shockwaveFlash={ms:0};
+  harbingerRef=null;
+  portalActive=false;portalPositions=[];
+  particles.length=0;pickups.length=0;pBullets.length=0;eBullets.length=0;
+  mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;
+  hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;enemies.length=0;
+  miniMe.active=false;miniMe.lost=false;miniMe.hp=MM_HP;miniMe.iframes=0;
+  lastHullBeepMs=0;
+  resetPlayer();
+  P.x=levelData.spawnX||WORLD_W/2;
+  P.y=levelData.spawnY||WORLD_H/2;
+  camX=clamp(P.x-canvas.width/2,0,Math.max(0,WORLD_W-canvas.width));
+  camY=clamp(P.y-canvas.height/2,0,Math.max(0,WORLD_H-canvas.height));
+  obstacles=[];
+  if(levelData.obstacles){
+    for(const o of levelData.obstacles){
+      if(o.type==='pillar') obstacles.push({type:'pillar',x:o.x,y:o.y,r:o.r||35,rot:Math.random()*Math.PI});
+      else if(o.type==='wall') obstacles.push({type:'wall',x:o.x,y:o.y,w:o.w||26,h:o.h||100});
+    }
+  }
+  if(levelData.enemies){
+    for(const en of levelData.enemies){
+      const e=mkEnemy(en.type,en.x,en.y);
+      if(e){enemies.push(e);if(en.type==='harbinger') harbingerRef=e;}
+    }
+  }
+  if(levelData.pickups){
+    for(const p of levelData.pickups) spawnPickup(p.x,p.y,p.type,!!p.hidden);
+  }
+  if(levelData.hazards){
+    for(const h of levelData.hazards){
+      if(h.type==='zap_pylon') spawnZapPylonPair(h.x,h.y,h.angle||0,h.gap||120);
+      else if(h.type==='floor_mine') spawnFloorMine(h.x,h.y);
+    }
+  }
+  customWinCondition=levelData.winCondition||'killAll';
+  customWinParams=levelData.winParams||{};
+  customObjectives=levelData.objectives||[];
+  customSurviveMs=(customWinCondition==='survive'&&customWinParams.seconds)?customWinParams.seconds*1000:0;
+  customKeysCollected=0;
+  customKeysTotal=customObjectives.filter(o=>o.type==='key').length;
+  customItemHeld=false;
+  customFinishX=0;customFinishY=0;
+  customGoalX=0;customGoalY=0;
+  for(const obj of customObjectives){
+    if(obj.type==='finish'){customFinishX=obj.x;customFinishY=obj.y;}
+    if(obj.type==='goal'){customGoalX=obj.x;customGoalY=obj.y;}
+  }
+  gameStartTime=Date.now();
+  gameState='playing';
+}
+function customLevelWin(){
+  if(customPack&&customPack.currentIdx<customPack.levels.length-1){
+    customPack.currentIdx++;
+    weaponFlash={name:'LEVEL COMPLETE',ms:2200};
+    SFX.wave();
+    setTimeout(()=>loadCustomLevel(customPack.levels[customPack.currentIdx]),2200);
+  } else {
+    gameState='customResult';
+    SFX.confirm();
+  }
+}
+function tickCustomWinCondition(dt){
+  if(gameMode!=='custom'||!P.alive)return;
+  if(customWinCondition==='killAll'){
+    if(enemies.length===0) customLevelWin();
+  } else if(customWinCondition==='reachFinish'){
+    if(dist(P.x,P.y,customFinishX,customFinishY)<50) customLevelWin();
+  } else if(customWinCondition==='survive'){
+    customSurviveMs-=dt*1000;
+    if(customSurviveMs<=0) customLevelWin();
+  } else if(customWinCondition==='retrieve'){
+    if(customItemHeld&&dist(P.x,P.y,customGoalX,customGoalY)<50) customLevelWin();
+  } else if(customWinCondition==='collectAll'){
+    if(customKeysTotal>0&&customKeysCollected>=customKeysTotal) customLevelWin();
+  }
+}
+function tickCustomObjectivePickup(){
+  if(gameMode!=='custom')return;
+  for(const obj of customObjectives){
+    if(obj.collected)continue;
+    if(obj.type==='key'&&dist(P.x,P.y,obj.x,obj.y)<40){
+      obj.collected=true;customKeysCollected++;
+      spawnParts(obj.x,obj.y,'#ffdd00',_pCount(14),3,5,400);SFX.pickup();
+      weaponFlash={prefix:'COLLECTED',name:`KEY ${customKeysCollected}/${customKeysTotal}`,ms:1800};
+    }
+    if(obj.type==='item'&&!customItemHeld&&dist(P.x,P.y,obj.x,obj.y)<40){
+      obj.collected=true;customItemHeld=true;
+      spawnParts(obj.x,obj.y,'#ff8800',_pCount(14),3,5,400);SFX.pickup();
+      weaponFlash={prefix:'COLLECTED',name:'ITEM - RETURN TO GOAL',ms:2200};
+    }
+  }
+}
+function drawCustomObjectives(){
+  if(gameMode!=='custom')return;
+  const t=Date.now()/1000;
+  for(const obj of customObjectives){
+    const sx=obj.x-camX,sy=obj.y-camY;
+    if(sx<-60||sx>canvas.width+60||sy<-60||sy>canvas.height+60)continue;
+    if(obj.type==='finish'){
+      const pulse=0.7+0.3*Math.sin(t*3);
+      ctx.shadowBlur=24*pulse;ctx.shadowColor='#ffdd00';
+      ctx.strokeStyle=`rgba(255,220,0,${0.88*pulse})`;ctx.lineWidth=3;
+      ctx.beginPath();ctx.moveTo(sx,0);ctx.lineTo(sx,canvas.height);ctx.stroke();ctx.shadowBlur=0;
+    } else if(obj.type==='key'&&!obj.collected){
+      const pulse=0.6+0.4*Math.sin(t*4+obj.x);
+      ctx.save();ctx.translate(sx,sy);ctx.rotate(t*2);
+      ctx.shadowBlur=14*pulse;ctx.shadowColor='#ffdd00';
+      ctx.font='bold 18px "Courier New"';ctx.fillStyle=`rgba(255,220,0,${0.7+0.3*pulse})`;
+      ctx.textAlign='center';ctx.fillText('K',0,6);
+      ctx.shadowBlur=0;ctx.restore();
+    } else if(obj.type==='item'&&!customItemHeld){
+      const pulse=0.6+0.4*Math.sin(t*3);
+      ctx.save();ctx.translate(sx,sy);
+      ctx.shadowBlur=16*pulse;ctx.shadowColor='#ff8800';
+      ctx.beginPath();ctx.moveTo(0,-12);ctx.lineTo(10,0);ctx.lineTo(0,12);ctx.lineTo(-10,0);ctx.closePath();
+      ctx.fillStyle=`rgba(255,136,0,${0.75+0.25*pulse})`;ctx.fill();
+      ctx.strokeStyle='#ffcc44';ctx.lineWidth=2;ctx.stroke();
+      ctx.shadowBlur=0;ctx.restore();
+    } else if(obj.type==='goal'){
+      const pulse=0.5+0.5*Math.sin(t*2);
+      const r=40+6*pulse;
+      ctx.beginPath();ctx.arc(sx,sy,r,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(0,255,136,${0.4+0.3*pulse})`;ctx.lineWidth=3;
+      ctx.shadowBlur=18*pulse;ctx.shadowColor='#00ff88';ctx.stroke();ctx.shadowBlur=0;
+      ctx.font='10px "Courier New"';ctx.fillStyle='rgba(0,255,136,0.7)';ctx.textAlign='center';
+      ctx.fillText(customWinCondition==='retrieve'?'GOAL':'ZONE',sx,sy+r+14);
+    }
+  }
+  if(customWinCondition==='survive'&&customSurviveMs>0){
+    const sec=Math.ceil(customSurviveMs/1000);
+    ctx.textAlign='center';ctx.font='bold 24px "Courier New"';
+    ctx.fillStyle=sec<=10?'#ff4400':'#00ccff';ctx.shadowBlur=14;ctx.shadowColor=sec<=10?'#ff2200':'#00aaff';
+    ctx.fillText(`SURVIVE  ${sec}s`,canvas.width/2,80);ctx.shadowBlur=0;
+  }
+  if(customWinCondition==='collectAll'){
+    ctx.textAlign='center';ctx.font='bold 14px "Courier New"';
+    ctx.fillStyle='#ffdd00';ctx.shadowBlur=8;ctx.shadowColor='#ffaa00';
+    ctx.fillText(`KEYS  ${customKeysCollected}/${customKeysTotal}`,canvas.width/2,80);ctx.shadowBlur=0;
+  }
+  if(customWinCondition==='retrieve'){
+    ctx.textAlign='center';ctx.font='bold 14px "Courier New"';
+    ctx.fillStyle=customItemHeld?'#00ff88':'#ff8800';ctx.shadowBlur=8;ctx.shadowColor=customItemHeld?'#00ff88':'#ff8800';
+    ctx.fillText(customItemHeld?'ITEM HELD - REACH GOAL':'FIND THE ITEM',canvas.width/2,80);ctx.shadowBlur=0;
+  }
+  ctx.textAlign='left';
+}
+
+function drawCustomResult(){
+  const W=canvas.width,H=canvas.height,cx=W/2;
+  ctx.fillStyle='#060c18';ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  ctx.font='bold 36px "Courier New"';ctx.fillStyle='#00ff88';ctx.shadowBlur=30;ctx.shadowColor='#00ff88';
+  ctx.fillText('MISSION COMPLETE',cx,H*0.25);ctx.shadowBlur=0;
+  if(customPack){
+    ctx.font='16px "Courier New"';ctx.fillStyle='rgba(100,200,255,0.8)';
+    ctx.fillText(customPack.packName||'CUSTOM PACK',cx,H*0.25+40);
+    ctx.font='14px "Courier New"';ctx.fillStyle='rgba(150,180,220,0.7)';
+    ctx.fillText(`${customPack.levels.length} LEVEL${customPack.levels.length>1?'S':''} CLEARED`,cx,H*0.25+64);
+  }
+  const elapsed=Math.floor((Date.now()-gameStartTime)/1000);
+  const mins=Math.floor(elapsed/60),secs=elapsed%60;
+  ctx.font='14px "Courier New"';ctx.fillStyle='rgba(150,180,220,0.7)';
+  ctx.fillText(`SCORE  ${String(score).padStart(8,'0')}   TIME  ${mins}:${String(secs).padStart(2,'0')}`,cx,H*0.25+96);
+  const bw=240,bh=46,bx=cx-bw/2,by=H*0.6;
+  const bhov=mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh;
+  ctx.shadowBlur=bhov?24:10;ctx.shadowColor='#00ff88';
+  ctx.fillStyle=bhov?'#00ff88':'rgba(0,0,0,0.7)';
+  roundRect(ctx,bx,by,bw,bh,8);ctx.fill();
+  ctx.strokeStyle='#00ff88';ctx.lineWidth=2;
+  roundRect(ctx,bx,by,bw,bh,8);ctx.stroke();ctx.shadowBlur=0;
+  ctx.font='bold 14px "Courier New"';ctx.fillStyle=bhov?'#000':'#00ff88';
+  ctx.fillText('BACK TO MENU',cx,by+bh/2+5);
+  ctx.textAlign='left';
+}
+
+function drawCustomSelect(){
+  const W=canvas.width,H=canvas.height,cx=W/2;
+  ctx.fillStyle='#060c18';ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  ctx.font='bold 28px "Courier New"';ctx.fillStyle='#00ccff';ctx.shadowBlur=20;ctx.shadowColor='#00aaff';
+  ctx.fillText('CUSTOM LEVELS',cx,52);ctx.shadowBlur=0;
+  const packs=_loadCustomLevels();
+  if(packs.length===0){
+    ctx.font='14px "Courier New"';ctx.fillStyle='rgba(100,140,180,0.6)';
+    ctx.fillText('No custom levels yet',cx,H/2);
+    ctx.fillText('Use the Level Editor to create levels',cx,H/2+24);
+  } else {
+    const cardW=Math.min(400,W*0.7),cardH=64,cardGap=10;
+    const startY=90;
+    for(let i=0;i<packs.length;i++){
+      const pk=packs[i];
+      const y=startY+i*(cardH+cardGap);
+      if(y>H-80)break;
+      const hov=mouse.x>cx-cardW/2&&mouse.x<cx+cardW/2&&mouse.y>y&&mouse.y<y+cardH;
+      ctx.fillStyle=hov?'rgba(0,60,120,0.7)':'rgba(0,30,60,0.5)';
+      roundRect(ctx,cx-cardW/2,y,cardW,cardH,8);ctx.fill();
+      ctx.strokeStyle=hov?'#00ccff':'rgba(0,100,180,0.4)';ctx.lineWidth=hov?2:1;
+      roundRect(ctx,cx-cardW/2,y,cardW,cardH,8);ctx.stroke();
+      ctx.textAlign='left';
+      ctx.font='bold 14px "Courier New"';ctx.fillStyle=hov?'#ffffff':'rgba(180,220,255,0.9)';
+      ctx.fillText(pk.packName||'Unnamed Pack',cx-cardW/2+16,y+24);
+      ctx.font='11px "Courier New"';ctx.fillStyle='rgba(100,160,220,0.7)';
+      ctx.fillText(`${pk.levels?pk.levels.length:0} level${pk.levels&&pk.levels.length!==1?'s':''}  |  ${pk.author||'Unknown'}`,cx-cardW/2+16,y+44);
+      const delW=50,delH=28,delX=cx+cardW/2-delW-8,delY=y+(cardH-delH)/2;
+      const delHov=mouse.x>delX&&mouse.x<delX+delW&&mouse.y>delY&&mouse.y<delY+delH;
+      ctx.fillStyle=delHov?'rgba(180,30,10,0.8)':'rgba(80,20,10,0.5)';
+      roundRect(ctx,delX,delY,delW,delH,4);ctx.fill();
+      ctx.textAlign='center';ctx.font='bold 10px "Courier New"';
+      ctx.fillStyle=delHov?'#ffccaa':'rgba(200,80,50,0.8)';
+      ctx.fillText('DEL',delX+delW/2,delY+delH/2+4);
+    }
+  }
+  ctx.textAlign='center';
+  const bbw=160,bbh=40,bbx=cx-bbw/2,bby=H-70;
+  const bhov=mouse.x>bbx&&mouse.x<bbx+bbw&&mouse.y>bby&&mouse.y<bby+bbh;
+  ctx.shadowBlur=bhov?18:6;ctx.shadowColor='#00ccff';
+  ctx.fillStyle=bhov?'rgba(0,140,200,0.85)':'rgba(0,0,0,0.65)';
+  roundRect(ctx,bbx,bby,bbw,bbh,6);ctx.fill();
+  ctx.strokeStyle=bhov?'#00eeff':'rgba(0,140,220,0.6)';ctx.lineWidth=1.5;
+  roundRect(ctx,bbx,bby,bbw,bbh,6);ctx.stroke();ctx.shadowBlur=0;
+  ctx.font='bold 12px "Courier New"';ctx.fillStyle=bhov?'#000':'rgba(100,200,255,0.9)';
+  ctx.fillText('BACK',cx,bby+bbh/2+4);
+  ctx.textAlign='left';
+}
+
 function startBattle(){
   _hideAllAds();
   gameMode='battle';
@@ -7230,6 +7480,42 @@ function _doClick(){
     return; // eat all other clicks while paused
   }
 
+  if(gameState==='customSelect'){
+    const cx=canvas.width/2,W=canvas.width,H=canvas.height;
+    const packs=_loadCustomLevels();
+    const cardW=Math.min(400,W*0.7),cardH=64,cardGap=10;
+    const startY=90;
+    for(let i=0;i<packs.length;i++){
+      const y=startY+i*(cardH+cardGap);
+      if(y>H-80)break;
+      const delW=50,delH=28,delX=cx+cardW/2-delW-8,delY=y+(cardH-delH)/2;
+      if(mouse.x>delX&&mouse.x<delX+delW&&mouse.y>delY&&mouse.y<delY+delH){
+        packs.splice(i,1);_saveCustomLevels(packs);SFX.select();return;
+      }
+      if(mouse.x>cx-cardW/2&&mouse.x<cx+cardW/2-delW-16&&mouse.y>y&&mouse.y<y+cardH){
+        const pk=packs[i];
+        if(pk.levels&&pk.levels.length>0){
+          customPack={packName:pk.packName,levels:pk.levels,currentIdx:0};
+          loadCustomLevel(pk.levels[0]);
+          SFX.confirm();
+        }
+        return;
+      }
+    }
+    const bbw=160,bbh=40,bbx=cx-bbw/2,bby=H-70;
+    if(mouse.x>bbx&&mouse.x<bbx+bbw&&mouse.y>bby&&mouse.y<bby+bbh){
+      gameState='start';SFX.select();return;
+    }
+    return;
+  }
+  if(gameState==='customResult'){
+    const cx=canvas.width/2,bw=240,bh=46,bx=cx-bw/2,by=canvas.height*0.6;
+    if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){
+      gameState='customSelect';SFX.select();return;
+    }
+    return;
+  }
+
   if(gameState==='start'){
     // Sound toggle button
     const _stPad2=Math.max(14,canvas.width*0.02);
@@ -7247,6 +7533,7 @@ function _doClick(){
         if(item.label==='Combat Training'){ activeBriefing='brief_ct'; gameState='briefing'; SFX.select(); }
         if(item.label==='Aircraft Hangar'){ hangarCraft=selectedCraft; hangarColor=selectedColor; hangarScroll=Math.max(0,Math.min(hangarCraft,CRAFTS.length-HANGAR_VISIBLE)); gameState='hangar'; SFX.select(); }
         if(item.label==='Hall of Fame'){ hofTab=0; gameState='hallOfFame'; SFX.select(); }
+        if(item.label==='Level Designer'){ gameState='customSelect'; SFX.select(); }
         if(item.label==='Setup'){ gameState='setup'; SFX.select(); }
         return;
       }
@@ -7275,7 +7562,10 @@ function _doClick(){
   }
   if(gameState==='gameover'){
     const cx=canvas.width/2,bw=220,bh=44,bx=cx-bw/2,by=canvas.height/2+112;
-    if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){ _returnToStart(); return; }
+    if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){
+      if(gameMode==='custom'&&customPack){loadCustomLevel(customPack.levels[customPack.currentIdx]);return;}
+      _returnToStart(); return;
+    }
     return;
   }
   if(gameState==='timeTrialResult'||gameState==='victory'){
@@ -8245,6 +8535,8 @@ function loop(now){
       camY=(gameMode==='timetrial'&&(ttLevel===1||ttLevel===3))?0:clamp(prev.y-canvas.height/2,0,Math.max(0,WORLD_H-canvas.height));
       SFX.select();return;
     }
+    if(gameState==='customSelect'){K['Space']=false;gameState='start';SFX.select();return;}
+    if(gameState==='customResult'){K['Space']=false;gameState='customSelect';SFX.select();return;}
     if(gameState==='paused'&&screenLockMs<=0){K['Space']=false;gameState='playing';lastTime=performance.now();}
     else if(gameState==='start'){K['Space']=false;gameMode='battle';_loadHangar();startGame();}
     else if(gameState==='ttLevelSelect'){K['Space']=false;gameState='start';SFX.select();}
@@ -8283,11 +8575,11 @@ function loop(now){
     if(portalActive){
       // Freeze all game ticks — only tick portal countdown and particles
       tickParticles(dt);tickPortal(dt);
-      drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawFaradayCages();drawRockets();drawGrenades();drawGravityWells();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();
+      drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawFaradayCages();drawRockets();drawGrenades();drawGravityWells();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();drawCustomObjectives();
       if(gameMode==='timetrial') drawFinishLine();
       drawHUD();drawMinimap();drawCrosshair();drawTouchSticks();drawMiniMe();drawPortals();
     } else {
-    tickPlayer(dt,now);tickCarrierDrones(dt,now);tickEnemies(dt,now);tickMiniMe(dt,now);tickBullets(dt);tickMines(dt);tickFaradayCages(dt);tickRockets(dt);tickGrenades(dt);tickGravityWells(dt);tickSeekers(dt,now);tickBoomerangs(dt);tickHazards(dt,now);tickFractals(dt);tickParticles(dt);tickPickups(dt);tickLaserFlash(dt);tickLeechFlash(dt);tickShockwaveFlash(dt);tickPortal(dt);if(ttLevel===2)tickNukes(dt);if(ttLevel===4)tickJRRescue(dt);if(ttLevel===5)tickTNG(dt);tickHullBeep(now);checkCollisions();
+    tickPlayer(dt,now);tickCarrierDrones(dt,now);tickEnemies(dt,now);tickMiniMe(dt,now);tickBullets(dt);tickMines(dt);tickFaradayCages(dt);tickRockets(dt);tickGrenades(dt);tickGravityWells(dt);tickSeekers(dt,now);tickBoomerangs(dt);tickHazards(dt,now);tickFractals(dt);tickParticles(dt);tickPickups(dt);tickLaserFlash(dt);tickLeechFlash(dt);tickShockwaveFlash(dt);tickPortal(dt);if(ttLevel===2)tickNukes(dt);if(ttLevel===4)tickJRRescue(dt);if(ttLevel===5)tickTNG(dt);tickHullBeep(now);checkCollisions();tickCustomWinCondition(dt);tickCustomObjectivePickup();
     if(gameMode==='combattraining'){
       ctNextPickupMs-=dt*1000;
       if(ctNextPickupMs<=0){
@@ -8302,7 +8594,7 @@ function loop(now){
         if(pickups.length>idx) pickups[pickups.length-1].dropTimer=18000;
       }
     }
-    drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawFaradayCages();drawRockets();drawGrenades();drawGravityWells();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();drawCarrierDrones();
+    drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawFaradayCages();drawRockets();drawGrenades();drawGravityWells();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();drawCustomObjectives();drawCarrierDrones();
     if(slipstreamMs>0&&P.alive&&CRAFTS[P.craftIdx].id==='skirmisher'){
       const sx=P.x-camX, sy=P.y-camY;
       const alphaBase=slipstreamMs/400;
@@ -8386,6 +8678,10 @@ function loop(now){
     tickParticles(dt);drawWorld();drawParticles();drawDeathScreen();
   } else if(gameState==='victory'){
     tickParticles(dt);drawWorld();drawParticles();drawVictoryScreen();
+  } else if(gameState==='customResult'){
+    drawCustomResult();
+  } else if(gameState==='customSelect'){
+    drawCustomSelect();
   }
 
   ctx.restore();
