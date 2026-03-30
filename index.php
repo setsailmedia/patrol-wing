@@ -7471,6 +7471,8 @@ function drawCustomSelect(){
   ctx.textAlign='center';
   ctx.font='bold 28px "Courier New"';ctx.fillStyle='#00ccff';ctx.shadowBlur=20;ctx.shadowColor='#00aaff';
   ctx.fillText('CUSTOM LEVELS',cx,52);ctx.shadowBlur=0;
+  const packs=_loadCustomLevels();
+  // CREATE NEW button
   const newW=200,newH=40,newX=cx-newW/2,newY=82;
   const nhov=mouse.x>newX&&mouse.x<newX+newW&&mouse.y>newY&&mouse.y<newY+newH;
   ctx.shadowBlur=nhov?18:6;ctx.shadowColor='#00ff88';
@@ -7480,37 +7482,96 @@ function drawCustomSelect(){
   roundRect(ctx,newX,newY,newW,newH,6);ctx.stroke();ctx.shadowBlur=0;
   ctx.textAlign='center';ctx.font='bold 13px "Courier New"';ctx.fillStyle=nhov?'#000':'#00ff88';
   ctx.fillText('+ CREATE NEW',cx,newY+newH/2+5);
-  const packs=_loadCustomLevels();
+
   if(packs.length===0){
     ctx.font='14px "Courier New"';ctx.fillStyle='rgba(100,140,180,0.6)';
     ctx.fillText('No custom levels yet',cx,H/2);
-    ctx.fillText('Use the Level Editor to create levels',cx,H/2+24);
   } else {
-    const cardW=Math.min(400,W*0.7),cardH=64,cardGap=10;
-    const startY=140;
+    const cardW=Math.min(500,W*0.8),cardH=48,subH=36,cardGap=6;
+    let cy=140;
     for(let i=0;i<packs.length;i++){
       const pk=packs[i];
-      const y=startY+i*(cardH+cardGap);
-      if(y>H-80)break;
-      const hov=mouse.x>cx-cardW/2&&mouse.x<cx+cardW/2&&mouse.y>y&&mouse.y<y+cardH;
-      ctx.fillStyle=hov?'rgba(0,60,120,0.7)':'rgba(0,30,60,0.5)';
-      roundRect(ctx,cx-cardW/2,y,cardW,cardH,8);ctx.fill();
-      ctx.strokeStyle=hov?'#00ccff':'rgba(0,100,180,0.4)';ctx.lineWidth=hov?2:1;
-      roundRect(ctx,cx-cardW/2,y,cardW,cardH,8);ctx.stroke();
-      ctx.textAlign='left';
-      ctx.font='bold 14px "Courier New"';ctx.fillStyle=hov?'#ffffff':'rgba(180,220,255,0.9)';
-      ctx.fillText(pk.packName||'Unnamed Pack',cx-cardW/2+16,y+24);
-      ctx.font='11px "Courier New"';ctx.fillStyle='rgba(100,160,220,0.7)';
-      ctx.fillText(`${pk.levels?pk.levels.length:0} level${pk.levels&&pk.levels.length!==1?'s':''}  |  ${pk.author||'Unknown'}`,cx-cardW/2+16,y+44);
-      const delW=50,delH=28,delX=cx+cardW/2-delW-8,delY=y+(cardH-delH)/2;
-      const delHov=mouse.x>delX&&mouse.x<delX+delW&&mouse.y>delY&&mouse.y<delY+delH;
-      ctx.fillStyle=delHov?'rgba(180,30,10,0.8)':'rgba(80,20,10,0.5)';
-      roundRect(ctx,delX,delY,delW,delH,4);ctx.fill();
-      ctx.textAlign='center';ctx.font='bold 10px "Courier New"';
-      ctx.fillStyle=delHov?'#ffccaa':'rgba(200,80,50,0.8)';
-      ctx.fillText('DEL',delX+delW/2,delY+delH/2+4);
+      if(cy>H-100)break;
+      const expanded=customSelectExpanded===i;
+      const phov=mouse.x>cx-cardW/2&&mouse.x<cx+cardW/2&&mouse.y>cy&&mouse.y<cy+cardH;
+      // Pack header
+      ctx.fillStyle=expanded?'rgba(0,50,100,0.7)':phov?'rgba(0,40,80,0.6)':'rgba(0,25,50,0.5)';
+      roundRect(ctx,cx-cardW/2,cy,cardW,cardH,6);ctx.fill();
+      ctx.strokeStyle=expanded?'#00ccff':phov?'rgba(0,160,220,0.5)':'rgba(0,100,180,0.3)';ctx.lineWidth=expanded?2:1;
+      roundRect(ctx,cx-cardW/2,cy,cardW,cardH,6);ctx.stroke();
+      ctx.textAlign='left';ctx.font='bold 13px "Courier New"';ctx.fillStyle=expanded?'#00ccff':'rgba(180,220,255,0.9)';
+      ctx.fillText((expanded?'v ':'> ')+(pk.packName||'Unnamed Pack'),cx-cardW/2+14,cy+20);
+      ctx.font='10px "Courier New"';ctx.fillStyle='rgba(100,160,220,0.6)';
+      ctx.fillText(`${pk.levels?pk.levels.length:0} levels  |  ${pk.author||'Unknown'}`,cx-cardW/2+14,cy+36);
+      // Pack buttons: CLONE, DEL
+      const pbtnW=48,pbtnH=24,pbtnY=cy+(cardH-pbtnH)/2;
+      const delX=cx+cardW/2-pbtnW-8,cloneX=delX-pbtnW-6;
+      // DEL
+      const dHov=mouse.x>delX&&mouse.x<delX+pbtnW&&mouse.y>pbtnY&&mouse.y<pbtnY+pbtnH;
+      ctx.fillStyle=dHov?'rgba(180,30,10,0.8)':'rgba(80,20,10,0.4)';
+      roundRect(ctx,delX,pbtnY,pbtnW,pbtnH,3);ctx.fill();
+      ctx.textAlign='center';ctx.font='bold 9px "Courier New"';ctx.fillStyle=dHov?'#ffccaa':'rgba(200,80,50,0.7)';
+      ctx.fillText('DEL',delX+pbtnW/2,pbtnY+pbtnH/2+3);
+      // CLONE
+      const cHov=mouse.x>cloneX&&mouse.x<cloneX+pbtnW&&mouse.y>pbtnY&&mouse.y<pbtnY+pbtnH;
+      ctx.fillStyle=cHov?'rgba(0,100,60,0.7)':'rgba(0,50,30,0.4)';
+      roundRect(ctx,cloneX,pbtnY,pbtnW,pbtnH,3);ctx.fill();
+      ctx.fillStyle=cHov?'#00ff88':'rgba(0,180,100,0.6)';
+      ctx.fillText('CLONE',cloneX+pbtnW/2,pbtnY+pbtnH/2+3);
+      cy+=cardH+cardGap;
+      // Expanded: show levels
+      if(expanded&&pk.levels){
+        for(let j=0;j<pk.levels.length;j++){
+          const lv=pk.levels[j];
+          if(cy>H-100)break;
+          const sel=customSelectSelectedLevel===j;
+          const lhov=mouse.x>cx-cardW/2+20&&mouse.x<cx+cardW/2&&mouse.y>cy&&mouse.y<cy+subH;
+          ctx.fillStyle=sel?'rgba(0,60,40,0.6)':lhov?'rgba(0,30,60,0.5)':'rgba(0,15,35,0.4)';
+          roundRect(ctx,cx-cardW/2+20,cy,cardW-20,subH,4);ctx.fill();
+          if(sel){ctx.strokeStyle='#00ff88';ctx.lineWidth=1;roundRect(ctx,cx-cardW/2+20,cy,cardW-20,subH,4);ctx.stroke();}
+          ctx.textAlign='left';ctx.font='11px "Courier New"';ctx.fillStyle=sel?'#00ff88':'rgba(160,200,240,0.8)';
+          ctx.fillText(lv.name||'Untitled',cx-cardW/2+36,cy+14);
+          ctx.font='9px "Courier New"';ctx.fillStyle='rgba(100,150,200,0.5)';
+          ctx.fillText(`${lv.winCondition||'killAll'}  |  ${lv.worldW||2600}x${lv.worldH||1700}`,cx-cardW/2+36,cy+28);
+          // Level buttons: PLAY, EDIT, COPY, DEL
+          const lbW=38,lbH=22,lbY=cy+(subH-lbH)/2;
+          const lDelX=cx+cardW/2-lbW-8,lCopyX=lDelX-lbW-4,lEditX=lCopyX-lbW-4,lPlayX=lEditX-lbW-4;
+          const btns=[
+            {x:lPlayX,label:'PLAY',col:'#00ff88',bg:'rgba(0,80,40,0.6)'},
+            {x:lEditX,label:'EDIT',col:'#00ccff',bg:'rgba(0,50,100,0.5)'},
+            {x:lCopyX,label:'COPY',col:'#ffaa00',bg:'rgba(80,50,0,0.4)'},
+            {x:lDelX,label:'DEL',col:'#ff5533',bg:'rgba(80,20,10,0.4)'},
+          ];
+          for(const btn of btns){
+            const bh2=mouse.x>btn.x&&mouse.x<btn.x+lbW&&mouse.y>lbY&&mouse.y<lbY+lbH;
+            ctx.fillStyle=bh2?btn.col+'33':btn.bg;
+            roundRect(ctx,btn.x,lbY,lbW,lbH,3);ctx.fill();
+            ctx.textAlign='center';ctx.font='bold 8px "Courier New"';ctx.fillStyle=bh2?btn.col:btn.col+'99';
+            ctx.fillText(btn.label,btn.x+lbW/2,lbY+lbH/2+3);
+          }
+          cy+=subH+4;
+        }
+        // Leaderboard + Awards stubs (when a level is selected)
+        if(customSelectSelectedLevel>=0&&customSelectSelectedLevel<pk.levels.length){
+          cy+=8;
+          ctx.strokeStyle='rgba(0,100,180,0.3)';ctx.lineWidth=1;
+          roundRect(ctx,cx-cardW/2+20,cy,cardW-20,50,4);ctx.stroke();
+          ctx.textAlign='left';ctx.font='bold 10px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.6)';
+          ctx.fillText('LEADERBOARD',cx-cardW/2+32,cy+16);
+          ctx.font='9px "Courier New"';ctx.fillStyle='rgba(80,120,160,0.4)';
+          ctx.fillText('Multiplayer coming soon',cx-cardW/2+32,cy+34);
+          cy+=58;
+          roundRect(ctx,cx-cardW/2+20,cy,cardW-20,50,4);ctx.stroke();
+          ctx.textAlign='left';ctx.font='bold 10px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.6)';
+          ctx.fillText('AWARDS',cx-cardW/2+32,cy+16);
+          ctx.font='9px "Courier New"';ctx.fillStyle='rgba(80,120,160,0.4)';
+          ctx.fillText('Multiplayer coming soon',cx-cardW/2+32,cy+34);
+          cy+=58;
+        }
+      }
     }
   }
+  // Back button
   ctx.textAlign='center';
   const bbw=160,bbh=40,bbx=cx-bbw/2,bby=H-70;
   const bhov=mouse.x>bbx&&mouse.x<bbx+bbw&&mouse.y>bby&&mouse.y<bby+bbh;
@@ -7663,6 +7724,28 @@ function _findToolDef(toolId){
   return null;
 }
 
+function _loadLevelIntoEditor(lv,packIdx,levelIdx){
+  editorLevel={...lv};
+  editorLevelName=lv.name||'Untitled';
+  editorWorldW=lv.worldW||2600;editorWorldH=lv.worldH||1700;
+  editorWinCondition=lv.winCondition||'killAll';
+  editorWinSeconds=(lv.winParams&&lv.winParams.seconds)||60;
+  editorSpawnX=lv.spawnX||200;editorSpawnY=lv.spawnY||200;
+  editorCamX=0;editorCamY=0;editorTool='';editorExpandedCat='';
+  editorPlacedItems=[];
+  if(lv.obstacles) for(const o of lv.obstacles){
+    if(o.type==='pillar') editorPlacedItems.push({cat:'obstacle',subtype:'pillar',x:o.x,y:o.y,r:o.r||35});
+    else editorPlacedItems.push({cat:'obstacle',subtype:'wall',x:o.x,y:o.y,w:o.w||26,h:o.h||100});
+  }
+  if(lv.enemies) for(const e of lv.enemies) editorPlacedItems.push({cat:'enemy',subtype:e.type,x:e.x,y:e.y});
+  if(lv.pickups) for(const p of lv.pickups) editorPlacedItems.push({cat:'pickup',subtype:p.type,x:p.x,y:p.y});
+  if(lv.hazards) for(const h of lv.hazards) editorPlacedItems.push({cat:'hazard',subtype:h.type,x:h.x,y:h.y,angle:h.angle||0,gap:h.gap||120});
+  if(lv.objectives) for(const o of lv.objectives) editorPlacedItems.push({cat:'objective',subtype:o.type,x:o.x,y:o.y});
+  editorDirty=false;
+  editorLevel._editPackIdx=packIdx;
+  editorLevel._editLevelIdx=levelIdx;
+}
+
 function _drawEditorSidebar(sideW,H){
   ctx.fillStyle='rgba(4,10,26,0.95)';ctx.fillRect(0,0,sideW,H);
   ctx.strokeStyle='rgba(0,100,180,0.3)';ctx.lineWidth=1;
@@ -7712,6 +7795,17 @@ function _editorSave(){
       lv.hazards.push({type:item.subtype,x:item.x,y:item.y,angle:item.angle||0,gap:item.gap||120});
     } else if(item.cat==='objective'){
       lv.objectives.push({type:item.subtype,x:item.x,y:item.y});
+    }
+  }
+  if(lv._editPackIdx!==undefined){
+    const packs=_loadCustomLevels();
+    const pi=lv._editPackIdx,li=lv._editLevelIdx;
+    delete lv._editPackIdx;delete lv._editLevelIdx;
+    if(packs[pi]&&packs[pi].levels[li]){
+      packs[pi].levels[li]=lv;
+      _saveCustomLevels(packs);
+      editorPack=null;editorLevel=null;editorPlacedItems=[];
+      gameState='customSelect';SFX.confirm();return;
     }
   }
   editorPack.levels.push(lv);
@@ -8189,6 +8283,7 @@ function _doClick(){
   }
   if(gameState==='customSelect'){
     const cx=canvas.width/2,W=canvas.width,H=canvas.height;
+    // CREATE NEW
     const newW=200,newH=40,newX=cx-newW/2,newY=82;
     if(mouse.x>newX&&mouse.x<newX+newW&&mouse.y>newY&&mouse.y<newY+newH){
       editorPack=null;editorLevelName='Untitled Level';editorWorldW=2600;editorWorldH=1700;
@@ -8196,28 +8291,71 @@ function _doClick(){
       gameState='levelSetup';SFX.select();return;
     }
     const packs=_loadCustomLevels();
-    const cardW=Math.min(400,W*0.7),cardH=64,cardGap=10;
-    const startY=140;
+    const cardW=Math.min(500,W*0.8),cardH=48,subH=36,cardGap=6;
+    let cy=140;
     for(let i=0;i<packs.length;i++){
-      const y=startY+i*(cardH+cardGap);
-      if(y>H-80)break;
-      const delW=50,delH=28,delX=cx+cardW/2-delW-8,delY=y+(cardH-delH)/2;
-      if(mouse.x>delX&&mouse.x<delX+delW&&mouse.y>delY&&mouse.y<delY+delH){
-        packs.splice(i,1);_saveCustomLevels(packs);SFX.select();return;
+      const pk=packs[i];
+      if(cy>H-100)break;
+      const expanded=customSelectExpanded===i;
+      // Pack-level buttons
+      const pbtnW=48,pbtnH=24,pbtnY=cy+(cardH-pbtnH)/2;
+      const delX=cx+cardW/2-pbtnW-8,cloneX=delX-pbtnW-6;
+      if(mouse.x>delX&&mouse.x<delX+pbtnW&&mouse.y>pbtnY&&mouse.y<pbtnY+pbtnH){
+        packs.splice(i,1);_saveCustomLevels(packs);
+        if(customSelectExpanded===i){customSelectExpanded=-1;customSelectSelectedLevel=-1;}
+        else if(customSelectExpanded>i) customSelectExpanded--;
+        SFX.select();return;
       }
-      if(mouse.x>cx-cardW/2&&mouse.x<cx+cardW/2-delW-16&&mouse.y>y&&mouse.y<y+cardH){
-        const pk=packs[i];
-        if(pk.levels&&pk.levels.length>0){
-          customPack={packName:pk.packName,levels:pk.levels,currentIdx:0};
-          loadCustomLevel(pk.levels[0]);
-          SFX.confirm();
+      if(mouse.x>cloneX&&mouse.x<cloneX+pbtnW&&mouse.y>pbtnY&&mouse.y<pbtnY+pbtnH){
+        const clone=JSON.parse(JSON.stringify(pk));
+        clone.packName=(pk.packName||'Pack')+' (Copy)';clone.created=Date.now();
+        packs.push(clone);_saveCustomLevels(packs);SFX.select();return;
+      }
+      // Pack header click (expand/collapse)
+      if(mouse.x>cx-cardW/2&&mouse.x<cx+cardW/2-pbtnW*2-20&&mouse.y>cy&&mouse.y<cy+cardH){
+        customSelectExpanded=expanded?-1:i;customSelectSelectedLevel=-1;SFX.select();return;
+      }
+      cy+=cardH+cardGap;
+      if(expanded&&pk.levels){
+        for(let j=0;j<pk.levels.length;j++){
+          if(cy>H-100)break;
+          const lbW=38,lbH=22,lbY=cy+(subH-lbH)/2;
+          const lDelX=cx+cardW/2-lbW-8,lCopyX=lDelX-lbW-4,lEditX=lCopyX-lbW-4,lPlayX=lEditX-lbW-4;
+          // PLAY
+          if(mouse.x>lPlayX&&mouse.x<lPlayX+lbW&&mouse.y>lbY&&mouse.y<lbY+lbH){
+            customPack={packName:pk.packName,levels:[pk.levels[j]],currentIdx:0};
+            loadCustomLevel(pk.levels[j]);SFX.confirm();return;
+          }
+          // EDIT
+          if(mouse.x>lEditX&&mouse.x<lEditX+lbW&&mouse.y>lbY&&mouse.y<lbY+lbH){
+            editorPack={packName:pk.packName,author:pk.author,created:pk.created,levels:[]};
+            _loadLevelIntoEditor(pk.levels[j],i,j);
+            gameState='levelEditor';SFX.select();return;
+          }
+          // COPY
+          if(mouse.x>lCopyX&&mouse.x<lCopyX+lbW&&mouse.y>lbY&&mouse.y<lbY+lbH){
+            const lvCopy=JSON.parse(JSON.stringify(pk.levels[j]));
+            const newPack={packName:(lvCopy.name||'Level')+' (Copy)',author:'Player',created:Date.now(),levels:[lvCopy]};
+            packs.push(newPack);_saveCustomLevels(packs);SFX.select();return;
+          }
+          // DEL level
+          if(mouse.x>lDelX&&mouse.x<lDelX+lbW&&mouse.y>lbY&&mouse.y<lbY+lbH){
+            pk.levels.splice(j,1);
+            if(pk.levels.length===0){packs.splice(i,1);customSelectExpanded=-1;}
+            _saveCustomLevels(packs);customSelectSelectedLevel=-1;SFX.select();return;
+          }
+          // Level row click (select)
+          if(mouse.x>cx-cardW/2+20&&mouse.x<cx+cardW/2-lbW*4-20&&mouse.y>cy&&mouse.y<cy+subH){
+            customSelectSelectedLevel=customSelectSelectedLevel===j?-1:j;SFX.select();return;
+          }
+          cy+=subH+4;
         }
-        return;
       }
     }
+    // Back
     const bbw=160,bbh=40,bbx=cx-bbw/2,bby=H-70;
     if(mouse.x>bbx&&mouse.x<bbx+bbw&&mouse.y>bby&&mouse.y<bby+bbh){
-      gameState='start';SFX.select();return;
+      gameState='start';customSelectExpanded=-1;customSelectSelectedLevel=-1;SFX.select();return;
     }
     return;
   }
