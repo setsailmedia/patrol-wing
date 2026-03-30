@@ -805,6 +805,8 @@ let customKeysTotal=0;
 let customItemHeld=false;
 let customFinishX=0,customFinishY=0;
 let customGoalX=0,customGoalY=0;
+let customTransitionMs=0;
+let customTransitionText='';
 // Level 2 — Nuclear Disarm
 const NUKE_COLORS=['#ff2244','#00eeff','#ffdd00','#44ff88'];
 const NUKE_NAMES=['ALPHA','BETA','GAMMA','DELTA'];
@@ -7225,6 +7227,7 @@ function loadCustomLevel(levelData){
   WORLD_H=Math.min(4500,Math.max(canvas.height,levelData.worldH||1700));
   score=0;wave=1;bossWarning=0;empFlash=0;
   weaponFlash={name:levelData.name||'CUSTOM LEVEL',ms:2500};
+  customTransitionMs=0;customTransitionText='';
   leechFlash={active:false,tx:0,ty:0,ms:0};shockwaveFlash={ms:0};
   harbingerRef=null;
   portalActive=false;portalPositions=[];
@@ -7280,13 +7283,16 @@ function customLevelWin(){
   customWinCondition='';// prevent re-entry from tick
   if(customPack&&customPack.currentIdx<customPack.levels.length-1){
     customPack.currentIdx++;
-    weaponFlash={name:'LEVEL COMPLETE - NEXT LEVEL IN 3s',ms:2800};
+    customTransitionMs=3000;customTransitionText='LEVEL COMPLETE';
     SFX.wave();
     setTimeout(()=>loadCustomLevel(customPack.levels[customPack.currentIdx]),3000);
   } else {
     gameState='customResult';
     SFX.confirm();
   }
+}
+function tickCustomTransition(dt){
+  if(customTransitionMs>0) customTransitionMs-=dt*1000;
 }
 function tickCustomWinCondition(dt){
   if(gameMode!=='custom'||!P.alive)return;
@@ -7391,6 +7397,23 @@ function drawCustomObjectives(){
   ctx.textAlign='left';
 }
 
+function drawCustomTransition(){
+  if(customTransitionMs<=0)return;
+  const alpha=Math.min(1,customTransitionMs/500);
+  const cx=canvas.width/2,cy=canvas.height/2;
+  ctx.fillStyle=`rgba(0,0,0,${0.5*alpha})`;
+  ctx.fillRect(0,cy-60,canvas.width,120);
+  ctx.textAlign='center';
+  ctx.font='bold 42px "Courier New"';
+  ctx.fillStyle=`rgba(0,255,136,${alpha})`;
+  ctx.shadowBlur=30*alpha;ctx.shadowColor='#00ff88';
+  ctx.fillText(customTransitionText,cx,cy+8);
+  ctx.shadowBlur=0;
+  ctx.font='14px "Courier New"';
+  ctx.fillStyle=`rgba(100,200,255,${0.7*alpha})`;
+  ctx.fillText('ADVANCING...',cx,cy+36);
+  ctx.textAlign='left';
+}
 function drawCustomResult(){
   const W=canvas.width,H=canvas.height,cx=W/2;
   ctx.fillStyle='#060c18';ctx.fillRect(0,0,W,H);
@@ -8754,9 +8777,9 @@ function loop(now){
       tickParticles(dt);tickPortal(dt);
       drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawFaradayCages();drawRockets();drawGrenades();drawGravityWells();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();drawCustomObjectives();
       if(gameMode==='timetrial') drawFinishLine();
-      drawHUD();drawMinimap();drawCrosshair();drawTouchSticks();drawMiniMe();drawPortals();
+      drawHUD();drawMinimap();drawCrosshair();drawTouchSticks();drawMiniMe();drawPortals();drawCustomTransition();
     } else {
-    tickPlayer(dt,now);tickCarrierDrones(dt,now);tickEnemies(dt,now);tickMiniMe(dt,now);tickBullets(dt);tickMines(dt);tickFaradayCages(dt);tickRockets(dt);tickGrenades(dt);tickGravityWells(dt);tickSeekers(dt,now);tickBoomerangs(dt);tickHazards(dt,now);tickFractals(dt);tickParticles(dt);tickPickups(dt);tickLaserFlash(dt);tickLeechFlash(dt);tickShockwaveFlash(dt);tickPortal(dt);if(ttLevel===2)tickNukes(dt);if(ttLevel===4)tickJRRescue(dt);if(ttLevel===5)tickTNG(dt);tickHullBeep(now);checkCollisions();tickCustomWinCondition(dt);tickCustomObjectivePickup();
+    tickPlayer(dt,now);tickCarrierDrones(dt,now);tickEnemies(dt,now);tickMiniMe(dt,now);tickBullets(dt);tickMines(dt);tickFaradayCages(dt);tickRockets(dt);tickGrenades(dt);tickGravityWells(dt);tickSeekers(dt,now);tickBoomerangs(dt);tickHazards(dt,now);tickFractals(dt);tickParticles(dt);tickPickups(dt);tickLaserFlash(dt);tickLeechFlash(dt);tickShockwaveFlash(dt);tickPortal(dt);if(ttLevel===2)tickNukes(dt);if(ttLevel===4)tickJRRescue(dt);if(ttLevel===5)tickTNG(dt);tickHullBeep(now);checkCollisions();tickCustomWinCondition(dt);tickCustomTransition(dt);tickCustomObjectivePickup();
     if(gameMode==='combattraining'){
       ctNextPickupMs-=dt*1000;
       if(ctNextPickupMs<=0){
@@ -8782,7 +8805,7 @@ function loop(now){
       ctx.globalAlpha=1;
     }
     if(gameMode==='timetrial') drawFinishLine();
-    drawEMPFlash();drawLaserFlash();drawLeechFlash();drawShockwaveFlash();drawPortals();drawHUD();drawMinimap();drawCrosshair();drawTouchSticks();drawMiniMe();drawBossWarning(dt);
+    drawEMPFlash();drawLaserFlash();drawLeechFlash();drawShockwaveFlash();drawPortals();drawHUD();drawMinimap();drawCrosshair();drawTouchSticks();drawMiniMe();drawBossWarning(dt);drawCustomTransition();
     }
     if(!P.alive){
       mines.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;
