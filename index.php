@@ -7713,9 +7713,9 @@ function drawCustomSelect(){
       ctx.fillText((expanded?'v ':'> ')+(pk.packName||'Unnamed Pack'),cx-cardW/2+14,cy+20);
       ctx.font='10px "Courier New"';ctx.fillStyle='rgba(100,160,220,0.6)';
       ctx.fillText(`${pk.levels?pk.levels.length:0} levels  |  ${pk.author||'Unknown'}`,cx-cardW/2+14,cy+36);
-      // Pack buttons: CLONE, DEL
+      // Pack buttons: PLAY, CLONE, DEL
       const pbtnW=48,pbtnH=24,pbtnY=cy+(cardH-pbtnH)/2;
-      const delX=cx+cardW/2-pbtnW-8,cloneX=delX-pbtnW-6;
+      const delX=cx+cardW/2-pbtnW-8,cloneX=delX-pbtnW-6,playX=cloneX-pbtnW-6;
       // DEL
       const dHov=mouse.x>delX&&mouse.x<delX+pbtnW&&mouse.y>pbtnY&&mouse.y<pbtnY+pbtnH;
       ctx.fillStyle=dHov?'rgba(180,30,10,0.8)':'rgba(80,20,10,0.4)';
@@ -7728,6 +7728,12 @@ function drawCustomSelect(){
       roundRect(ctx,cloneX,pbtnY,pbtnW,pbtnH,3);ctx.fill();
       ctx.fillStyle=cHov?'#00ff88':'rgba(0,180,100,0.6)';
       ctx.fillText('CLONE',cloneX+pbtnW/2,pbtnY+pbtnH/2+3);
+      // PLAY
+      const pHov=mouse.x>playX&&mouse.x<playX+pbtnW&&mouse.y>pbtnY&&mouse.y<pbtnY+pbtnH;
+      ctx.fillStyle=pHov?'rgba(0,80,40,0.7)':'rgba(0,40,20,0.4)';
+      roundRect(ctx,playX,pbtnY,pbtnW,pbtnH,3);ctx.fill();
+      ctx.fillStyle=pHov?'#00ff88':'rgba(0,180,100,0.6)';
+      ctx.fillText('PLAY',playX+pbtnW/2,pbtnY+pbtnH/2+3);
       cy+=cardH+cardGap;
       // Expanded: show levels
       if(expanded&&pk.levels){
@@ -8817,7 +8823,7 @@ function _doClick(){
       const expanded=customSelectExpanded===i;
       // Pack-level buttons
       const pbtnW=48,pbtnH=24,pbtnY=cy+(cardH-pbtnH)/2;
-      const delX=cx+cardW/2-pbtnW-8,cloneX=delX-pbtnW-6;
+      const delX=cx+cardW/2-pbtnW-8,cloneX=delX-pbtnW-6,playX=cloneX-pbtnW-6;
       if(mouse.x>delX&&mouse.x<delX+pbtnW&&mouse.y>pbtnY&&mouse.y<pbtnY+pbtnH){
         packs.splice(i,1);_saveCustomLevels(packs);
         if(customSelectExpanded===i){customSelectExpanded=-1;customSelectSelectedLevel=-1;}
@@ -8829,8 +8835,16 @@ function _doClick(){
         clone.packName=(pk.packName||'Pack')+' (Copy)';clone.created=Date.now();
         packs.push(clone);_saveCustomLevels(packs);SFX.select();return;
       }
+      if(mouse.x>playX&&mouse.x<playX+pbtnW&&mouse.y>pbtnY&&mouse.y<pbtnY+pbtnH){
+        if(pk.levels&&pk.levels.length>0){
+          customPack={packName:pk.packName,levels:pk.levels,currentIdx:0};
+          loadCustomLevel(pk.levels[0]);
+          SFX.confirm();
+        }
+        return;
+      }
       // Pack header click (expand/collapse)
-      if(mouse.x>cx-cardW/2&&mouse.x<cx+cardW/2-pbtnW*2-20&&mouse.y>cy&&mouse.y<cy+cardH){
+      if(mouse.x>cx-cardW/2&&mouse.x<cx+cardW/2-pbtnW*3-26&&mouse.y>cy&&mouse.y<cy+cardH){
         customSelectExpanded=expanded?-1:i;customSelectSelectedLevel=-1;SFX.select();return;
       }
       cy+=cardH+cardGap;
