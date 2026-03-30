@@ -23,6 +23,7 @@ canvas{display:block;cursor:none;position:absolute;top:0;left:0;}
 <body>
 <canvas id="c"></canvas>
 <input type="color" id="colorPick" value="#00ddff">
+<input type="text" id="editorNameInput" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;" maxlength="40">
 <div id="adSlot1" class="adSlot">
   <div class="adLabel">Advertisement</div>
   <div class="adBox"><span><!-- Google AdSense 300×250 --><br>Replace with AdSense tag</span></div>
@@ -33,6 +34,7 @@ canvas{display:block;cursor:none;position:absolute;top:0;left:0;}
 // ================================================================
 const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
 const colorPick=document.getElementById('colorPick');
+const editorNameInput=document.getElementById('editorNameInput');
 let gameMode='battle';  // hoisted — needed by resize() before main game state block
 let gameState='intro';  // hoisted — needed by resize() before main game state block
 function resize(){
@@ -385,6 +387,19 @@ window.addEventListener('keyup',e=>{K[e.code]=false;});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('contextmenu',e=>e.preventDefault());
 canvas.addEventListener('mousedown',e=>{
+  if(gameState==='levelEditor'&&e.button===2){
+    const sideW=180;
+    if(mouse.x>sideW){
+      const gx=Math.round((mouse.x-sideW+editorCamX)/50)*50;
+      const gy=Math.round((mouse.y+editorCamY)/50)*50;
+      for(let i=editorPlacedItems.length-1;i>=0;i--){
+        if(dist(editorPlacedItems[i].x,editorPlacedItems[i].y,gx,gy)<30){
+          editorPlacedItems.splice(i,1);editorDirty=true;SFX.select();break;
+        }
+      }
+    }
+    return;
+  }
   if(e.button!==0) return;
   initAudio();
   if(gameState==='setup'){
@@ -427,6 +442,12 @@ canvas.addEventListener('mouseup',  e=>{
 });
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('mouseup',e=>{if(e.button!==0)return; mouse.down=false;});
+canvas.addEventListener('wheel',(e)=>{
+  if(gameState==='levelEditor'&&mouse.x<180){
+    editorSidebarScroll=Math.max(0,editorSidebarScroll+e.deltaY*0.5);
+    e.preventDefault();
+  }
+},{passive:false});
 
 // ─── CONSTANTS ───────────────────────────────────────────────────
 let WORLD_W=2600,WORLD_H=1700;
@@ -807,6 +828,24 @@ let customFinishX=0,customFinishY=0;
 let customGoalX=0,customGoalY=0;
 let customTransitionMs=0;
 let customTransitionText='';
+// Level editor state
+let editorPack=null;
+let editorLevel=null;
+let editorTool='';
+let editorCamX=0,editorCamY=0;
+let editorSidebarScroll=0;
+let editorExpandedCat='';
+let editorPlacedItems=[];
+let editorSpawnX=200,editorSpawnY=200;
+let editorPackName='';
+let editorLevelName='Untitled Level';
+let editorWorldW=2600,editorWorldH=1700;
+let editorWinCondition='killAll';
+let editorWinSeconds=60;
+let editorDirty=false;
+let editorSliderDrag=null;
+let customSelectExpanded=-1;
+let customSelectSelectedLevel=-1;
 // Level 2 — Nuclear Disarm
 const NUKE_COLORS=['#ff2244','#00eeff','#ffdd00','#44ff88'];
 const NUKE_NAMES=['ALPHA','BETA','GAMMA','DELTA'];
@@ -7450,36 +7489,106 @@ function drawCustomSelect(){
   ctx.font='bold 28px "Courier New"';ctx.fillStyle='#00ccff';ctx.shadowBlur=20;ctx.shadowColor='#00aaff';
   ctx.fillText('CUSTOM LEVELS',cx,52);ctx.shadowBlur=0;
   const packs=_loadCustomLevels();
+  // CREATE NEW button
+  const newW=200,newH=40,newX=cx-newW/2,newY=82;
+  const nhov=mouse.x>newX&&mouse.x<newX+newW&&mouse.y>newY&&mouse.y<newY+newH;
+  ctx.shadowBlur=nhov?18:6;ctx.shadowColor='#00ff88';
+  ctx.fillStyle=nhov?'#00ff88':'rgba(0,40,20,0.6)';
+  roundRect(ctx,newX,newY,newW,newH,6);ctx.fill();
+  ctx.strokeStyle=nhov?'#00ff88':'rgba(0,180,100,0.5)';ctx.lineWidth=1.5;
+  roundRect(ctx,newX,newY,newW,newH,6);ctx.stroke();ctx.shadowBlur=0;
+  ctx.textAlign='center';ctx.font='bold 13px "Courier New"';ctx.fillStyle=nhov?'#000':'#00ff88';
+  ctx.fillText('+ CREATE NEW',cx,newY+newH/2+5);
+
   if(packs.length===0){
     ctx.font='14px "Courier New"';ctx.fillStyle='rgba(100,140,180,0.6)';
     ctx.fillText('No custom levels yet',cx,H/2);
-    ctx.fillText('Use the Level Editor to create levels',cx,H/2+24);
   } else {
-    const cardW=Math.min(400,W*0.7),cardH=64,cardGap=10;
-    const startY=90;
+    const cardW=Math.min(500,W*0.8),cardH=48,subH=36,cardGap=6;
+    let cy=140;
     for(let i=0;i<packs.length;i++){
       const pk=packs[i];
-      const y=startY+i*(cardH+cardGap);
-      if(y>H-80)break;
-      const hov=mouse.x>cx-cardW/2&&mouse.x<cx+cardW/2&&mouse.y>y&&mouse.y<y+cardH;
-      ctx.fillStyle=hov?'rgba(0,60,120,0.7)':'rgba(0,30,60,0.5)';
-      roundRect(ctx,cx-cardW/2,y,cardW,cardH,8);ctx.fill();
-      ctx.strokeStyle=hov?'#00ccff':'rgba(0,100,180,0.4)';ctx.lineWidth=hov?2:1;
-      roundRect(ctx,cx-cardW/2,y,cardW,cardH,8);ctx.stroke();
-      ctx.textAlign='left';
-      ctx.font='bold 14px "Courier New"';ctx.fillStyle=hov?'#ffffff':'rgba(180,220,255,0.9)';
-      ctx.fillText(pk.packName||'Unnamed Pack',cx-cardW/2+16,y+24);
-      ctx.font='11px "Courier New"';ctx.fillStyle='rgba(100,160,220,0.7)';
-      ctx.fillText(`${pk.levels?pk.levels.length:0} level${pk.levels&&pk.levels.length!==1?'s':''}  |  ${pk.author||'Unknown'}`,cx-cardW/2+16,y+44);
-      const delW=50,delH=28,delX=cx+cardW/2-delW-8,delY=y+(cardH-delH)/2;
-      const delHov=mouse.x>delX&&mouse.x<delX+delW&&mouse.y>delY&&mouse.y<delY+delH;
-      ctx.fillStyle=delHov?'rgba(180,30,10,0.8)':'rgba(80,20,10,0.5)';
-      roundRect(ctx,delX,delY,delW,delH,4);ctx.fill();
-      ctx.textAlign='center';ctx.font='bold 10px "Courier New"';
-      ctx.fillStyle=delHov?'#ffccaa':'rgba(200,80,50,0.8)';
-      ctx.fillText('DEL',delX+delW/2,delY+delH/2+4);
+      if(cy>H-100)break;
+      const expanded=customSelectExpanded===i;
+      const phov=mouse.x>cx-cardW/2&&mouse.x<cx+cardW/2&&mouse.y>cy&&mouse.y<cy+cardH;
+      // Pack header
+      ctx.fillStyle=expanded?'rgba(0,50,100,0.7)':phov?'rgba(0,40,80,0.6)':'rgba(0,25,50,0.5)';
+      roundRect(ctx,cx-cardW/2,cy,cardW,cardH,6);ctx.fill();
+      ctx.strokeStyle=expanded?'#00ccff':phov?'rgba(0,160,220,0.5)':'rgba(0,100,180,0.3)';ctx.lineWidth=expanded?2:1;
+      roundRect(ctx,cx-cardW/2,cy,cardW,cardH,6);ctx.stroke();
+      ctx.textAlign='left';ctx.font='bold 13px "Courier New"';ctx.fillStyle=expanded?'#00ccff':'rgba(180,220,255,0.9)';
+      ctx.fillText((expanded?'v ':'> ')+(pk.packName||'Unnamed Pack'),cx-cardW/2+14,cy+20);
+      ctx.font='10px "Courier New"';ctx.fillStyle='rgba(100,160,220,0.6)';
+      ctx.fillText(`${pk.levels?pk.levels.length:0} levels  |  ${pk.author||'Unknown'}`,cx-cardW/2+14,cy+36);
+      // Pack buttons: CLONE, DEL
+      const pbtnW=48,pbtnH=24,pbtnY=cy+(cardH-pbtnH)/2;
+      const delX=cx+cardW/2-pbtnW-8,cloneX=delX-pbtnW-6;
+      // DEL
+      const dHov=mouse.x>delX&&mouse.x<delX+pbtnW&&mouse.y>pbtnY&&mouse.y<pbtnY+pbtnH;
+      ctx.fillStyle=dHov?'rgba(180,30,10,0.8)':'rgba(80,20,10,0.4)';
+      roundRect(ctx,delX,pbtnY,pbtnW,pbtnH,3);ctx.fill();
+      ctx.textAlign='center';ctx.font='bold 9px "Courier New"';ctx.fillStyle=dHov?'#ffccaa':'rgba(200,80,50,0.7)';
+      ctx.fillText('DEL',delX+pbtnW/2,pbtnY+pbtnH/2+3);
+      // CLONE
+      const cHov=mouse.x>cloneX&&mouse.x<cloneX+pbtnW&&mouse.y>pbtnY&&mouse.y<pbtnY+pbtnH;
+      ctx.fillStyle=cHov?'rgba(0,100,60,0.7)':'rgba(0,50,30,0.4)';
+      roundRect(ctx,cloneX,pbtnY,pbtnW,pbtnH,3);ctx.fill();
+      ctx.fillStyle=cHov?'#00ff88':'rgba(0,180,100,0.6)';
+      ctx.fillText('CLONE',cloneX+pbtnW/2,pbtnY+pbtnH/2+3);
+      cy+=cardH+cardGap;
+      // Expanded: show levels
+      if(expanded&&pk.levels){
+        for(let j=0;j<pk.levels.length;j++){
+          const lv=pk.levels[j];
+          if(cy>H-100)break;
+          const sel=customSelectSelectedLevel===j;
+          const lhov=mouse.x>cx-cardW/2+20&&mouse.x<cx+cardW/2&&mouse.y>cy&&mouse.y<cy+subH;
+          ctx.fillStyle=sel?'rgba(0,60,40,0.6)':lhov?'rgba(0,30,60,0.5)':'rgba(0,15,35,0.4)';
+          roundRect(ctx,cx-cardW/2+20,cy,cardW-20,subH,4);ctx.fill();
+          if(sel){ctx.strokeStyle='#00ff88';ctx.lineWidth=1;roundRect(ctx,cx-cardW/2+20,cy,cardW-20,subH,4);ctx.stroke();}
+          ctx.textAlign='left';ctx.font='11px "Courier New"';ctx.fillStyle=sel?'#00ff88':'rgba(160,200,240,0.8)';
+          ctx.fillText(lv.name||'Untitled',cx-cardW/2+36,cy+14);
+          ctx.font='9px "Courier New"';ctx.fillStyle='rgba(100,150,200,0.5)';
+          ctx.fillText(`${lv.winCondition||'killAll'}  |  ${lv.worldW||2600}x${lv.worldH||1700}`,cx-cardW/2+36,cy+28);
+          // Level buttons: PLAY, EDIT, COPY, DEL
+          const lbW=38,lbH=22,lbY=cy+(subH-lbH)/2;
+          const lDelX=cx+cardW/2-lbW-8,lCopyX=lDelX-lbW-4,lEditX=lCopyX-lbW-4,lPlayX=lEditX-lbW-4;
+          const btns=[
+            {x:lPlayX,label:'PLAY',col:'#00ff88',bg:'rgba(0,80,40,0.6)'},
+            {x:lEditX,label:'EDIT',col:'#00ccff',bg:'rgba(0,50,100,0.5)'},
+            {x:lCopyX,label:'COPY',col:'#ffaa00',bg:'rgba(80,50,0,0.4)'},
+            {x:lDelX,label:'DEL',col:'#ff5533',bg:'rgba(80,20,10,0.4)'},
+          ];
+          for(const btn of btns){
+            const bh2=mouse.x>btn.x&&mouse.x<btn.x+lbW&&mouse.y>lbY&&mouse.y<lbY+lbH;
+            ctx.fillStyle=bh2?btn.col+'33':btn.bg;
+            roundRect(ctx,btn.x,lbY,lbW,lbH,3);ctx.fill();
+            ctx.textAlign='center';ctx.font='bold 8px "Courier New"';ctx.fillStyle=bh2?btn.col:btn.col+'99';
+            ctx.fillText(btn.label,btn.x+lbW/2,lbY+lbH/2+3);
+          }
+          cy+=subH+4;
+        }
+        // Leaderboard + Awards stubs (when a level is selected)
+        if(customSelectSelectedLevel>=0&&customSelectSelectedLevel<pk.levels.length){
+          cy+=8;
+          ctx.strokeStyle='rgba(0,100,180,0.3)';ctx.lineWidth=1;
+          roundRect(ctx,cx-cardW/2+20,cy,cardW-20,50,4);ctx.stroke();
+          ctx.textAlign='left';ctx.font='bold 10px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.6)';
+          ctx.fillText('LEADERBOARD',cx-cardW/2+32,cy+16);
+          ctx.font='9px "Courier New"';ctx.fillStyle='rgba(80,120,160,0.4)';
+          ctx.fillText('Multiplayer coming soon',cx-cardW/2+32,cy+34);
+          cy+=58;
+          roundRect(ctx,cx-cardW/2+20,cy,cardW-20,50,4);ctx.stroke();
+          ctx.textAlign='left';ctx.font='bold 10px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.6)';
+          ctx.fillText('AWARDS',cx-cardW/2+32,cy+16);
+          ctx.font='9px "Courier New"';ctx.fillStyle='rgba(80,120,160,0.4)';
+          ctx.fillText('Multiplayer coming soon',cx-cardW/2+32,cy+34);
+          cy+=58;
+        }
+      }
     }
   }
+  // Back button
   ctx.textAlign='center';
   const bbw=160,bbh=40,bbx=cx-bbw/2,bby=H-70;
   const bhov=mouse.x>bbx&&mouse.x<bbx+bbw&&mouse.y>bby&&mouse.y<bby+bbh;
@@ -7490,6 +7599,375 @@ function drawCustomSelect(){
   roundRect(ctx,bbx,bby,bbw,bbh,6);ctx.stroke();ctx.shadowBlur=0;
   ctx.font='bold 12px "Courier New"';ctx.fillStyle=bhov?'#000':'rgba(100,200,255,0.9)';
   ctx.fillText('BACK',cx,bby+bbh/2+4);
+  ctx.textAlign='left';
+}
+
+function drawLevelSetup(){
+  const W=canvas.width,H=canvas.height,cx=W/2;
+  ctx.fillStyle='#060c18';ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  ctx.font='bold 24px "Courier New"';ctx.fillStyle='#00ccff';ctx.shadowBlur=20;ctx.shadowColor='#00aaff';
+  ctx.fillText('LEVEL SETUP',cx,60);ctx.shadowBlur=0;
+
+  const panelW=Math.min(500,W*0.8),panelX=cx-panelW/2;
+  let py=100;
+
+  // Level name
+  ctx.textAlign='left';ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.7)';
+  ctx.fillText('LEVEL NAME',panelX,py);py+=6;
+  const nameW=panelW,nameH=36;
+  const nameHov=mouse.x>panelX&&mouse.x<panelX+nameW&&mouse.y>py&&mouse.y<py+nameH;
+  ctx.fillStyle=nameHov?'rgba(0,40,80,0.7)':'rgba(0,20,50,0.5)';
+  roundRect(ctx,panelX,py,nameW,nameH,6);ctx.fill();
+  ctx.strokeStyle=nameHov?'#00ccff':'rgba(0,100,180,0.4)';ctx.lineWidth=1;
+  roundRect(ctx,panelX,py,nameW,nameH,6);ctx.stroke();
+  ctx.font='14px "Courier New"';ctx.fillStyle='rgba(180,220,255,0.9)';
+  ctx.fillText(editorLevelName||'Click to name...',panelX+12,py+24);
+  py+=nameH+20;
+
+  // World Width slider
+  ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.7)';
+  ctx.fillText(`WORLD WIDTH: ${editorWorldW}`,panelX,py);py+=8;
+  const slW=panelW,slH=20,slPct=(editorWorldW-400)/(4500-400);
+  ctx.fillStyle='rgba(0,20,50,0.5)';roundRect(ctx,panelX,py,slW,slH,4);ctx.fill();
+  ctx.fillStyle='rgba(0,100,200,0.6)';roundRect(ctx,panelX,py,slW*slPct,slH,4);ctx.fill();
+  ctx.strokeStyle='rgba(0,100,180,0.4)';ctx.lineWidth=1;roundRect(ctx,panelX,py,slW,slH,4);ctx.stroke();
+  const thumbX=panelX+slW*slPct;
+  ctx.fillStyle='#00ccff';ctx.beginPath();ctx.arc(thumbX,py+slH/2,8,0,Math.PI*2);ctx.fill();
+  py+=slH+18;
+
+  // World Height slider
+  ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.7)';
+  ctx.fillText(`WORLD HEIGHT: ${editorWorldH}`,panelX,py);py+=8;
+  const slPctH=(editorWorldH-400)/(4500-400);
+  ctx.fillStyle='rgba(0,20,50,0.5)';roundRect(ctx,panelX,py,slW,slH,4);ctx.fill();
+  ctx.fillStyle='rgba(0,100,200,0.6)';roundRect(ctx,panelX,py,slW*slPctH,slH,4);ctx.fill();
+  ctx.strokeStyle='rgba(0,100,180,0.4)';ctx.lineWidth=1;roundRect(ctx,panelX,py,slW,slH,4);ctx.stroke();
+  const thumbXH=panelX+slW*slPctH;
+  ctx.fillStyle='#00ccff';ctx.beginPath();ctx.arc(thumbXH,py+slH/2,8,0,Math.PI*2);ctx.fill();
+  py+=slH+22;
+
+  // Win condition selector
+  ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.7)';
+  ctx.fillText('WIN CONDITION',panelX,py);py+=8;
+  const conditions=[
+    {id:'killAll',label:'KILL ALL',desc:'Eliminate all hostiles'},
+    {id:'reachFinish',label:'REACH FINISH',desc:'Reach the finish line'},
+    {id:'survive',label:'SURVIVE',desc:'Survive for set duration'},
+    {id:'retrieve',label:'RETRIEVE',desc:'Get item, return to goal'},
+    {id:'collectAll',label:'COLLECT ALL',desc:'Find all keys'},
+  ];
+  const condW=(panelW-4*8)/5,condH=52;
+  for(let i=0;i<conditions.length;i++){
+    const c=conditions[i],cx2=panelX+i*(condW+8),sel=editorWinCondition===c.id;
+    const chov=mouse.x>cx2&&mouse.x<cx2+condW&&mouse.y>py&&mouse.y<py+condH;
+    ctx.fillStyle=sel?'rgba(0,80,40,0.7)':chov?'rgba(0,40,80,0.7)':'rgba(0,20,50,0.4)';
+    roundRect(ctx,cx2,py,condW,condH,6);ctx.fill();
+    ctx.strokeStyle=sel?'#00ff88':chov?'#00ccff':'rgba(0,100,180,0.3)';ctx.lineWidth=sel?2:1;
+    roundRect(ctx,cx2,py,condW,condH,6);ctx.stroke();
+    ctx.textAlign='center';ctx.font='bold 9px "Courier New"';ctx.fillStyle=sel?'#00ff88':'rgba(150,200,255,0.8)';
+    ctx.fillText(c.label,cx2+condW/2,py+22);
+    ctx.font='8px "Courier New"';ctx.fillStyle='rgba(100,150,200,0.6)';
+    ctx.fillText(c.desc,cx2+condW/2,py+38);
+  }
+  py+=condH+14;
+
+  // Survive seconds (contextual)
+  if(editorWinCondition==='survive'){
+    ctx.textAlign='left';ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.7)';
+    ctx.fillText(`SURVIVE SECONDS: ${editorWinSeconds}`,panelX,py);py+=8;
+    const secPct=(editorWinSeconds-10)/(180-10);
+    ctx.fillStyle='rgba(0,20,50,0.5)';roundRect(ctx,panelX,py,slW,slH,4);ctx.fill();
+    ctx.fillStyle='rgba(0,100,200,0.6)';roundRect(ctx,panelX,py,slW*secPct,slH,4);ctx.fill();
+    ctx.strokeStyle='rgba(0,100,180,0.4)';ctx.lineWidth=1;roundRect(ctx,panelX,py,slW,slH,4);ctx.stroke();
+    const thumbXS=panelX+slW*secPct;
+    ctx.fillStyle='#00ccff';ctx.beginPath();ctx.arc(thumbXS,py+slH/2,8,0,Math.PI*2);ctx.fill();
+    py+=slH+22;
+  }
+
+  // Buttons
+  ctx.textAlign='center';
+  const btnW=200,btnH=44;
+  const startX=cx-btnW/2,startY=Math.max(py+20,H-120);
+  const shov=mouse.x>startX&&mouse.x<startX+btnW&&mouse.y>startY&&mouse.y<startY+btnH;
+  ctx.shadowBlur=shov?24:10;ctx.shadowColor='#00ff88';
+  ctx.fillStyle=shov?'#00ff88':'rgba(0,0,0,0.7)';
+  roundRect(ctx,startX,startY,btnW,btnH,8);ctx.fill();
+  ctx.strokeStyle='#00ff88';ctx.lineWidth=2;
+  roundRect(ctx,startX,startY,btnW,btnH,8);ctx.stroke();ctx.shadowBlur=0;
+  ctx.font='bold 14px "Courier New"';ctx.fillStyle=shov?'#000':'#00ff88';
+  ctx.fillText('START EDITING',cx,startY+btnH/2+5);
+
+  const backW=120,backH=38,backX=cx-backW/2,backY=startY+btnH+14;
+  const bkhov=mouse.x>backX&&mouse.x<backX+backW&&mouse.y>backY&&mouse.y<backY+backH;
+  ctx.shadowBlur=bkhov?14:4;ctx.shadowColor='#00ccff';
+  ctx.fillStyle=bkhov?'rgba(0,140,200,0.85)':'rgba(0,0,0,0.55)';
+  roundRect(ctx,backX,backY,backW,backH,6);ctx.fill();
+  ctx.strokeStyle=bkhov?'#00eeff':'rgba(0,140,220,0.5)';ctx.lineWidth=1;
+  roundRect(ctx,backX,backY,backW,backH,6);ctx.stroke();ctx.shadowBlur=0;
+  ctx.font='bold 11px "Courier New"';ctx.fillStyle=bkhov?'#000':'rgba(100,200,255,0.9)';
+  ctx.fillText('BACK',cx,backY+backH/2+4);
+  ctx.textAlign='left';
+}
+
+function _getEditorCategories(){
+  return [
+    {id:'obstacle',label:'OBSTACLES',items:[
+      {tool:'pillar_s',label:'Pillar Small',cat:'obstacle',subtype:'pillar',r:26},
+      {tool:'pillar_m',label:'Pillar Medium',cat:'obstacle',subtype:'pillar',r:35},
+      {tool:'pillar_l',label:'Pillar Large',cat:'obstacle',subtype:'pillar',r:46},
+      {tool:'wall_hs',label:'Wall H Short',cat:'obstacle',subtype:'wall',w:90,h:26},
+      {tool:'wall_hl',label:'Wall H Long',cat:'obstacle',subtype:'wall',w:190,h:26},
+      {tool:'wall_vs',label:'Wall V Short',cat:'obstacle',subtype:'wall',w:26,h:90},
+      {tool:'wall_vl',label:'Wall V Long',cat:'obstacle',subtype:'wall',w:26,h:190},
+    ]},
+    {id:'enemy',label:'ENEMIES',items:Object.keys(ETYPES).map(k=>({tool:'enemy_'+k,label:k.toUpperCase(),cat:'enemy',subtype:k}))},
+    {id:'pickup',label:'PICKUPS',items:Object.keys(PTYPES).filter(k=>k!=='nuke_key'&&k!=='points').map(k=>({tool:'pickup_'+k,label:k.toUpperCase(),cat:'pickup',subtype:k}))},
+    {id:'hazard',label:'HAZARDS',items:[
+      {tool:'zap_pylon',label:'Zap Pylon',cat:'hazard',subtype:'zap_pylon',angle:0,gap:120},
+      {tool:'floor_mine',label:'Floor Mine',cat:'hazard',subtype:'floor_mine'},
+    ]},
+    {id:'objective',label:'OBJECTIVES',items:[
+      {tool:'spawn',label:'Player Spawn',cat:'special',subtype:'spawn'},
+      ...(editorWinCondition==='reachFinish'?[{tool:'obj_finish',label:'Finish Line',cat:'objective',subtype:'finish'}]:[]),
+      ...(editorWinCondition==='collectAll'?[{tool:'obj_key',label:'Key',cat:'objective',subtype:'key'}]:[]),
+      ...(editorWinCondition==='retrieve'?[{tool:'obj_item',label:'Item',cat:'objective',subtype:'item'},{tool:'obj_goal',label:'Goal Zone',cat:'objective',subtype:'goal'}]:[]),
+    ]},
+    {id:'tools',label:'TOOLS',items:[{tool:'eraser',label:'Eraser',cat:'special',subtype:'eraser'}]},
+  ];
+}
+function _findToolDef(toolId){
+  for(const cat of _getEditorCategories()) for(const item of cat.items) if(item.tool===toolId) return item;
+  return null;
+}
+
+function _loadLevelIntoEditor(lv,packIdx,levelIdx){
+  editorLevel={...lv};
+  editorLevelName=lv.name||'Untitled';
+  editorWorldW=lv.worldW||2600;editorWorldH=lv.worldH||1700;
+  editorWinCondition=lv.winCondition||'killAll';
+  editorWinSeconds=(lv.winParams&&lv.winParams.seconds)||60;
+  editorSpawnX=lv.spawnX||200;editorSpawnY=lv.spawnY||200;
+  editorCamX=0;editorCamY=0;editorTool='';editorExpandedCat='';
+  editorPlacedItems=[];
+  if(lv.obstacles) for(const o of lv.obstacles){
+    if(o.type==='pillar') editorPlacedItems.push({cat:'obstacle',subtype:'pillar',x:o.x,y:o.y,r:o.r||35});
+    else editorPlacedItems.push({cat:'obstacle',subtype:'wall',x:o.x,y:o.y,w:o.w||26,h:o.h||100});
+  }
+  if(lv.enemies) for(const e of lv.enemies) editorPlacedItems.push({cat:'enemy',subtype:e.type,x:e.x,y:e.y});
+  if(lv.pickups) for(const p of lv.pickups) editorPlacedItems.push({cat:'pickup',subtype:p.type,x:p.x,y:p.y});
+  if(lv.hazards) for(const h of lv.hazards) editorPlacedItems.push({cat:'hazard',subtype:h.type,x:h.x,y:h.y,angle:h.angle||0,gap:h.gap||120});
+  if(lv.objectives) for(const o of lv.objectives) editorPlacedItems.push({cat:'objective',subtype:o.type,x:o.x,y:o.y});
+  editorDirty=false;
+  editorLevel._editPackIdx=packIdx;
+  editorLevel._editLevelIdx=levelIdx;
+}
+
+function _drawEditorSidebar(sideW,H){
+  ctx.fillStyle='rgba(4,10,26,0.95)';ctx.fillRect(0,0,sideW,H);
+  ctx.strokeStyle='rgba(0,100,180,0.3)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(sideW,0);ctx.lineTo(sideW,H);ctx.stroke();
+  ctx.textAlign='left';ctx.font='bold 11px "Courier New"';
+  const cats=_getEditorCategories();
+  let cy=10-editorSidebarScroll;
+  for(const cat of cats){
+    const expanded=editorExpandedCat===cat.id;
+    const hov=mouse.x<sideW&&mouse.y>cy&&mouse.y<cy+24;
+    ctx.fillStyle=hov?'rgba(0,80,160,0.5)':'rgba(0,40,80,0.3)';
+    ctx.fillRect(2,cy,sideW-4,24);
+    ctx.fillStyle=expanded?'#00ccff':'rgba(120,180,240,0.8)';
+    ctx.font='bold 11px "Courier New"';
+    ctx.fillText((expanded?'v ':'> ')+cat.label,8,cy+16);
+    cy+=26;
+    if(expanded){
+      for(const item of cat.items){
+        const ihov=mouse.x<sideW&&mouse.y>cy&&mouse.y<cy+22;
+        const sel=editorTool===item.tool;
+        ctx.fillStyle=sel?'rgba(0,100,50,0.6)':ihov?'rgba(0,50,100,0.5)':'transparent';
+        ctx.fillRect(4,cy,sideW-8,22);
+        if(sel){ctx.strokeStyle='#00ff88';ctx.lineWidth=1;ctx.strokeRect(4,cy,sideW-8,22);}
+        ctx.font='10px "Courier New"';
+        ctx.fillStyle=sel?'#00ff88':ihov?'#ffffff':'rgba(150,190,230,0.8)';
+        ctx.fillText('  '+item.label,10,cy+15);
+        cy+=24;
+      }
+    }
+  }
+}
+
+function _editorSave(){
+  if(editorPlacedItems.length===0){weaponFlash={name:'Place at least one item first',ms:2000};return;}
+  const lv=editorLevel;
+  lv.spawnX=editorSpawnX;lv.spawnY=editorSpawnY;
+  lv.obstacles=[];lv.enemies=[];lv.pickups=[];lv.hazards=[];lv.objectives=[];
+  for(const item of editorPlacedItems){
+    if(item.cat==='obstacle'){
+      if(item.subtype==='pillar') lv.obstacles.push({type:'pillar',x:item.x,y:item.y,r:item.r});
+      else lv.obstacles.push({type:'wall',x:item.x,y:item.y,w:item.w,h:item.h});
+    } else if(item.cat==='enemy'){
+      lv.enemies.push({type:item.subtype,x:item.x,y:item.y});
+    } else if(item.cat==='pickup'){
+      lv.pickups.push({type:item.subtype,x:item.x,y:item.y,hidden:false});
+    } else if(item.cat==='hazard'){
+      lv.hazards.push({type:item.subtype,x:item.x,y:item.y,angle:item.angle||0,gap:item.gap||120});
+    } else if(item.cat==='objective'){
+      lv.objectives.push({type:item.subtype,x:item.x,y:item.y});
+    }
+  }
+  if(lv._editPackIdx!==undefined){
+    const packs=_loadCustomLevels();
+    const pi=lv._editPackIdx,li=lv._editLevelIdx;
+    delete lv._editPackIdx;delete lv._editLevelIdx;
+    if(packs[pi]&&packs[pi].levels[li]){
+      packs[pi].levels[li]=lv;
+      _saveCustomLevels(packs);
+      editorPack=null;editorLevel=null;editorPlacedItems=[];
+      gameState='customSelect';SFX.confirm();return;
+    }
+  }
+  editorPack.levels.push(lv);
+  editorDirty=false;
+  gameState='levelSavePrompt';SFX.confirm();
+}
+
+function drawLevelSavePrompt(){
+  const W=canvas.width,H=canvas.height,cx=W/2;
+  ctx.fillStyle='#060c18';ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  ctx.font='bold 24px "Courier New"';ctx.fillStyle='#00ff88';ctx.shadowBlur=20;ctx.shadowColor='#00ff88';
+  ctx.fillText('LEVEL SAVED',cx,H*0.2);ctx.shadowBlur=0;
+  ctx.font='14px "Courier New"';ctx.fillStyle='rgba(100,200,255,0.8)';
+  ctx.fillText(`"${editorLevel?editorLevel.name:''}" added to "${editorPack?editorPack.packName:''}"`,cx,H*0.2+34);
+  ctx.font='12px "Courier New"';ctx.fillStyle='rgba(150,180,220,0.6)';
+  if(editorLevel){
+    const ec=editorPlacedItems.filter(i=>i.cat==='enemy').length;
+    ctx.fillText(`${editorLevel.worldW}x${editorLevel.worldH}  |  ${ec} enemies  |  ${editorLevel.winCondition}`,cx,H*0.2+60);
+  }
+  ctx.fillText(`Pack total: ${editorPack?editorPack.levels.length:0} level${editorPack&&editorPack.levels.length!==1?'s':''}`,cx,H*0.2+80);
+  const btnW=260,btnH=46,gap=16;
+  const addY=H*0.5;
+  const ahov=mouse.x>cx-btnW/2&&mouse.x<cx+btnW/2&&mouse.y>addY&&mouse.y<addY+btnH;
+  ctx.shadowBlur=ahov?22:8;ctx.shadowColor='#00ccff';
+  ctx.fillStyle=ahov?'rgba(0,140,200,0.85)':'rgba(0,0,0,0.65)';
+  roundRect(ctx,cx-btnW/2,addY,btnW,btnH,8);ctx.fill();
+  ctx.strokeStyle=ahov?'#00eeff':'rgba(0,140,220,0.6)';ctx.lineWidth=1.5;
+  roundRect(ctx,cx-btnW/2,addY,btnW,btnH,8);ctx.stroke();ctx.shadowBlur=0;
+  ctx.font='bold 13px "Courier New"';ctx.fillStyle=ahov?'#000':'rgba(100,200,255,0.9)';
+  ctx.fillText('+ ADD ANOTHER LEVEL',cx,addY+btnH/2+5);
+  const doneY=addY+btnH+gap;
+  const dhov=mouse.x>cx-btnW/2&&mouse.x<cx+btnW/2&&mouse.y>doneY&&mouse.y<doneY+btnH;
+  ctx.shadowBlur=dhov?24:10;ctx.shadowColor='#00ff88';
+  ctx.fillStyle=dhov?'#00ff88':'rgba(0,0,0,0.7)';
+  roundRect(ctx,cx-btnW/2,doneY,btnW,btnH,8);ctx.fill();
+  ctx.strokeStyle='#00ff88';ctx.lineWidth=2;
+  roundRect(ctx,cx-btnW/2,doneY,btnW,btnH,8);ctx.stroke();ctx.shadowBlur=0;
+  ctx.font='bold 13px "Courier New"';ctx.fillStyle=dhov?'#000':'#00ff88';
+  ctx.fillText('DONE - SAVE PACK',cx,doneY+btnH/2+5);
+  ctx.textAlign='left';
+}
+
+function drawLevelEditor(){
+  const W=canvas.width,H=canvas.height;
+  const sideW=180;
+  // Grid area
+  ctx.fillStyle='#060c18';ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.beginPath();ctx.rect(sideW,0,W-sideW,H);ctx.clip();
+  // Grid lines
+  const gs=50;
+  ctx.strokeStyle='rgba(0,80,180,0.12)';ctx.lineWidth=1;
+  for(let gx=0;gx<=editorWorldW;gx+=gs){
+    const sx=gx-editorCamX+sideW;
+    if(sx<sideW-1||sx>W+1)continue;
+    ctx.beginPath();ctx.moveTo(sx,0);ctx.lineTo(sx,H);ctx.stroke();
+  }
+  for(let gy=0;gy<=editorWorldH;gy+=gs){
+    const sy=gy-editorCamY;
+    if(sy<-1||sy>H+1)continue;
+    ctx.beginPath();ctx.moveTo(sideW,sy);ctx.lineTo(W,sy);ctx.stroke();
+  }
+  // World bounds
+  ctx.strokeStyle='rgba(0,180,255,0.4)';ctx.lineWidth=2;
+  ctx.strokeRect(-editorCamX+sideW,-editorCamY,editorWorldW,editorWorldH);
+
+  // Placed items
+  const GLYPHS_E={scout:'S',guard:'G',turret:'T',boss:'B',dart:'D',wraith:'W',brute:'Br',phantom:'Ph',ravager:'Rv',splitter:'Sp',cloaker:'Ck',demolisher:'Dm',hunter:'Hn',dreadnought:'Dr',harbinger:'Hb',shard:'Sh'};
+  for(const item of editorPlacedItems){
+    const sx=item.x-editorCamX+sideW,sy=item.y-editorCamY;
+    if(sx<sideW-50||sx>W+50||sy<-50||sy>H+50)continue;
+    if(item.cat==='obstacle'){
+      ctx.fillStyle='rgba(80,100,120,0.6)';
+      if(item.subtype==='pillar'){ctx.beginPath();ctx.arc(sx,sy,item.r||35,0,Math.PI*2);ctx.fill();ctx.strokeStyle='rgba(120,150,180,0.5)';ctx.lineWidth=1;ctx.stroke();}
+      else{ctx.fillRect(sx,sy,item.w||26,item.h||100);ctx.strokeStyle='rgba(120,150,180,0.5)';ctx.lineWidth=1;ctx.strokeRect(sx,sy,item.w||26,item.h||100);}
+    } else if(item.cat==='enemy'){
+      const col=ETYPES[item.subtype]?ETYPES[item.subtype].color:'#ff4444';
+      ctx.fillStyle=col;ctx.beginPath();ctx.arc(sx,sy,10,0,Math.PI*2);ctx.fill();
+      ctx.font='bold 8px "Courier New"';ctx.fillStyle='#fff';ctx.textAlign='center';
+      ctx.fillText(GLYPHS_E[item.subtype]||'?',sx,sy+3);
+    } else if(item.cat==='pickup'){
+      const col=PTYPES[item.subtype]?PTYPES[item.subtype].color:'#ffee00';
+      ctx.fillStyle=col;ctx.save();ctx.translate(sx,sy);ctx.rotate(Math.PI/4);
+      ctx.fillRect(-6,-6,12,12);ctx.restore();
+      ctx.font='bold 8px "Courier New"';ctx.fillStyle='#000';ctx.textAlign='center';
+      ctx.fillText(item.subtype[0].toUpperCase(),sx,sy+3);
+    } else if(item.cat==='hazard'){
+      if(item.subtype==='zap_pylon'){
+        ctx.fillStyle='#ffdd00';
+        const dx=Math.cos(item.angle||0)*(item.gap||120)/2,dy=Math.sin(item.angle||0)*(item.gap||120)/2;
+        ctx.beginPath();ctx.arc(sx-dx,sy-dy,6,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.arc(sx+dx,sy+dy,6,0,Math.PI*2);ctx.fill();
+        ctx.strokeStyle='rgba(255,220,0,0.4)';ctx.lineWidth=2;
+        ctx.beginPath();ctx.moveTo(sx-dx,sy-dy);ctx.lineTo(sx+dx,sy+dy);ctx.stroke();
+      } else {
+        ctx.fillStyle='#ff2200';ctx.beginPath();ctx.arc(sx,sy,8,0,Math.PI*2);ctx.fill();
+        ctx.font='bold 8px "Courier New"';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.fillText('M',sx,sy+3);
+      }
+    } else if(item.cat==='objective'){
+      if(item.subtype==='finish'){ctx.strokeStyle='#ffdd00';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(sx,0);ctx.lineTo(sx,H);ctx.stroke();}
+      else if(item.subtype==='key'){ctx.font='bold 16px "Courier New"';ctx.fillStyle='#ffdd00';ctx.textAlign='center';ctx.fillText('K',sx,sy+5);}
+      else if(item.subtype==='item'){ctx.fillStyle='#ff8800';ctx.save();ctx.translate(sx,sy);ctx.beginPath();ctx.moveTo(0,-10);ctx.lineTo(8,0);ctx.lineTo(0,10);ctx.lineTo(-8,0);ctx.closePath();ctx.fill();ctx.restore();}
+      else if(item.subtype==='goal'){ctx.strokeStyle='#00ff88';ctx.lineWidth=2;ctx.beginPath();ctx.arc(sx,sy,30,0,Math.PI*2);ctx.stroke();ctx.font='9px "Courier New"';ctx.fillStyle='#00ff88';ctx.textAlign='center';ctx.fillText('GOAL',sx,sy+42);}
+    }
+  }
+  // Spawn marker
+  const spx=editorSpawnX-editorCamX+sideW,spy=editorSpawnY-editorCamY;
+  ctx.strokeStyle='#00ddff';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(spx-12,spy);ctx.lineTo(spx+12,spy);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(spx,spy-12);ctx.lineTo(spx,spy+12);ctx.stroke();
+  ctx.beginPath();ctx.arc(spx,spy,8,0,Math.PI*2);ctx.stroke();
+  ctx.font='9px "Courier New"';ctx.fillStyle='#00ddff';ctx.textAlign='center';ctx.fillText('SPAWN',spx,spy+22);
+
+  // Ghost preview at cursor
+  if(editorTool&&mouse.x>sideW){
+    const gx=Math.round((mouse.x-sideW+editorCamX)/50)*50;
+    const gy=Math.round((mouse.y+editorCamY)/50)*50;
+    const gsx=gx-editorCamX+sideW,gsy=gy-editorCamY;
+    ctx.globalAlpha=0.4;
+    ctx.fillStyle='#00ccff';ctx.beginPath();ctx.arc(gsx,gsy,8,0,Math.PI*2);ctx.fill();
+    ctx.globalAlpha=1;
+  }
+  ctx.restore(); // unclip
+
+  // Sidebar
+  _drawEditorSidebar(sideW,H);
+
+  // Top-right buttons
+  ctx.textAlign='center';
+  const tbtnW=80,tbtnH=32,tgap=8,tmargin=10;
+  // SAVE
+  const saveX=W-tmargin-tbtnW,saveY=tmargin;
+  const savHov=mouse.x>saveX&&mouse.x<saveX+tbtnW&&mouse.y>saveY&&mouse.y<saveY+tbtnH;
+  ctx.fillStyle=savHov?'#00ff88':'rgba(0,40,20,0.7)';roundRect(ctx,saveX,saveY,tbtnW,tbtnH,4);ctx.fill();
+  ctx.strokeStyle='#00ff88';ctx.lineWidth=1;roundRect(ctx,saveX,saveY,tbtnW,tbtnH,4);ctx.stroke();
+  ctx.font='bold 11px "Courier New"';ctx.fillStyle=savHov?'#000':'#00ff88';ctx.fillText('SAVE',saveX+tbtnW/2,saveY+tbtnH/2+4);
+  // BACK
+  const bkX=saveX-tbtnW-tgap,bkY=tmargin;
+  const bkHov=mouse.x>bkX&&mouse.x<bkX+tbtnW&&mouse.y>bkY&&mouse.y<bkY+tbtnH;
+  ctx.fillStyle=bkHov?'rgba(0,140,200,0.85)':'rgba(0,30,60,0.6)';roundRect(ctx,bkX,bkY,tbtnW,tbtnH,4);ctx.fill();
+  ctx.strokeStyle='rgba(0,140,220,0.6)';ctx.lineWidth=1;roundRect(ctx,bkX,bkY,tbtnW,tbtnH,4);ctx.stroke();
+  ctx.font='bold 11px "Courier New"';ctx.fillStyle=bkHov?'#000':'rgba(100,200,255,0.9)';ctx.fillText('BACK',bkX+tbtnW/2,bkY+tbtnH/2+4);
+  // Item count
+  ctx.textAlign='right';ctx.font='10px "Courier New"';ctx.fillStyle='rgba(100,160,220,0.6)';
+  ctx.fillText(`${editorPlacedItems.length} items  |  ${editorLevel?editorLevel.name:''}`,W-tmargin,tmargin+tbtnH+18);
   ctx.textAlign='left';
 }
 
@@ -7544,6 +8022,7 @@ function startGame(){
 // ─── CLICK / TAP HANDLER ─────────────────────────────────────────
 // Shared logic for both mouse-click and touch-tap (mouse.x/y set before calling)
 function _doClick(){
+  if(editorSliderDrag){editorSliderDrag=null;return;}
   // Portal: click/tap resolves to nearest portal or just resolves
   if(portalActive){
     // Check if click lands on a portal
@@ -7680,31 +8159,220 @@ function _doClick(){
     return; // eat all other clicks while paused
   }
 
-  if(gameState==='customSelect'){
-    const cx=canvas.width/2,W=canvas.width,H=canvas.height;
-    const packs=_loadCustomLevels();
-    const cardW=Math.min(400,W*0.7),cardH=64,cardGap=10;
-    const startY=90;
-    for(let i=0;i<packs.length;i++){
-      const y=startY+i*(cardH+cardGap);
-      if(y>H-80)break;
-      const delW=50,delH=28,delX=cx+cardW/2-delW-8,delY=y+(cardH-delH)/2;
-      if(mouse.x>delX&&mouse.x<delX+delW&&mouse.y>delY&&mouse.y<delY+delH){
-        packs.splice(i,1);_saveCustomLevels(packs);SFX.select();return;
+  if(gameState==='levelSavePrompt'){
+    const cx=canvas.width/2,H=canvas.height;
+    const btnW=260,btnH=46,gap=16;
+    const addY=H*0.5;
+    if(mouse.x>cx-btnW/2&&mouse.x<cx+btnW/2&&mouse.y>addY&&mouse.y<addY+btnH){
+      editorLevelName='Untitled Level';editorWorldW=2600;editorWorldH=1700;
+      editorWinCondition='killAll';editorWinSeconds=60;
+      gameState='levelSetup';SFX.select();return;
+    }
+    const doneY=addY+btnH+gap;
+    if(mouse.x>cx-btnW/2&&mouse.x<cx+btnW/2&&mouse.y>doneY&&mouse.y<doneY+btnH){
+      const packs=_loadCustomLevels();
+      packs.push(editorPack);
+      _saveCustomLevels(packs);
+      editorPack=null;editorLevel=null;editorPlacedItems=[];
+      gameState='customSelect';SFX.confirm();return;
+    }
+    return;
+  }
+  if(gameState==='levelEditor'){
+    const W=canvas.width,H=canvas.height,sideW=180;
+    // Top-right buttons
+    const tbtnW=80,tbtnH=32,tgap=8,tmargin=10;
+    const saveX=W-tmargin-tbtnW,saveY=tmargin;
+    if(mouse.x>saveX&&mouse.x<saveX+tbtnW&&mouse.y>saveY&&mouse.y<saveY+tbtnH){
+      _editorSave();return;
+    }
+    const bkX=saveX-tbtnW-tgap,bkY=tmargin;
+    if(mouse.x>bkX&&mouse.x<bkX+tbtnW&&mouse.y>bkY&&mouse.y<bkY+tbtnH){
+      gameState='customSelect';SFX.select();return;
+    }
+    // Sidebar clicks
+    if(mouse.x<sideW){
+      let cy=10-editorSidebarScroll;
+      const allCats=_getEditorCategories();
+      for(const cat of allCats){
+        if(mouse.y>cy&&mouse.y<cy+24){
+          editorExpandedCat=editorExpandedCat===cat.id?'':cat.id;SFX.select();return;
+        }
+        cy+=26;
+        if(editorExpandedCat===cat.id){
+          for(const item of cat.items){
+            if(mouse.y>cy&&mouse.y<cy+22){editorTool=item.tool;SFX.select();return;}
+            cy+=24;
+          }
+        }
       }
-      if(mouse.x>cx-cardW/2&&mouse.x<cx+cardW/2-delW-16&&mouse.y>y&&mouse.y<y+cardH){
-        const pk=packs[i];
-        if(pk.levels&&pk.levels.length>0){
-          customPack={packName:pk.packName,levels:pk.levels,currentIdx:0};
-          loadCustomLevel(pk.levels[0]);
-          SFX.confirm();
+      return;
+    }
+    // Grid click — place or remove
+    if(mouse.x>sideW){
+      const gx=Math.round((mouse.x-sideW+editorCamX)/50)*50;
+      const gy=Math.round((mouse.y+editorCamY)/50)*50;
+      if(gx<0||gx>editorWorldW||gy<0||gy>editorWorldH)return;
+      const toolDef=_findToolDef(editorTool);
+      if(!toolDef)return;
+      if(toolDef.cat==='special'&&toolDef.subtype==='spawn'){
+        editorSpawnX=gx;editorSpawnY=gy;editorDirty=true;SFX.select();return;
+      }
+      if(toolDef.cat==='special'&&toolDef.subtype==='eraser'){
+        for(let i=editorPlacedItems.length-1;i>=0;i--){
+          if(dist(editorPlacedItems[i].x,editorPlacedItems[i].y,gx,gy)<30){
+            editorPlacedItems.splice(i,1);editorDirty=true;SFX.select();return;
+          }
         }
         return;
       }
+      editorPlacedItems.push({...toolDef,x:gx,y:gy});
+      editorDirty=true;SFX.select();
     }
+    return;
+  }
+
+  if(gameState==='levelSetup'){
+    const W=canvas.width,H=canvas.height,cx=W/2;
+    const panelW=Math.min(500,W*0.8),panelX=cx-panelW/2;
+    let py=100;
+    // Name click
+    const nameH=36;
+    if(mouse.x>panelX&&mouse.x<panelX+panelW&&mouse.y>py+6&&mouse.y<py+6+nameH){
+      editorNameInput.style.pointerEvents='auto';editorNameInput.style.opacity='1';
+      editorNameInput.style.position='fixed';editorNameInput.style.left='50%';editorNameInput.style.top='130px';
+      editorNameInput.style.transform='translateX(-50%)';editorNameInput.style.width='300px';editorNameInput.style.height='30px';
+      editorNameInput.style.fontSize='16px';editorNameInput.style.fontFamily='"Courier New"';
+      editorNameInput.style.background='#0a1828';editorNameInput.style.color='#00ccff';editorNameInput.style.border='1px solid #00ccff';
+      editorNameInput.style.textAlign='center';editorNameInput.style.zIndex='100';
+      editorNameInput.value=editorLevelName;editorNameInput.focus();editorNameInput.select();
+      editorNameInput.onblur=()=>{editorLevelName=editorNameInput.value||'Untitled Level';editorNameInput.style.pointerEvents='none';editorNameInput.style.opacity='0';editorNameInput.style.width='1px';editorNameInput.style.height='1px';};
+      editorNameInput.onkeydown=(e)=>{if(e.key==='Enter'){editorNameInput.blur();}};
+      return;
+    }
+    py+=nameH+26;
+    // Width slider
+    const slW=panelW,slH=20;
+    if(mouse.y>py&&mouse.y<py+slH){editorSliderDrag='width';return;}
+    py+=slH+26;
+    // Height slider
+    if(mouse.y>py&&mouse.y<py+slH){editorSliderDrag='height';return;}
+    py+=slH+22;
+    // Win conditions
+    const condW=(panelW-4*8)/5,condH=52;
+    for(let i=0;i<5;i++){
+      const cx2=panelX+i*(condW+8);
+      if(mouse.x>cx2&&mouse.x<cx2+condW&&mouse.y>py&&mouse.y<py+condH){
+        editorWinCondition=['killAll','reachFinish','survive','retrieve','collectAll'][i];
+        SFX.select();return;
+      }
+    }
+    py+=condH+14;
+    // Survive slider
+    if(editorWinCondition==='survive'){
+      if(mouse.y>py+8&&mouse.y<py+8+slH){editorSliderDrag='seconds';return;}
+      py+=slH+22;
+    }
+    // Start editing
+    const btnW=200,btnH=44,startX=cx-btnW/2,startY=Math.max(py+20,H-120);
+    if(mouse.x>startX&&mouse.x<startX+btnW&&mouse.y>startY&&mouse.y<startY+btnH){
+      editorLevel={
+        name:editorLevelName,author:'Player',created:Date.now(),
+        worldW:editorWorldW,worldH:editorWorldH,
+        winCondition:editorWinCondition,
+        winParams:editorWinCondition==='survive'?{seconds:editorWinSeconds}:{},
+        obstacles:[],enemies:[],pickups:[],hazards:[],objectives:[],
+        spawnX:200,spawnY:Math.round(editorWorldH/2),
+        leaderboard:[],awards:[],
+      };
+      editorPlacedItems=[];
+      editorSpawnX=200;editorSpawnY=Math.round(editorWorldH/2);
+      editorCamX=0;editorCamY=0;editorTool='';editorExpandedCat='';editorDirty=false;
+      if(!editorPack) editorPack={packName:editorLevelName,author:'Player',created:Date.now(),levels:[]};
+      gameState='levelEditor';SFX.confirm();return;
+    }
+    // Back
+    const backW=120,backH=38,backX=cx-backW/2,backY=startY+btnH+14;
+    if(mouse.x>backX&&mouse.x<backX+backW&&mouse.y>backY&&mouse.y<backY+backH){
+      gameState='customSelect';SFX.select();return;
+    }
+    return;
+  }
+  if(gameState==='customSelect'){
+    const cx=canvas.width/2,W=canvas.width,H=canvas.height;
+    // CREATE NEW
+    const newW=200,newH=40,newX=cx-newW/2,newY=82;
+    if(mouse.x>newX&&mouse.x<newX+newW&&mouse.y>newY&&mouse.y<newY+newH){
+      editorPack=null;editorLevelName='Untitled Level';editorWorldW=2600;editorWorldH=1700;
+      editorWinCondition='killAll';editorWinSeconds=60;
+      gameState='levelSetup';SFX.select();return;
+    }
+    const packs=_loadCustomLevels();
+    const cardW=Math.min(500,W*0.8),cardH=48,subH=36,cardGap=6;
+    let cy=140;
+    for(let i=0;i<packs.length;i++){
+      const pk=packs[i];
+      if(cy>H-100)break;
+      const expanded=customSelectExpanded===i;
+      // Pack-level buttons
+      const pbtnW=48,pbtnH=24,pbtnY=cy+(cardH-pbtnH)/2;
+      const delX=cx+cardW/2-pbtnW-8,cloneX=delX-pbtnW-6;
+      if(mouse.x>delX&&mouse.x<delX+pbtnW&&mouse.y>pbtnY&&mouse.y<pbtnY+pbtnH){
+        packs.splice(i,1);_saveCustomLevels(packs);
+        if(customSelectExpanded===i){customSelectExpanded=-1;customSelectSelectedLevel=-1;}
+        else if(customSelectExpanded>i) customSelectExpanded--;
+        SFX.select();return;
+      }
+      if(mouse.x>cloneX&&mouse.x<cloneX+pbtnW&&mouse.y>pbtnY&&mouse.y<pbtnY+pbtnH){
+        const clone=JSON.parse(JSON.stringify(pk));
+        clone.packName=(pk.packName||'Pack')+' (Copy)';clone.created=Date.now();
+        packs.push(clone);_saveCustomLevels(packs);SFX.select();return;
+      }
+      // Pack header click (expand/collapse)
+      if(mouse.x>cx-cardW/2&&mouse.x<cx+cardW/2-pbtnW*2-20&&mouse.y>cy&&mouse.y<cy+cardH){
+        customSelectExpanded=expanded?-1:i;customSelectSelectedLevel=-1;SFX.select();return;
+      }
+      cy+=cardH+cardGap;
+      if(expanded&&pk.levels){
+        for(let j=0;j<pk.levels.length;j++){
+          if(cy>H-100)break;
+          const lbW=38,lbH=22,lbY=cy+(subH-lbH)/2;
+          const lDelX=cx+cardW/2-lbW-8,lCopyX=lDelX-lbW-4,lEditX=lCopyX-lbW-4,lPlayX=lEditX-lbW-4;
+          // PLAY
+          if(mouse.x>lPlayX&&mouse.x<lPlayX+lbW&&mouse.y>lbY&&mouse.y<lbY+lbH){
+            customPack={packName:pk.packName,levels:[pk.levels[j]],currentIdx:0};
+            loadCustomLevel(pk.levels[j]);SFX.confirm();return;
+          }
+          // EDIT
+          if(mouse.x>lEditX&&mouse.x<lEditX+lbW&&mouse.y>lbY&&mouse.y<lbY+lbH){
+            editorPack={packName:pk.packName,author:pk.author,created:pk.created,levels:[]};
+            _loadLevelIntoEditor(pk.levels[j],i,j);
+            gameState='levelEditor';SFX.select();return;
+          }
+          // COPY
+          if(mouse.x>lCopyX&&mouse.x<lCopyX+lbW&&mouse.y>lbY&&mouse.y<lbY+lbH){
+            const lvCopy=JSON.parse(JSON.stringify(pk.levels[j]));
+            const newPack={packName:(lvCopy.name||'Level')+' (Copy)',author:'Player',created:Date.now(),levels:[lvCopy]};
+            packs.push(newPack);_saveCustomLevels(packs);SFX.select();return;
+          }
+          // DEL level
+          if(mouse.x>lDelX&&mouse.x<lDelX+lbW&&mouse.y>lbY&&mouse.y<lbY+lbH){
+            pk.levels.splice(j,1);
+            if(pk.levels.length===0){packs.splice(i,1);customSelectExpanded=-1;}
+            _saveCustomLevels(packs);customSelectSelectedLevel=-1;SFX.select();return;
+          }
+          // Level row click (select)
+          if(mouse.x>cx-cardW/2+20&&mouse.x<cx+cardW/2-lbW*4-20&&mouse.y>cy&&mouse.y<cy+subH){
+            customSelectSelectedLevel=customSelectSelectedLevel===j?-1:j;SFX.select();return;
+          }
+          cy+=subH+4;
+        }
+      }
+    }
+    // Back
     const bbw=160,bbh=40,bbx=cx-bbw/2,bby=H-70;
     if(mouse.x>bbx&&mouse.x<bbx+bbw&&mouse.y>bby&&mouse.y<bby+bbh){
-      gameState='start';SFX.select();return;
+      gameState='start';customSelectExpanded=-1;customSelectSelectedLevel=-1;SFX.select();return;
     }
     return;
   }
@@ -8053,6 +8721,14 @@ function _snapMouseToPlayer(){
 // Free mouse tracking — no pointer lock, no leash
 canvas.addEventListener('mousemove',e=>{
   mouse.x = e.clientX; mouse.y = e.clientY;
+  if(editorSliderDrag&&gameState==='levelSetup'){
+    const W=canvas.width,cx=W/2;
+    const panelW=Math.min(500,W*0.8),panelX=cx-panelW/2;
+    const pct=clamp((mouse.x-panelX)/panelW,0,1);
+    if(editorSliderDrag==='width') editorWorldW=Math.round((400+pct*(4500-400))/100)*100;
+    else if(editorSliderDrag==='height') editorWorldH=Math.round((400+pct*(4500-400))/100)*100;
+    else if(editorSliderDrag==='seconds') editorWinSeconds=Math.round(10+pct*(180-10));
+  }
   if(setupSliderDrag){
     settings[setupSliderDrag.key]=Math.max(0,Math.min(1,(mouse.x-setupSliderDrag.trackX)/setupSliderDrag.trackW));
     _saveSettings();_applyVolumes();
@@ -8735,6 +9411,9 @@ function loop(now){
       camY=(gameMode==='timetrial'&&(ttLevel===1||ttLevel===3))?0:clamp(prev.y-canvas.height/2,0,Math.max(0,WORLD_H-canvas.height));
       SFX.select();return;
     }
+    if(gameState==='levelEditor'){K['Space']=false;return;}
+    if(gameState==='levelSavePrompt'){K['Space']=false;return;}
+    if(gameState==='levelSetup'){K['Space']=false;gameState='customSelect';SFX.select();return;}
     if(gameState==='customSelect'){K['Space']=false;gameState='start';SFX.select();return;}
     if(gameState==='customResult'){K['Space']=false;gameState='customSelect';SFX.select();return;}
     if(gameState==='paused'&&screenLockMs<=0){K['Space']=false;gameState='playing';lastTime=performance.now();}
@@ -8748,6 +9427,19 @@ function loop(now){
     else if(gameState==='victory'||gameState==='timeTrialResult'||gameState==='ctResult'){K['Space']=false;WORLD_W=2600;WORLD_H=1700;ttLevel=1;nukes=[];jrCaptives=[];jrCarrying=-1;tngPads=[];tngSeq=1;tngOnPad=-1;tngHoldMs=0;gameMode='battle';gameState='start';}
     else if(gameState==='briefing'){K['Space']=false;const b=BRIEFINGS[activeBriefing];if(b)b.launchFn();}
     else if(gameState==='ctLevelUp'){K['Space']=false;ctLevelUpMs=0;} // skip the countdown
+  }
+
+  if(K['Escape']){
+    if(gameState==='levelEditor'){K['Escape']=false;gameState='customSelect';SFX.select();return;}
+  }
+
+  // Level editor camera panning
+  if(gameState==='levelEditor'){
+    const panSpd=8;
+    if(K['ArrowLeft']||K['KeyA'])editorCamX=Math.max(0,editorCamX-panSpd);
+    if(K['ArrowRight']||K['KeyD'])editorCamX=Math.min(Math.max(0,editorWorldW-canvas.width+180),editorCamX+panSpd);
+    if(K['ArrowUp']||K['KeyW'])editorCamY=Math.max(0,editorCamY-panSpd);
+    if(K['ArrowDown']||K['KeyS'])editorCamY=Math.min(Math.max(0,editorWorldH-canvas.height),editorCamY+panSpd);
   }
 
   // Cursor: hide during active play only when using Sawtooth (which has its own arc indicator)
@@ -8882,6 +9574,12 @@ function loop(now){
     drawCustomResult();
   } else if(gameState==='customSelect'){
     drawCustomSelect();
+  } else if(gameState==='levelSetup'){
+    drawLevelSetup();
+  } else if(gameState==='levelEditor'){
+    drawLevelEditor();
+  } else if(gameState==='levelSavePrompt'){
+    drawLevelSavePrompt();
   }
 
   ctx.restore();
