@@ -7243,6 +7243,56 @@ function drawCustomResult(){
   ctx.textAlign='left';
 }
 
+function drawCustomSelect(){
+  const W=canvas.width,H=canvas.height,cx=W/2;
+  ctx.fillStyle='#060c18';ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  ctx.font='bold 28px "Courier New"';ctx.fillStyle='#00ccff';ctx.shadowBlur=20;ctx.shadowColor='#00aaff';
+  ctx.fillText('CUSTOM LEVELS',cx,52);ctx.shadowBlur=0;
+  const packs=_loadCustomLevels();
+  if(packs.length===0){
+    ctx.font='14px "Courier New"';ctx.fillStyle='rgba(100,140,180,0.6)';
+    ctx.fillText('No custom levels yet',cx,H/2);
+    ctx.fillText('Use the Level Editor to create levels',cx,H/2+24);
+  } else {
+    const cardW=Math.min(400,W*0.7),cardH=64,cardGap=10;
+    const startY=90;
+    for(let i=0;i<packs.length;i++){
+      const pk=packs[i];
+      const y=startY+i*(cardH+cardGap);
+      if(y>H-80)break;
+      const hov=mouse.x>cx-cardW/2&&mouse.x<cx+cardW/2&&mouse.y>y&&mouse.y<y+cardH;
+      ctx.fillStyle=hov?'rgba(0,60,120,0.7)':'rgba(0,30,60,0.5)';
+      roundRect(ctx,cx-cardW/2,y,cardW,cardH,8);ctx.fill();
+      ctx.strokeStyle=hov?'#00ccff':'rgba(0,100,180,0.4)';ctx.lineWidth=hov?2:1;
+      roundRect(ctx,cx-cardW/2,y,cardW,cardH,8);ctx.stroke();
+      ctx.textAlign='left';
+      ctx.font='bold 14px "Courier New"';ctx.fillStyle=hov?'#ffffff':'rgba(180,220,255,0.9)';
+      ctx.fillText(pk.packName||'Unnamed Pack',cx-cardW/2+16,y+24);
+      ctx.font='11px "Courier New"';ctx.fillStyle='rgba(100,160,220,0.7)';
+      ctx.fillText(`${pk.levels?pk.levels.length:0} level${pk.levels&&pk.levels.length!==1?'s':''}  |  ${pk.author||'Unknown'}`,cx-cardW/2+16,y+44);
+      const delW=50,delH=28,delX=cx+cardW/2-delW-8,delY=y+(cardH-delH)/2;
+      const delHov=mouse.x>delX&&mouse.x<delX+delW&&mouse.y>delY&&mouse.y<delY+delH;
+      ctx.fillStyle=delHov?'rgba(180,30,10,0.8)':'rgba(80,20,10,0.5)';
+      roundRect(ctx,delX,delY,delW,delH,4);ctx.fill();
+      ctx.textAlign='center';ctx.font='bold 10px "Courier New"';
+      ctx.fillStyle=delHov?'#ffccaa':'rgba(200,80,50,0.8)';
+      ctx.fillText('DEL',delX+delW/2,delY+delH/2+4);
+    }
+  }
+  ctx.textAlign='center';
+  const bbw=160,bbh=40,bbx=cx-bbw/2,bby=H-70;
+  const bhov=mouse.x>bbx&&mouse.x<bbx+bbw&&mouse.y>bby&&mouse.y<bby+bbh;
+  ctx.shadowBlur=bhov?18:6;ctx.shadowColor='#00ccff';
+  ctx.fillStyle=bhov?'rgba(0,140,200,0.85)':'rgba(0,0,0,0.65)';
+  roundRect(ctx,bbx,bby,bbw,bbh,6);ctx.fill();
+  ctx.strokeStyle=bhov?'#00eeff':'rgba(0,140,220,0.6)';ctx.lineWidth=1.5;
+  roundRect(ctx,bbx,bby,bbw,bbh,6);ctx.stroke();ctx.shadowBlur=0;
+  ctx.font='bold 12px "Courier New"';ctx.fillStyle=bhov?'#000':'rgba(100,200,255,0.9)';
+  ctx.fillText('BACK',cx,bby+bbh/2+4);
+  ctx.textAlign='left';
+}
+
 function startBattle(){
   _hideAllAds();
   gameMode='battle';
@@ -7430,6 +7480,34 @@ function _doClick(){
     return; // eat all other clicks while paused
   }
 
+  if(gameState==='customSelect'){
+    const cx=canvas.width/2,W=canvas.width,H=canvas.height;
+    const packs=_loadCustomLevels();
+    const cardW=Math.min(400,W*0.7),cardH=64,cardGap=10;
+    const startY=90;
+    for(let i=0;i<packs.length;i++){
+      const y=startY+i*(cardH+cardGap);
+      if(y>H-80)break;
+      const delW=50,delH=28,delX=cx+cardW/2-delW-8,delY=y+(cardH-delH)/2;
+      if(mouse.x>delX&&mouse.x<delX+delW&&mouse.y>delY&&mouse.y<delY+delH){
+        packs.splice(i,1);_saveCustomLevels(packs);SFX.select();return;
+      }
+      if(mouse.x>cx-cardW/2&&mouse.x<cx+cardW/2&&mouse.y>y&&mouse.y<y+cardH){
+        const pk=packs[i];
+        if(pk.levels&&pk.levels.length>0){
+          customPack={packName:pk.packName,levels:pk.levels,currentIdx:0};
+          loadCustomLevel(pk.levels[0]);
+          SFX.confirm();
+        }
+        return;
+      }
+    }
+    const bbw=160,bbh=40,bbx=cx-bbw/2,bby=H-70;
+    if(mouse.x>bbx&&mouse.x<bbx+bbw&&mouse.y>bby&&mouse.y<bby+bbh){
+      gameState='start';SFX.select();return;
+    }
+    return;
+  }
   if(gameState==='customResult'){
     const cx=canvas.width/2,bw=240,bh=46,bx=cx-bw/2,by=canvas.height*0.6;
     if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){
@@ -7455,6 +7533,7 @@ function _doClick(){
         if(item.label==='Combat Training'){ activeBriefing='brief_ct'; gameState='briefing'; SFX.select(); }
         if(item.label==='Aircraft Hangar'){ hangarCraft=selectedCraft; hangarColor=selectedColor; hangarScroll=Math.max(0,Math.min(hangarCraft,CRAFTS.length-HANGAR_VISIBLE)); gameState='hangar'; SFX.select(); }
         if(item.label==='Hall of Fame'){ hofTab=0; gameState='hallOfFame'; SFX.select(); }
+        if(item.label==='Level Designer'){ gameState='customSelect'; SFX.select(); }
         if(item.label==='Setup'){ gameState='setup'; SFX.select(); }
         return;
       }
@@ -7483,7 +7562,10 @@ function _doClick(){
   }
   if(gameState==='gameover'){
     const cx=canvas.width/2,bw=220,bh=44,bx=cx-bw/2,by=canvas.height/2+112;
-    if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){ _returnToStart(); return; }
+    if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){
+      if(gameMode==='custom'&&customPack){loadCustomLevel(customPack.levels[customPack.currentIdx]);return;}
+      _returnToStart(); return;
+    }
     return;
   }
   if(gameState==='timeTrialResult'||gameState==='victory'){
@@ -8453,6 +8535,8 @@ function loop(now){
       camY=(gameMode==='timetrial'&&(ttLevel===1||ttLevel===3))?0:clamp(prev.y-canvas.height/2,0,Math.max(0,WORLD_H-canvas.height));
       SFX.select();return;
     }
+    if(gameState==='customSelect'){K['Space']=false;gameState='start';SFX.select();return;}
+    if(gameState==='customResult'){K['Space']=false;gameState='customSelect';SFX.select();return;}
     if(gameState==='paused'&&screenLockMs<=0){K['Space']=false;gameState='playing';lastTime=performance.now();}
     else if(gameState==='start'){K['Space']=false;gameMode='battle';_loadHangar();startGame();}
     else if(gameState==='ttLevelSelect'){K['Space']=false;gameState='start';SFX.select();}
@@ -8596,6 +8680,8 @@ function loop(now){
     tickParticles(dt);drawWorld();drawParticles();drawVictoryScreen();
   } else if(gameState==='customResult'){
     drawCustomResult();
+  } else if(gameState==='customSelect'){
+    drawCustomSelect();
   }
 
   ctx.restore();
