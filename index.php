@@ -391,11 +391,11 @@ canvas.addEventListener('mousedown',e=>{
     const W=canvas.width,cx=W/2;
     const panelW=Math.min(500,W*0.8),panelX=cx-panelW/2;
     const slH=20;
-    let py=100+36+26; // name field + gap
+    let py=100+6+36+20+8; // name label(100)+gap(6)+nameH(36)+gap(20)+label gap(8) = 170 = width slider y
     if(mouse.y>py&&mouse.y<py+slH&&mouse.x>panelX&&mouse.x<panelX+panelW){editorSliderDrag='width';return;}
-    py+=slH+26;
+    py+=slH+18+8; // slH(20)+gap(18)+label gap(8) = 216 = height slider y
     if(mouse.y>py&&mouse.y<py+slH&&mouse.x>panelX&&mouse.x<panelX+panelW){editorSliderDrag='height';return;}
-    py+=slH+22+52*2+6+14; // height slider + gap + win condition cards (2 rows) + gap
+    py+=slH+22+8+52*2+6+14; // height slider + gap + win cond label gap + cards (2 rows) + gap
     if(editorWinCondition==='survive'&&mouse.y>py+8&&mouse.y<py+8+slH&&mouse.x>panelX&&mouse.x<panelX+panelW){editorSliderDrag='seconds';return;}
   }
   if(gameState==='levelEditor'&&e.button===2){
@@ -8604,7 +8604,20 @@ function drawLevelEditor(){
   ctx.font='bold 11px "Courier New"';ctx.fillStyle=bkHov?'#000':'rgba(100,200,255,0.9)';ctx.fillText('BACK',bkX+tbtnW/2,bkY+tbtnH/2+4);
   // Item count
   ctx.textAlign='right';ctx.font='10px "Courier New"';ctx.fillStyle='rgba(100,160,220,0.6)';
-  ctx.fillText(`${editorPlacedItems.length} items  |  ${editorLevel?editorLevel.name:''}`,W-tmargin,tmargin+tbtnH+18);
+  ctx.fillText(`${editorPlacedItems.length} items  |  ${editorLevel?editorLevel.name:''}  |  ${editorWorldW}x${editorWorldH}`,W-tmargin,tmargin+tbtnH+18);
+  // Scroll hint if world is larger than viewport
+  if(editorWorldW>W-sideW||editorWorldH>H){
+    ctx.textAlign='center';ctx.font='10px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.4)';
+    ctx.fillText('WASD / ARROWS to pan  |  World extends beyond screen',sideW+(W-sideW)/2,H-10);
+  }
+  // Mini viewport indicator (bottom-right)
+  const mmW=80,mmH=60,mmX=W-mmW-10,mmY=H-mmH-24;
+  ctx.fillStyle='rgba(0,10,30,0.7)';ctx.fillRect(mmX,mmY,mmW,mmH);
+  ctx.strokeStyle='rgba(0,100,180,0.4)';ctx.lineWidth=1;ctx.strokeRect(mmX,mmY,mmW,mmH);
+  const scX=mmW/editorWorldW,scY=mmH/editorWorldH;
+  const vpX=mmX+editorCamX*scX,vpY=mmY+editorCamY*scY;
+  const vpW=Math.min(mmW,(W-sideW)*scX),vpH=Math.min(mmH,H*scY);
+  ctx.strokeStyle='#00ccff';ctx.lineWidth=1;ctx.strokeRect(vpX,vpY,vpW,vpH);
   ctx.textAlign='left';
   if(editorTool==='_assignGuard'){
     ctx.fillStyle='rgba(0,80,40,0.8)';ctx.fillRect(sideW,40,W-sideW,24);
