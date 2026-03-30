@@ -3710,7 +3710,7 @@ function drawSeekers(){
   }
 }
 // ─── BOOMERANGS ───────────────────────────────────────────────────
-const BOOMR_SPD=13;
+const BOOMR_SPD=26;
 const BOOMR_RETURN_SPD=22.5; // slightly faster on return
 function tickBoomerangs(dt){
   const step=dt*60;
@@ -8281,7 +8281,7 @@ function _drawIntroSeq2(){
   _iButtons(false); _iSeqLabel('THE WAR');
 }
 
-// ── SEQ 3 — WEAPONS LOADOUT ───────────────────────────────────
+// ── SEQ 3 — WEAPONS ARSENAL ───────────────────────────────────
 function _drawIntroSeq3(){
   _iGradBg();
   const t=Date.now()/1000,cx=canvas.width/2,cy=canvas.height/2,ms=introMs();
