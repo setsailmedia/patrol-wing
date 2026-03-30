@@ -7060,6 +7060,65 @@ function startTouchNGo(){
   gameStartTime=Date.now();gameState='playing';_snapMouseToPlayer();
 }
 
+function loadCustomLevel(levelData){
+  _hideAllAds();
+  gameMode='custom';
+  WORLD_W=Math.min(4500,Math.max(canvas.width,levelData.worldW||2600));
+  WORLD_H=Math.min(4500,Math.max(canvas.height,levelData.worldH||1700));
+  score=0;wave=1;bossWarning=0;empFlash=0;
+  weaponFlash={name:levelData.name||'CUSTOM LEVEL',ms:2500};
+  leechFlash={active:false,tx:0,ty:0,ms:0};shockwaveFlash={ms:0};
+  harbingerRef=null;
+  portalActive=false;portalPositions=[];
+  particles.length=0;pickups.length=0;pBullets.length=0;eBullets.length=0;
+  mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;
+  hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;enemies.length=0;
+  miniMe.active=false;miniMe.lost=false;miniMe.hp=MM_HP;miniMe.iframes=0;
+  lastHullBeepMs=0;
+  resetPlayer();
+  P.x=levelData.spawnX||WORLD_W/2;
+  P.y=levelData.spawnY||WORLD_H/2;
+  camX=clamp(P.x-canvas.width/2,0,Math.max(0,WORLD_W-canvas.width));
+  camY=clamp(P.y-canvas.height/2,0,Math.max(0,WORLD_H-canvas.height));
+  obstacles=[];
+  if(levelData.obstacles){
+    for(const o of levelData.obstacles){
+      if(o.type==='pillar') obstacles.push({type:'pillar',x:o.x,y:o.y,r:o.r||35,rot:Math.random()*Math.PI});
+      else if(o.type==='wall') obstacles.push({type:'wall',x:o.x,y:o.y,w:o.w||26,h:o.h||100});
+    }
+  }
+  if(levelData.enemies){
+    for(const en of levelData.enemies){
+      const e=mkEnemy(en.type,en.x,en.y);
+      if(e){enemies.push(e);if(en.type==='harbinger') harbingerRef=e;}
+    }
+  }
+  if(levelData.pickups){
+    for(const p of levelData.pickups) spawnPickup(p.x,p.y,p.type,!!p.hidden);
+  }
+  if(levelData.hazards){
+    for(const h of levelData.hazards){
+      if(h.type==='zap_pylon') spawnZapPylonPair(h.x,h.y,h.angle||0,h.gap||120);
+      else if(h.type==='floor_mine') spawnFloorMine(h.x,h.y);
+    }
+  }
+  customWinCondition=levelData.winCondition||'killAll';
+  customWinParams=levelData.winParams||{};
+  customObjectives=levelData.objectives||[];
+  customSurviveMs=(customWinCondition==='survive'&&customWinParams.seconds)?customWinParams.seconds*1000:0;
+  customKeysCollected=0;
+  customKeysTotal=customObjectives.filter(o=>o.type==='key').length;
+  customItemHeld=false;
+  customFinishX=0;customFinishY=0;
+  customGoalX=0;customGoalY=0;
+  for(const obj of customObjectives){
+    if(obj.type==='finish'){customFinishX=obj.x;customFinishY=obj.y;}
+    if(obj.type==='goal'){customGoalX=obj.x;customGoalY=obj.y;}
+  }
+  gameStartTime=Date.now();
+  gameState='playing';
+}
+
 function startBattle(){
   _hideAllAds();
   gameMode='battle';
