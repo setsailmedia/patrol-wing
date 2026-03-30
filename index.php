@@ -887,6 +887,7 @@ let editorSliderDrag=null;
 let editorDragIdx=-1;
 let editorPanning=false;let editorPanStartX=0,editorPanStartY=0,editorPanCamX=0,editorPanCamY=0;
 let editorSelectedGate=-1;
+let editorSelectedPickup=-1;
 let customSelectExpanded=-1;
 let customSelectSelectedLevel=-1;
 // Level 2 — Nuclear Disarm
@@ -993,6 +994,7 @@ function generateObstacles(spawnX,spawnY){
 }
 function circleVsObs(cx,cy,cr){
   for(const o of obstacles){
+    if(o._visible===false)continue;
     if(o.type==='pillar'){if(dist2(cx,cy,o.x,o.y)<(cr+o.r)**2)return true;}
     else if(o.type==='gate'){if(circleVsRotRect(cx,cy,cr,gateRect(o)))return true;}
     else{const nx=clamp(cx,o.x,o.x+o.w),ny=clamp(cy,o.y,o.y+o.h);if(dist2(cx,cy,nx,ny)<cr*cr)return true;}
@@ -1000,6 +1002,7 @@ function circleVsObs(cx,cy,cr){
 }
 function pushOutObs(obj,r){
   for(const o of obstacles){
+    if(o._visible===false)continue;
     if(o.type==='pillar'){const dx=obj.x-o.x,dy=obj.y-o.y,d=Math.sqrt(dx*dx+dy*dy)||1,m=r+o.r;if(d<m){obj.x=o.x+(dx/d)*m;obj.y=o.y+(dy/d)*m;const dot=obj.vx*(dx/d)+obj.vy*(dy/d);if(dot<0){obj.vx-=dot*(dx/d);obj.vy-=dot*(dy/d);}}}
     else if(o.type==='gate'){const r2=pushOutRotRect(obj.x,obj.y,r,gateRect(o));if(r2.pushed){obj.x=r2.x;obj.y=r2.y;const dot=obj.vx*r2.wnx+obj.vy*r2.wny;if(dot<0){obj.vx-=dot*r2.wnx;obj.vy-=dot*r2.wny;}}}
     else{const nx=clamp(obj.x,o.x,o.x+o.w),ny=clamp(obj.y,o.y,o.y+o.h),dx=obj.x-nx,dy=obj.y-ny,d=Math.sqrt(dx*dx+dy*dy)||1;if(d<r){obj.x=nx+(dx/d)*r;obj.y=ny+(dy/d)*r;const dot=obj.vx*(dx/d)+obj.vy*(dy/d);if(dot<0){obj.vx-=dot*(dx/d);obj.vy-=dot*(dy/d);}}}
@@ -1010,6 +1013,7 @@ function reflectRicoVsObs(b){
   let bounced=false;
   const r=b.bSz;
   for(const o of obstacles){
+    if(o._visible===false)continue;
     if(o.type==='pillar'){
       const dx=b.x-o.x,dy=b.y-o.y,d=Math.sqrt(dx*dx+dy*dy)||1,m=r+o.r;
       if(d<m){
@@ -1104,6 +1108,7 @@ function _pointSegDist2(px,py,ax,ay,bx,by){
 function tickHazards(dt,now){
   for(let hi=hazards.length-1;hi>=0;hi--){
     const h=hazards[hi];
+    if(h._visible===false)continue;
     if(h.type==='zap_pylon'){
       h.arcT+=dt;
       if(h.cooldown>0) h.cooldown-=dt*1000;
@@ -1314,9 +1319,29 @@ function tickGates(dt){
   }
 }
 
+function tickItemTimers(dt){
+  if(gameMode!=='custom')return;
+  const ms=dt*1000;
+  const tick=(arr)=>{
+    for(let i=arr.length-1;i>=0;i--){
+      const it=arr[i];
+      if(it._appearAt===undefined)continue;
+      if(!it._visible){
+        it._appearAt-=ms;
+        if(it._appearAt<=0){it._visible=true;spawnParts(it.x,it.y,'#00ccff',_pCount(6),2,3,250);}
+      } else if(it._duration>0){
+        it._duration-=ms;
+        if(it._duration<=0){arr.splice(i,1);spawnParts(it.x,it.y,'#ff8844',_pCount(6),2,3,250);}
+      }
+    }
+  };
+  tick(obstacles);tick(enemies);tick(pickups);tick(hazards);
+}
+
 function drawHazards(){
   const now=Date.now()/1000;
   for(const h of hazards){
+    if(h._visible===false)continue;
     if(h.type==='zap_pylon'){
       const asx=h.ax-camX,asy=h.ay-camY,bsx=h.bx-camX,bsy=h.by-camY;
       if(asx<-100&&bsx<-100) continue;
@@ -1501,6 +1526,7 @@ function spawnHazardMines(count, xMin, xMax, yMin, yMax, clearX=-1, clearY=-1, c
 function drawObstacles(){
   const now=Date.now();
   for(const o of obstacles){
+    if(o._visible===false)continue;
     if(o.type==='pillar'){
       const sx=o.x-camX,sy=o.y-camY;if(sx+o.r<-5||sx-o.r>canvas.width+5||sy+o.r<-5||sy-o.r>canvas.height+5)continue;
       ctx.save();ctx.translate(sx,sy);ctx.rotate(o.rot);
@@ -1583,6 +1609,7 @@ function tickPickups(dt){
   }
 }
 function drawPickup(p){
+  if(p._visible===false)return;
   const sx=p.x-camX,sy=p.y-camY;if(sx<-50||sx>canvas.width+50||sy<-50||sy>canvas.height+50)return;
   // Dropped pickups: fast pulse below 3s, fade out in final 1s
   let pulse=0.65+Math.sin(p.t)*0.35;
@@ -2860,6 +2887,7 @@ function spawnWaveEnemies(n){
 }
 function tickEnemies(dt,now){
   for(const e of enemies){
+    if(e._visible===false)continue;
     const dx=P.x-e.x,dy=P.y-e.y,d=Math.sqrt(dx*dx+dy*dy)||1;
     e.aim=Math.atan2(dy,dx);e.rotor+=dt*14;
     // Tick down all stun timers
@@ -3389,6 +3417,7 @@ function drawHarbinger(x,y,aim,sz,col,acc,spin,hp,rageMs){
 function drawEnemies(){
   const now=Date.now();
   for(const e of enemies){
+    if(e._visible===false)continue;
     const sx=e.x-camX,sy=e.y-camY;if(sx<-90||sx>canvas.width+90||sy<-90||sy>canvas.height+90)continue;
     // EMP stun ring (purple)
     if(e.stunMs>0){ctx.save();ctx.translate(sx,sy);ctx.rotate(now/180);ctx.strokeStyle='rgba(200,80,255,0.5)';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(0,0,e.size*1.85,0,Math.PI*2);ctx.stroke();ctx.restore();}
@@ -4313,6 +4342,7 @@ function checkCollisions(){
   }
   for(let pi=pickups.length-1;pi>=0;pi--){
     const pk=pickups[pi];
+    if(pk._visible===false)continue;
     const hitR=(pk.hidden?36:48)**2;
     const playerHit=dist2(pk.x,pk.y,P.x,P.y)<hitR;
     const jrHit=miniMe.active&&dist2(pk.x,pk.y,miniMe.x,miniMe.y)<(MM_SIZE+18)**2;
@@ -7713,6 +7743,36 @@ function loadCustomLevel(levelData){
       else if(h.type==='ricochet_turret') hazards.push({type:'ricochet_turret',x:h.x,y:h.y,fireAngle:h.fireAngle||0,fireInterval:h.fireInterval||3000,projSpd:h.projSpd||6,bounceCount:h.bounceCount||5,dmg:h.dmg||20,cooldownMs:0});
     }
   }
+  // Default all items to visible
+  for(const o of obstacles){if(o._visible===undefined)o._visible=true;o._appearAt=o._appearAt||0;o._duration=o._duration||0;}
+  for(const e of enemies){e._visible=true;e._appearAt=0;e._duration=0;}
+  for(const p of pickups){p._visible=true;p._appearAt=0;p._duration=0;}
+  for(const h of hazards){if(h._visible===undefined)h._visible=true;h._appearAt=h._appearAt||0;h._duration=h._duration||0;}
+  // Apply timing from level data
+  if(levelData.obstacles) for(let i=0;i<levelData.obstacles.length;i++){
+    const s=levelData.obstacles[i];
+    if(s.appearAfter>0&&i<obstacles.length){obstacles[i]._appearAt=s.appearAfter*1000;obstacles[i]._visible=false;obstacles[i]._duration=(s.duration||0)*1000;}
+    if(s.duration>0&&i<obstacles.length){obstacles[i]._duration=s.duration*1000;}
+  }
+  if(levelData.enemies) for(let i=0;i<levelData.enemies.length;i++){
+    const s=levelData.enemies[i];
+    if(s.appearAfter>0&&i<enemies.length){enemies[i]._appearAt=s.appearAfter*1000;enemies[i]._visible=false;}
+    if(s.duration>0&&i<enemies.length){enemies[i]._duration=s.duration*1000;}
+  }
+  if(levelData.hazards) for(let i=0;i<levelData.hazards.length;i++){
+    const s=levelData.hazards[i];
+    if(s.appearAfter>0&&i<hazards.length){hazards[i]._appearAt=s.appearAfter*1000;hazards[i]._visible=false;}
+    if(s.duration>0&&i<hazards.length){hazards[i]._duration=s.duration*1000;}
+  }
+  if(levelData.pickups) for(const s of levelData.pickups){
+    if(s.appearAfter>0||s.duration>0){
+      const pk=pickups.find(p=>Math.abs(p.x-s.x)<5&&Math.abs(p.y-s.y)<5);
+      if(pk){
+        if(s.appearAfter>0){pk._appearAt=s.appearAfter*1000;pk._visible=false;}
+        if(s.duration>0){pk._duration=s.duration*1000;}
+      }
+    }
+  }
   customWinCondition=levelData.winCondition||'killAll';
   customWinParams=levelData.winParams||{};
   customObjectives=levelData.objectives||[];
@@ -8234,6 +8294,14 @@ function _loadLevelIntoEditor(lv,packIdx,levelIdx){
     if(o.keyId) item.keyId=o.keyId;
     editorPlacedItems.push(item);
   }
+  // Load timing fields from all source arrays
+  const allSrcs=[...(lv.obstacles||[]),...(lv.enemies||[]).map(e=>({...e,_cat:'enemy'})),...(lv.pickups||[]).map(p=>({...p,_cat:'pickup'})),...(lv.hazards||[]).map(h=>({...h,_cat:'hazard'}))];
+  for(const s of allSrcs){
+    if(s.appearAfter>0||s.duration>0){
+      const match=editorPlacedItems.find(it=>Math.abs(it.x-s.x)<5&&Math.abs(it.y-s.y)<5);
+      if(match){if(s.appearAfter)match.appearAfter=s.appearAfter;if(s.duration)match.duration=s.duration;}
+    }
+  }
   editorDirty=false;
   editorLevel._editPackIdx=packIdx;
   editorLevel._editLevelIdx=levelIdx;
@@ -8348,6 +8416,20 @@ function _editorSave(){
       lv.objectives.push({type:'gate_key',x:item.x,y:item.y,keyId:item.keyId});
     } else if(item.cat==='objective'){
       lv.objectives.push({type:item.subtype,x:item.x,y:item.y});
+    }
+  }
+  // Attach timing fields
+  for(const item of editorPlacedItems){
+    if(item.appearAfter>0||item.duration>0){
+      let target=null;
+      if(item.cat==='obstacle') target=lv.obstacles.find(o=>Math.abs(o.x-(item.subtype==='wall'?item.x-(item.w||26)/2:item.x))<5&&Math.abs(o.y-(item.subtype==='wall'?item.y-(item.h||100)/2:item.y))<5);
+      else if(item.cat==='enemy') target=lv.enemies.find(e=>e.x===item.x&&e.y===item.y);
+      else if(item.cat==='pickup') target=lv.pickups.find(p=>p.x===item.x&&p.y===item.y);
+      else if(item.cat==='hazard') target=lv.hazards.find(h=>h.x===item.x&&h.y===item.y);
+      if(target){
+        if(item.appearAfter>0) target.appearAfter=item.appearAfter;
+        if(item.duration>0) target.duration=item.duration;
+      }
     }
   }
   if(lv._editPackIdx!==undefined){
@@ -8601,6 +8683,52 @@ function drawLevelEditor(){
         ctx.font='8px "Courier New"';ctx.fillStyle='rgba(150,200,255,0.6)';
         ctx.fillText(`Countdown: ${gi.unlockParams.seconds||30}s`,tbX+tbW/2,tbY+tbH-6);
       }
+    }
+  }
+  // Weapon pickup properties toolbar
+  if(editorSelectedPickup>=0&&editorSelectedPickup<editorPlacedItems.length){
+    const wi=editorPlacedItems[editorSelectedPickup];
+    if(wi.subtype==='weapon'){
+      const wsx=wi.x-editorCamX+sideW,wsy=wi.y-editorCamY;
+      const mode=wi.weaponMode||'generic';
+      const tbW=200,tbH=mode==='generic'?50:220,tbX=wsx+20,tbY=wsy-tbH-10;
+      ctx.fillStyle='rgba(0,20,50,0.92)';roundRect(ctx,tbX,tbY,tbW,tbH,6);ctx.fill();
+      ctx.strokeStyle='#ffee00';ctx.lineWidth=1;roundRect(ctx,tbX,tbY,tbW,tbH,6);ctx.stroke();
+      ctx.textAlign='center';ctx.font='bold 9px "Courier New"';
+      // Mode buttons
+      const modes=['generic','specific','random'];
+      const mLabels=['GENERIC','SPECIFIC','RANDOM'];
+      const mbW=60,mbH=20,mbY=tbY+4;
+      for(let m=0;m<3;m++){
+        const mbX=tbX+4+m*(mbW+4);
+        const sel=mode===modes[m];
+        const mhov=mouse.x>mbX&&mouse.x<mbX+mbW&&mouse.y>mbY&&mouse.y<mbY+mbH;
+        ctx.fillStyle=sel?'rgba(180,160,0,0.7)':mhov?'rgba(80,70,0,0.5)':'rgba(30,25,0,0.4)';
+        roundRect(ctx,mbX,mbY,mbW,mbH,3);ctx.fill();
+        if(sel){ctx.strokeStyle='#ffee00';ctx.lineWidth=1;roundRect(ctx,mbX,mbY,mbW,mbH,3);ctx.stroke();}
+        ctx.fillStyle=sel?'#ffee00':'rgba(200,180,80,0.7)';
+        ctx.fillText(mLabels[m],mbX+mbW/2,mbY+14);
+      }
+      // Weapon list (SPECIFIC or RANDOM mode)
+      if(mode==='specific'||mode==='random'){
+        const listY=tbY+30;
+        ctx.font='9px "Courier New"';
+        for(let w=0;w<WEAPONS.length;w++){
+          const wy=listY+w*16;
+          if(wy>tbY+tbH-4)break;
+          const wn=WEAPONS[w];
+          let selected=false;
+          if(mode==='specific') selected=(wi.weaponId===wn.id);
+          else selected=(wi.weaponPool&&wi.weaponPool.includes(wn.id));
+          const whov=mouse.x>tbX+4&&mouse.x<tbX+tbW-4&&mouse.y>wy&&mouse.y<wy+14;
+          ctx.fillStyle=selected?'rgba(180,160,0,0.5)':whov?'rgba(40,35,0,0.5)':'transparent';
+          ctx.fillRect(tbX+4,wy,tbW-8,14);
+          ctx.fillStyle=selected?'#ffee00':whov?'#ffffff':'rgba(180,180,160,0.6)';
+          ctx.textAlign='left';
+          ctx.fillText((selected?'> ':'')+wn.name,tbX+10,wy+11);
+        }
+      }
+      ctx.textAlign='left';
     }
   }
   ctx.restore(); // unclip
@@ -8933,6 +9061,47 @@ function _doClick(){
         }
       }
     }
+    // Weapon pickup toolbar clicks
+    if(editorSelectedPickup>=0&&editorSelectedPickup<editorPlacedItems.length){
+      const wi=editorPlacedItems[editorSelectedPickup];
+      if(wi.subtype==='weapon'){
+        const wsx=wi.x-editorCamX+sideW,wsy=wi.y-editorCamY;
+        const mode=wi.weaponMode||'generic';
+        const tbW=200,tbH=mode==='generic'?50:220,tbX=wsx+20,tbY=wsy-tbH-10;
+        // Mode buttons
+        const modes=['generic','specific','random'];
+        const mbW=60,mbH=20,mbY2=tbY+4;
+        for(let m=0;m<3;m++){
+          const mbX=tbX+4+m*(mbW+4);
+          if(mouse.x>mbX&&mouse.x<mbX+mbW&&mouse.y>mbY2&&mouse.y<mbY2+mbH){
+            wi.weaponMode=modes[m];
+            if(modes[m]==='specific'){wi.weaponId=wi.weaponId||WEAPONS[0].id;delete wi.weaponPool;}
+            else if(modes[m]==='random'){wi.weaponPool=wi.weaponPool||[];delete wi.weaponId;}
+            else{delete wi.weaponId;delete wi.weaponPool;}
+            editorDirty=true;SFX.select();return;
+          }
+        }
+        // Weapon list clicks
+        if(mode==='specific'||mode==='random'){
+          const listY=tbY+30;
+          for(let w=0;w<WEAPONS.length;w++){
+            const wy=listY+w*16;
+            if(wy>tbY+tbH-4)break;
+            if(mouse.x>tbX+4&&mouse.x<tbX+tbW-4&&mouse.y>wy&&mouse.y<wy+14){
+              if(mode==='specific'){
+                wi.weaponId=WEAPONS[w].id;
+              } else {
+                if(!wi.weaponPool)wi.weaponPool=[];
+                const idx=wi.weaponPool.indexOf(WEAPONS[w].id);
+                if(idx>=0) wi.weaponPool.splice(idx,1);
+                else wi.weaponPool.push(WEAPONS[w].id);
+              }
+              editorDirty=true;SFX.select();return;
+            }
+          }
+        }
+      }
+    }
     // Horizontal scrollbar click
     const maxCamX2=Math.max(1,editorWorldW-canvas.width+sideW);
     if(editorWorldW>canvas.width-sideW&&mouse.y>H-8){
@@ -9004,10 +9173,17 @@ function _doClick(){
       for(let i=editorPlacedItems.length-1;i>=0;i--){
         const item=editorPlacedItems[i];
         if(item.subtype==='gate'&&_editorHitTest(item,gx,gy)){
-          editorSelectedGate=i;SFX.select();return;
+          editorSelectedGate=i;editorSelectedPickup=-1;SFX.select();return;
         }
       }
-      editorSelectedGate=-1; // clicked empty space, deselect
+      // Select weapon pickup on click
+      for(let i=editorPlacedItems.length-1;i>=0;i--){
+        const item=editorPlacedItems[i];
+        if(item.subtype==='weapon'&&_editorHitTest(item,gx,gy)){
+          editorSelectedPickup=i;editorSelectedGate=-1;SFX.select();return;
+        }
+      }
+      editorSelectedGate=-1;editorSelectedPickup=-1; // clicked empty space, deselect
       const toolDef=_findToolDef(editorTool);
       if(!toolDef)return;
       if(toolDef.cat==='special'&&toolDef.subtype==='spawn'){
@@ -10321,7 +10497,7 @@ function loop(now){
       if(gameMode==='timetrial') drawFinishLine();
       drawHUD();drawMinimap();drawCrosshair();drawTouchSticks();drawMiniMe();drawPortals();drawCustomTransition();
     } else {
-    tickPlayer(dt,now);tickCarrierDrones(dt,now);tickEnemies(dt,now);tickMiniMe(dt,now);tickBullets(dt);tickMines(dt);tickFaradayCages(dt);tickRockets(dt);tickGrenades(dt);tickGravityWells(dt);tickSeekers(dt,now);tickBoomerangs(dt);tickHazards(dt,now);tickGates(dt);tickHazardProjectiles(dt);tickFractals(dt);tickParticles(dt);tickPickups(dt);tickLaserFlash(dt);tickLeechFlash(dt);tickShockwaveFlash(dt);tickPortal(dt);if(ttLevel===2)tickNukes(dt);if(ttLevel===4)tickJRRescue(dt);if(ttLevel===5)tickTNG(dt);tickHullBeep(now);checkCollisions();tickCustomWinCondition(dt);tickCustomTransition(dt);tickCustomObjectivePickup();
+    tickPlayer(dt,now);tickCarrierDrones(dt,now);tickEnemies(dt,now);tickMiniMe(dt,now);tickBullets(dt);tickMines(dt);tickFaradayCages(dt);tickRockets(dt);tickGrenades(dt);tickGravityWells(dt);tickSeekers(dt,now);tickBoomerangs(dt);tickHazards(dt,now);tickGates(dt);tickItemTimers(dt);tickHazardProjectiles(dt);tickFractals(dt);tickParticles(dt);tickPickups(dt);tickLaserFlash(dt);tickLeechFlash(dt);tickShockwaveFlash(dt);tickPortal(dt);if(ttLevel===2)tickNukes(dt);if(ttLevel===4)tickJRRescue(dt);if(ttLevel===5)tickTNG(dt);tickHullBeep(now);checkCollisions();tickCustomWinCondition(dt);tickCustomTransition(dt);tickCustomObjectivePickup();
     if(gameMode==='combattraining'){
       ctNextPickupMs-=dt*1000;
       if(ctNextPickupMs<=0){
