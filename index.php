@@ -891,6 +891,7 @@ let editorDragIdx=-1;
 let editorPanning=false;let editorPanStartX=0,editorPanStartY=0,editorPanCamX=0,editorPanCamY=0;
 let editorSelectedGate=-1;
 let editorSelectedPickup=-1;
+let editorSelectedTimer=-1;
 let customSelectExpanded=-1;
 let customSelectSelectedLevel=-1;
 // Level 2 — Nuclear Disarm
@@ -8236,7 +8237,7 @@ function _getEditorCategories(){
       ...(editorWinCondition==='collectAll'?[{tool:'obj_key',label:'Key',cat:'objective',subtype:'key'}]:[]),
       ...(editorWinCondition==='retrieve'?[{tool:'obj_item',label:'Item',cat:'objective',subtype:'item'},{tool:'obj_goal',label:'Goal Zone',cat:'objective',subtype:'goal'}]:[]),
     ]},
-    {id:'tools',label:'TOOLS',items:[{tool:'move',label:'Move',cat:'special',subtype:'move'},{tool:'adjust',label:'Adjust',cat:'special',subtype:'adjust'},{tool:'eraser',label:'Eraser',cat:'special',subtype:'eraser'}]},
+    {id:'tools',label:'TOOLS',items:[{tool:'move',label:'Move',cat:'special',subtype:'move'},{tool:'adjust',label:'Adjust',cat:'special',subtype:'adjust'},{tool:'timekeeper',label:'Timekeeper',cat:'special',subtype:'timekeeper'},{tool:'eraser',label:'Eraser',cat:'special',subtype:'eraser'}]},
   ];
 }
 function _editorHitTest(item,gx,gy){
@@ -8375,6 +8376,10 @@ function _drawEditorSidebar(sideW,H){
           ctx.beginPath();ctx.moveTo(14,cy+7);ctx.lineTo(14,cy+15);ctx.stroke();
           ctx.beginPath();ctx.moveTo(16,cy+9);ctx.lineTo(18,cy+11);ctx.lineTo(16,cy+13);ctx.stroke();
           ctx.beginPath();ctx.moveTo(12,cy+9);ctx.lineTo(10,cy+11);ctx.lineTo(12,cy+13);ctx.stroke();
+        } else if(item.subtype==='timekeeper'){
+          ctx.strokeStyle='#ff8844';ctx.lineWidth=1.5;
+          ctx.beginPath();ctx.arc(14,cy+11,5,0,Math.PI*2);ctx.stroke();
+          ctx.beginPath();ctx.moveTo(14,cy+7);ctx.lineTo(14,cy+11);ctx.lineTo(17,cy+11);ctx.stroke();
         } else if(item.subtype==='eraser'){
           ctx.strokeStyle='#ff4444';ctx.lineWidth=2;
           ctx.beginPath();ctx.moveTo(10,cy+7);ctx.lineTo(18,cy+15);ctx.stroke();
@@ -8600,6 +8605,11 @@ function drawLevelEditor(){
       else if(item.subtype==='item'){ctx.fillStyle='#ff8800';ctx.save();ctx.translate(sx,sy);ctx.beginPath();ctx.moveTo(0,-10);ctx.lineTo(8,0);ctx.lineTo(0,10);ctx.lineTo(-8,0);ctx.closePath();ctx.fill();ctx.restore();}
       else if(item.subtype==='goal'){ctx.strokeStyle='#00ff88';ctx.lineWidth=2;ctx.beginPath();ctx.arc(sx,sy,30,0,Math.PI*2);ctx.stroke();ctx.font='9px "Courier New"';ctx.fillStyle='#00ff88';ctx.textAlign='center';ctx.fillText('GOAL',sx,sy+42);}
     }
+    if(item.appearAfter>0||item.duration>0){
+      ctx.font='bold 7px "Courier New"';ctx.textAlign='center';
+      if(item.appearAfter>0){ctx.fillStyle='rgba(255,136,68,0.8)';ctx.fillText(`@${item.appearAfter}s`,sx,sy-14);}
+      if(item.duration>0){ctx.fillStyle='rgba(255,200,100,0.6)';ctx.fillText(`${item.duration}s`,sx,sy-6);}
+    }
   }
   // Spawn marker
   const spx=editorSpawnX-editorCamX+sideW,spy=editorSpawnY-editorCamY;
@@ -8738,6 +8748,43 @@ function drawLevelEditor(){
       }
       ctx.textAlign='left';
     }
+  }
+  // Timekeeper properties toolbar
+  if(editorSelectedTimer>=0&&editorSelectedTimer<editorPlacedItems.length&&editorTool==='timekeeper'){
+    const ti=editorPlacedItems[editorSelectedTimer];
+    const tsx=ti.x-editorCamX+sideW,tsy=ti.y-editorCamY;
+    const tbW=220,tbH=80,tbX=tsx+20,tbY=tsy-tbH-10;
+    ctx.fillStyle='rgba(0,20,50,0.92)';roundRect(ctx,tbX,tbY,tbW,tbH,6);ctx.fill();
+    ctx.strokeStyle='#ff8844';ctx.lineWidth=1;roundRect(ctx,tbX,tbY,tbW,tbH,6);ctx.stroke();
+    ctx.textAlign='center';ctx.font='bold 9px "Courier New"';
+    // APPEAR AFTER row
+    ctx.textAlign='left';ctx.fillStyle='rgba(200,160,100,0.7)';ctx.fillText('APPEAR AFTER:',tbX+6,tbY+14);
+    const aPresets=[0,5,10,15,30,60,120];
+    const apW=Math.floor((tbW-12-6*(aPresets.length-1))/aPresets.length),apH=18;
+    for(let p=0;p<aPresets.length;p++){
+      const px=tbX+6+p*(apW+6),py=tbY+18;
+      const sel=(ti.appearAfter||0)===aPresets[p];
+      const phov=mouse.x>px&&mouse.x<px+apW&&mouse.y>py&&mouse.y<py+apH;
+      ctx.fillStyle=sel?'rgba(180,100,0,0.7)':phov?'rgba(80,50,0,0.5)':'rgba(30,20,0,0.4)';
+      roundRect(ctx,px,py,apW,apH,2);ctx.fill();
+      if(sel){ctx.strokeStyle='#ff8844';ctx.lineWidth=1;roundRect(ctx,px,py,apW,apH,2);ctx.stroke();}
+      ctx.textAlign='center';ctx.font='bold 8px "Courier New"';ctx.fillStyle=sel?'#ff8844':'rgba(200,160,100,0.6)';
+      ctx.fillText(aPresets[p]===0?'NOW':`${aPresets[p]}s`,px+apW/2,py+13);
+    }
+    // DURATION row
+    ctx.textAlign='left';ctx.font='bold 9px "Courier New"';ctx.fillStyle='rgba(200,160,100,0.7)';ctx.fillText('DURATION:',tbX+6,tbY+50);
+    const dPresets=[0,5,10,15,30,60,120];
+    for(let p=0;p<dPresets.length;p++){
+      const px=tbX+6+p*(apW+6),py=tbY+54;
+      const sel=(ti.duration||0)===dPresets[p];
+      const phov=mouse.x>px&&mouse.x<px+apW&&mouse.y>py&&mouse.y<py+apH;
+      ctx.fillStyle=sel?'rgba(180,100,0,0.7)':phov?'rgba(80,50,0,0.5)':'rgba(30,20,0,0.4)';
+      roundRect(ctx,px,py,apW,apH,2);ctx.fill();
+      if(sel){ctx.strokeStyle='#ff8844';ctx.lineWidth=1;roundRect(ctx,px,py,apW,apH,2);ctx.stroke();}
+      ctx.textAlign='center';ctx.font='bold 8px "Courier New"';ctx.fillStyle=sel?'#ff8844':'rgba(200,160,100,0.6)';
+      ctx.fillText(dPresets[p]===0?'PERM':`${dPresets[p]}s`,px+apW/2,py+13);
+    }
+    ctx.textAlign='left';
   }
   ctx.restore(); // unclip
 
@@ -9110,6 +9157,29 @@ function _doClick(){
         }
       }
     }
+    // Timekeeper toolbar clicks
+    if(editorSelectedTimer>=0&&editorSelectedTimer<editorPlacedItems.length&&editorTool==='timekeeper'){
+      const ti=editorPlacedItems[editorSelectedTimer];
+      const tsx=ti.x-editorCamX+sideW,tsy=ti.y-editorCamY;
+      const tbW=220,tbH=80,tbX=tsx+20,tbY=tsy-tbH-10;
+      const aPresets=[0,5,10,15,30,60,120];
+      const apW=Math.floor((tbW-12-6*(aPresets.length-1))/aPresets.length),apH=18;
+      // Appear presets
+      for(let p=0;p<aPresets.length;p++){
+        const px=tbX+6+p*(apW+6),py=tbY+18;
+        if(mouse.x>px&&mouse.x<px+apW&&mouse.y>py&&mouse.y<py+apH){
+          ti.appearAfter=aPresets[p];editorDirty=true;SFX.select();return;
+        }
+      }
+      // Duration presets
+      const dPresets=[0,5,10,15,30,60,120];
+      for(let p=0;p<dPresets.length;p++){
+        const px=tbX+6+p*(apW+6),py=tbY+54;
+        if(mouse.x>px&&mouse.x<px+apW&&mouse.y>py&&mouse.y<py+apH){
+          ti.duration=dPresets[p];editorDirty=true;SFX.select();return;
+        }
+      }
+    }
     // Horizontal scrollbar click
     const maxCamX2=Math.max(1,editorWorldW-canvas.width+sideW);
     if(editorWorldW>canvas.width-sideW&&mouse.y>H-8){
@@ -9191,7 +9261,17 @@ function _doClick(){
           editorSelectedPickup=i;editorSelectedGate=-1;SFX.select();return;
         }
       }
-      editorSelectedGate=-1;editorSelectedPickup=-1; // clicked empty space, deselect
+      // Timekeeper: select any item for timing
+      if(editorTool==='timekeeper'){
+        for(let i=editorPlacedItems.length-1;i>=0;i--){
+          if(_editorHitTest(editorPlacedItems[i],gx,gy)){
+            editorSelectedTimer=i;SFX.select();return;
+          }
+        }
+        editorSelectedTimer=-1;
+        return;
+      }
+      editorSelectedGate=-1;editorSelectedPickup=-1;editorSelectedTimer=-1; // clicked empty space, deselect
       const toolDef=_findToolDef(editorTool);
       if(!toolDef)return;
       if(toolDef.cat==='special'&&toolDef.subtype==='spawn'){
