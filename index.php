@@ -7719,6 +7719,42 @@ function _editorSave(){
   gameState='levelSavePrompt';SFX.confirm();
 }
 
+function drawLevelSavePrompt(){
+  const W=canvas.width,H=canvas.height,cx=W/2;
+  ctx.fillStyle='#060c18';ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  ctx.font='bold 24px "Courier New"';ctx.fillStyle='#00ff88';ctx.shadowBlur=20;ctx.shadowColor='#00ff88';
+  ctx.fillText('LEVEL SAVED',cx,H*0.2);ctx.shadowBlur=0;
+  ctx.font='14px "Courier New"';ctx.fillStyle='rgba(100,200,255,0.8)';
+  ctx.fillText(`"${editorLevel?editorLevel.name:''}" added to "${editorPack?editorPack.packName:''}"`,cx,H*0.2+34);
+  ctx.font='12px "Courier New"';ctx.fillStyle='rgba(150,180,220,0.6)';
+  if(editorLevel){
+    const ec=editorPlacedItems.filter(i=>i.cat==='enemy').length;
+    ctx.fillText(`${editorLevel.worldW}x${editorLevel.worldH}  |  ${ec} enemies  |  ${editorLevel.winCondition}`,cx,H*0.2+60);
+  }
+  ctx.fillText(`Pack total: ${editorPack?editorPack.levels.length:0} level${editorPack&&editorPack.levels.length!==1?'s':''}`,cx,H*0.2+80);
+  const btnW=260,btnH=46,gap=16;
+  const addY=H*0.5;
+  const ahov=mouse.x>cx-btnW/2&&mouse.x<cx+btnW/2&&mouse.y>addY&&mouse.y<addY+btnH;
+  ctx.shadowBlur=ahov?22:8;ctx.shadowColor='#00ccff';
+  ctx.fillStyle=ahov?'rgba(0,140,200,0.85)':'rgba(0,0,0,0.65)';
+  roundRect(ctx,cx-btnW/2,addY,btnW,btnH,8);ctx.fill();
+  ctx.strokeStyle=ahov?'#00eeff':'rgba(0,140,220,0.6)';ctx.lineWidth=1.5;
+  roundRect(ctx,cx-btnW/2,addY,btnW,btnH,8);ctx.stroke();ctx.shadowBlur=0;
+  ctx.font='bold 13px "Courier New"';ctx.fillStyle=ahov?'#000':'rgba(100,200,255,0.9)';
+  ctx.fillText('+ ADD ANOTHER LEVEL',cx,addY+btnH/2+5);
+  const doneY=addY+btnH+gap;
+  const dhov=mouse.x>cx-btnW/2&&mouse.x<cx+btnW/2&&mouse.y>doneY&&mouse.y<doneY+btnH;
+  ctx.shadowBlur=dhov?24:10;ctx.shadowColor='#00ff88';
+  ctx.fillStyle=dhov?'#00ff88':'rgba(0,0,0,0.7)';
+  roundRect(ctx,cx-btnW/2,doneY,btnW,btnH,8);ctx.fill();
+  ctx.strokeStyle='#00ff88';ctx.lineWidth=2;
+  roundRect(ctx,cx-btnW/2,doneY,btnW,btnH,8);ctx.stroke();ctx.shadowBlur=0;
+  ctx.font='bold 13px "Courier New"';ctx.fillStyle=dhov?'#000':'#00ff88';
+  ctx.fillText('DONE - SAVE PACK',cx,doneY+btnH/2+5);
+  ctx.textAlign='left';
+}
+
 function drawLevelEditor(){
   const W=canvas.width,H=canvas.height;
   const sideW=180;
@@ -8012,6 +8048,25 @@ function _doClick(){
     return; // eat all other clicks while paused
   }
 
+  if(gameState==='levelSavePrompt'){
+    const cx=canvas.width/2,H=canvas.height;
+    const btnW=260,btnH=46,gap=16;
+    const addY=H*0.5;
+    if(mouse.x>cx-btnW/2&&mouse.x<cx+btnW/2&&mouse.y>addY&&mouse.y<addY+btnH){
+      editorLevelName='Untitled Level';editorWorldW=2600;editorWorldH=1700;
+      editorWinCondition='killAll';editorWinSeconds=60;
+      gameState='levelSetup';SFX.select();return;
+    }
+    const doneY=addY+btnH+gap;
+    if(mouse.x>cx-btnW/2&&mouse.x<cx+btnW/2&&mouse.y>doneY&&mouse.y<doneY+btnH){
+      const packs=_loadCustomLevels();
+      packs.push(editorPack);
+      _saveCustomLevels(packs);
+      editorPack=null;editorLevel=null;editorPlacedItems=[];
+      gameState='customSelect';SFX.confirm();return;
+    }
+    return;
+  }
   if(gameState==='levelEditor'){
     const W=canvas.width,H=canvas.height,sideW=180;
     // Top-right buttons
@@ -9202,6 +9257,7 @@ function loop(now){
       SFX.select();return;
     }
     if(gameState==='levelEditor'){K['Space']=false;return;}
+    if(gameState==='levelSavePrompt'){K['Space']=false;return;}
     if(gameState==='levelSetup'){K['Space']=false;gameState='customSelect';SFX.select();return;}
     if(gameState==='customSelect'){K['Space']=false;gameState='start';SFX.select();return;}
     if(gameState==='customResult'){K['Space']=false;gameState='customSelect';SFX.select();return;}
@@ -9367,6 +9423,8 @@ function loop(now){
     drawLevelSetup();
   } else if(gameState==='levelEditor'){
     drawLevelEditor();
+  } else if(gameState==='levelSavePrompt'){
+    drawLevelSavePrompt();
   }
 
   ctx.restore();
