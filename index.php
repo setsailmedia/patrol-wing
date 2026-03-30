@@ -415,6 +415,12 @@ canvas.addEventListener('mousedown',e=>{
   }
   if(gameState==='levelEditor'&&e.button===0){
     const sideW=180;
+    if(editorTool==='move'&&mouse.x>sideW){
+      editorPanning=true;
+      editorPanStartX=mouse.x;editorPanStartY=mouse.y;
+      editorPanCamX=editorCamX;editorPanCamY=editorCamY;
+      return;
+    }
     if(mouse.x>sideW&&editorTool!=='eraser'){
       const gx=Math.round((mouse.x-sideW+editorCamX)/50)*50;
       const gy=Math.round((mouse.y+editorCamY)/50)*50;
@@ -452,7 +458,7 @@ canvas.addEventListener('mousedown',e=>{
   }
   mouse.down=true; mouse.justDown=true;
 });
-canvas.addEventListener('mouseup',  e=>{if(e.button!==0)return; mouse.down=false; if(setupSliderDrag)setupSliderDrag=null; if(editorDragIdx>=0){editorDragIdx=-1;}});
+canvas.addEventListener('mouseup',  e=>{if(e.button!==0)return; mouse.down=false; if(editorPanning){editorPanning=false;return;} if(setupSliderDrag)setupSliderDrag=null; if(editorDragIdx>=0){editorDragIdx=-1;}});
 canvas.addEventListener('mouseup',  e=>{
   if(e.button!==2)return;
   // Portal: right-click cycles through portals (same as Space)
@@ -879,6 +885,7 @@ let editorWinSeconds=60;
 let editorDirty=false;
 let editorSliderDrag=null;
 let editorDragIdx=-1;
+let editorPanning=false;let editorPanStartX=0,editorPanStartY=0,editorPanCamX=0,editorPanCamY=0;
 let editorSelectedGate=-1;
 let customSelectExpanded=-1;
 let customSelectSelectedLevel=-1;
@@ -7674,7 +7681,17 @@ function loadCustomLevel(levelData){
     }
   }
   if(levelData.pickups){
-    for(const p of levelData.pickups) spawnPickup(p.x,p.y,p.type,!!p.hidden);
+    for(const p of levelData.pickups){
+      const idx=pickups.length;
+      spawnPickup(p.x,p.y,p.type,!!p.hidden);
+      if(pickups.length>idx){
+        const pk2=pickups[pickups.length-1];
+        pk2.dropTimer=null;
+        if(p.weaponMode)pk2.weaponMode=p.weaponMode;
+        if(p.weaponId)pk2.weaponId=p.weaponId;
+        if(p.weaponPool)pk2.weaponPool=p.weaponPool;
+      }
+    }
   }
   if(levelData.hazards){
     for(const h of levelData.hazards){
@@ -7992,17 +8009,10 @@ function drawCustomSelect(){
       }
     }
   }
-  // Back button
+  // Back button — left-anchored, _briefBtn style
   ctx.textAlign='center';
-  const bbw=160,bbh=40,bbx=cx-bbw/2,bby=H-70;
-  const bhov=mouse.x>bbx&&mouse.x<bbx+bbw&&mouse.y>bby&&mouse.y<bby+bbh;
-  ctx.shadowBlur=bhov?18:6;ctx.shadowColor='#00ccff';
-  ctx.fillStyle=bhov?'rgba(0,140,200,0.85)':'rgba(0,0,0,0.65)';
-  roundRect(ctx,bbx,bby,bbw,bbh,6);ctx.fill();
-  ctx.strokeStyle=bhov?'#00eeff':'rgba(0,140,220,0.6)';ctx.lineWidth=1.5;
-  roundRect(ctx,bbx,bby,bbw,bbh,6);ctx.stroke();ctx.shadowBlur=0;
-  ctx.font='bold 12px "Courier New"';ctx.fillStyle=bhov?'#000':'rgba(100,200,255,0.9)';
-  ctx.fillText('BACK',cx,bby+bbh/2+4);
+  const bbw=Math.min(160,W*0.2),bbh=40,bbx=Math.max(20,W*0.03),bby=H-70;
+  _briefBtn(bbx,bby,bbw,bbh,'◀  BACK','#00ccff',false);
   ctx.textAlign='left';
 }
 
@@ -8167,12 +8177,13 @@ function _getEditorCategories(){
       ...(editorWinCondition==='collectAll'?[{tool:'obj_key',label:'Key',cat:'objective',subtype:'key'}]:[]),
       ...(editorWinCondition==='retrieve'?[{tool:'obj_item',label:'Item',cat:'objective',subtype:'item'},{tool:'obj_goal',label:'Goal Zone',cat:'objective',subtype:'goal'}]:[]),
     ]},
-    {id:'tools',label:'TOOLS',items:[{tool:'adjust',label:'Adjust',cat:'special',subtype:'adjust'},{tool:'eraser',label:'Eraser',cat:'special',subtype:'eraser'}]},
+    {id:'tools',label:'TOOLS',items:[{tool:'move',label:'Move',cat:'special',subtype:'move'},{tool:'adjust',label:'Adjust',cat:'special',subtype:'adjust'},{tool:'eraser',label:'Eraser',cat:'special',subtype:'eraser'}]},
   ];
 }
 function _editorHitTest(item,gx,gy){
   if(item.cat==='obstacle'&&item.subtype==='wall'){
-    return gx>=item.x&&gx<=item.x+(item.w||26)&&gy>=item.y&&gy<=item.y+(item.h||100);
+    const hw=(item.w||26)/2,hh=(item.h||100)/2;
+    return gx>=item.x-hw&&gx<=item.x+hw&&gy>=item.y-hh&&gy<=item.y+hh;
   }
   if(item.cat==='obstacle'&&item.subtype==='pillar'){
     return dist(item.x,item.y,gx,gy)<(item.r||35)+10;
@@ -8207,7 +8218,7 @@ function _loadLevelIntoEditor(lv,packIdx,levelIdx){
   if(lv.obstacles) for(const o of lv.obstacles){
     if(o.type==='gate') editorPlacedItems.push({cat:'obstacle',subtype:'gate',x:o.x,y:o.y,orient:o.orient||'h',hinge:o.hinge||'left',unlockType:o.unlockType||'guard',unlockParams:{...(o.unlockParams||{})}});
     else if(o.type==='pillar') editorPlacedItems.push({cat:'obstacle',subtype:'pillar',x:o.x,y:o.y,r:o.r||35});
-    else editorPlacedItems.push({cat:'obstacle',subtype:'wall',x:o.x,y:o.y,w:o.w||26,h:o.h||100});
+    else editorPlacedItems.push({cat:'obstacle',subtype:'wall',x:o.x+(o.w||26)/2,y:o.y+(o.h||100)/2,w:o.w||26,h:o.h||100});
   }
   if(lv.enemies) for(const e of lv.enemies) editorPlacedItems.push({cat:'enemy',subtype:e.type,x:e.x,y:e.y});
   if(lv.pickups) for(const p of lv.pickups) editorPlacedItems.push({cat:'pickup',subtype:p.type,x:p.x,y:p.y});
@@ -8279,6 +8290,12 @@ function _drawEditorSidebar(sideW,H){
           ctx.strokeStyle='#00ddff';ctx.lineWidth=1.5;
           ctx.beginPath();ctx.moveTo(10,cy+11);ctx.lineTo(18,cy+11);ctx.stroke();
           ctx.beginPath();ctx.moveTo(14,cy+7);ctx.lineTo(14,cy+15);ctx.stroke();
+        } else if(item.subtype==='move'){
+          ctx.strokeStyle='#88aacc';ctx.lineWidth=1.5;
+          ctx.beginPath();ctx.moveTo(14,cy+7);ctx.lineTo(14,cy+15);ctx.stroke();
+          ctx.beginPath();ctx.moveTo(10,cy+11);ctx.lineTo(18,cy+11);ctx.stroke();
+          ctx.beginPath();ctx.moveTo(12,cy+7);ctx.lineTo(14,cy+5);ctx.lineTo(16,cy+7);ctx.stroke();
+          ctx.beginPath();ctx.moveTo(12,cy+15);ctx.lineTo(14,cy+17);ctx.lineTo(16,cy+15);ctx.stroke();
         } else if(item.subtype==='adjust'){
           ctx.strokeStyle='#44aaff';ctx.lineWidth=1.5;
           ctx.beginPath();ctx.moveTo(10,cy+11);ctx.lineTo(18,cy+11);ctx.stroke();
@@ -8309,7 +8326,7 @@ function _editorSave(){
       lv.obstacles.push({type:'gate',x:item.x,y:item.y,orient:item.orient,hinge:item.hinge,unlockType:item.unlockType,unlockParams:item.unlockParams});
     } else if(item.cat==='obstacle'){
       if(item.subtype==='pillar') lv.obstacles.push({type:'pillar',x:item.x,y:item.y,r:item.r});
-      else lv.obstacles.push({type:'wall',x:item.x,y:item.y,w:item.w,h:item.h});
+      else if(item.subtype==='wall') lv.obstacles.push({type:'wall',x:item.x-(item.w||26)/2,y:item.y-(item.h||100)/2,w:item.w,h:item.h});
     } else if(item.cat==='enemy'){
       lv.enemies.push({type:item.subtype,x:item.x,y:item.y});
     } else if(item.cat==='pickup'){
@@ -8420,7 +8437,7 @@ function drawLevelEditor(){
     } else if(item.cat==='obstacle'){
       ctx.fillStyle='rgba(80,100,120,0.6)';
       if(item.subtype==='pillar'){ctx.beginPath();ctx.arc(sx,sy,item.r||35,0,Math.PI*2);ctx.fill();ctx.strokeStyle='rgba(120,150,180,0.5)';ctx.lineWidth=1;ctx.stroke();}
-      else{ctx.fillRect(sx,sy,item.w||26,item.h||100);ctx.strokeStyle='rgba(120,150,180,0.5)';ctx.lineWidth=1;ctx.strokeRect(sx,sy,item.w||26,item.h||100);}
+      else{ctx.fillRect(sx-(item.w||26)/2,sy-(item.h||100)/2,item.w||26,item.h||100);ctx.strokeStyle='rgba(120,150,180,0.5)';ctx.lineWidth=1;ctx.strokeRect(sx-(item.w||26)/2,sy-(item.h||100)/2,item.w||26,item.h||100);}
     } else if(item.cat==='enemy'){
       const col=ETYPES[item.subtype]?ETYPES[item.subtype].color:'#ff4444';
       ctx.fillStyle=col;ctx.beginPath();ctx.arc(sx,sy,10,0,Math.PI*2);ctx.fill();
@@ -8618,6 +8635,23 @@ function drawLevelEditor(){
   const vpX=mmX+editorCamX*scX,vpY=mmY+editorCamY*scY;
   const vpW=Math.min(mmW,(W-sideW)*scX),vpH=Math.min(mmH,H*scY);
   ctx.strokeStyle='#00ccff';ctx.lineWidth=1;ctx.strokeRect(vpX,vpY,vpW,vpH);
+  // Scrollbars
+  const maxCamX=Math.max(1,editorWorldW-canvas.width+sideW);
+  const maxCamY=Math.max(1,editorWorldH-canvas.height);
+  if(editorWorldW>canvas.width-sideW){
+    const sbH=8,sbY=H-sbH,sbW=W-sideW-100;
+    const thumbW=Math.max(30,(canvas.width-sideW)/editorWorldW*sbW);
+    const thumbX=sideW+(editorCamX/maxCamX)*(sbW-thumbW);
+    ctx.fillStyle='rgba(0,20,50,0.6)';ctx.fillRect(sideW,sbY,sbW,sbH);
+    ctx.fillStyle='rgba(0,140,220,0.5)';roundRect(ctx,thumbX,sbY,thumbW,sbH,3);ctx.fill();
+  }
+  if(editorWorldH>canvas.height){
+    const sbW2=8,sbX=W-sbW2,sbH2=H-80;
+    const thumbH=Math.max(30,canvas.height/editorWorldH*sbH2);
+    const thumbY=(editorCamY/maxCamY)*(sbH2-thumbH);
+    ctx.fillStyle='rgba(0,20,50,0.6)';ctx.fillRect(sbX,0,sbW2,sbH2);
+    ctx.fillStyle='rgba(0,140,220,0.5)';roundRect(ctx,sbX,thumbY,sbW2,thumbH,3);ctx.fill();
+  }
   ctx.textAlign='left';
   if(editorTool==='_assignGuard'){
     ctx.fillStyle='rgba(0,80,40,0.8)';ctx.fillRect(sideW,40,W-sideW,24);
@@ -8895,6 +8929,20 @@ function _doClick(){
         }
       }
     }
+    // Horizontal scrollbar click
+    const maxCamX2=Math.max(1,editorWorldW-canvas.width+sideW);
+    if(editorWorldW>canvas.width-sideW&&mouse.y>H-8){
+      const sbW2=W-sideW-100;
+      editorCamX=clamp(((mouse.x-sideW)/sbW2)*maxCamX2,0,maxCamX2);
+      return;
+    }
+    // Vertical scrollbar click
+    const maxCamY2=Math.max(1,editorWorldH-canvas.height);
+    if(editorWorldH>canvas.height&&mouse.x>W-8){
+      const sbH2=H-80;
+      editorCamY=clamp((mouse.y/sbH2)*maxCamY2,0,maxCamY2);
+      return;
+    }
     // Sidebar clicks
     if(mouse.x<sideW){
       let cy=10-editorSidebarScroll;
@@ -8961,6 +9009,7 @@ function _doClick(){
       if(toolDef.cat==='special'&&toolDef.subtype==='spawn'){
         editorSpawnX=gx;editorSpawnY=gy;editorDirty=true;SFX.select();return;
       }
+      if(toolDef.cat==='special'&&toolDef.subtype==='move') return; // move uses mousedown drag
       if(toolDef.cat==='special'&&toolDef.subtype==='adjust') return; // adjust uses mousedown drag only
       if(toolDef.cat==='special'&&toolDef.subtype==='eraser'){
         for(let i=editorPlacedItems.length-1;i>=0;i--){
@@ -9144,7 +9193,7 @@ function _doClick(){
       }
     }
     // Back
-    const bbw=160,bbh=40,bbx=cx-bbw/2,bby=H-70;
+    const bbw=Math.min(160,W*0.2),bbh=40,bbx=Math.max(20,W*0.03),bby=H-70;
     if(mouse.x>bbx&&mouse.x<bbx+bbw&&mouse.y>bby&&mouse.y<bby+bbh){
       gameState='start';customSelectExpanded=-1;customSelectSelectedLevel=-1;SFX.select();return;
     }
@@ -9292,7 +9341,7 @@ function _doClick(){
     if(mouse.x>c5X&&mouse.x<c5X+cardW&&mouse.y>row2Y&&mouse.y<row2Y+cardH){
       activeBriefing='brief_tt5'; gameState='briefing'; SFX.select(); return;
     }
-    const bw=140,bh=36,bx=Math.max(20,H*0.03),by=H-backH+8;
+    const bw=140,bh=36,bx=Math.max(20,W*0.03),by=H-backH+8;
     if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){gameState='start';SFX.select();return;}
     return;
   }
@@ -9507,6 +9556,10 @@ canvas.addEventListener('mousemove',e=>{
     if(editorSliderDrag==='width') editorWorldW=Math.round((400+pct*(4500-400))/100)*100;
     else if(editorSliderDrag==='height') editorWorldH=Math.round((400+pct*(4500-400))/100)*100;
     else if(editorSliderDrag==='seconds') editorWinSeconds=Math.round(10+pct*(180-10));
+  }
+  if(editorPanning&&gameState==='levelEditor'){
+    editorCamX=clamp(editorPanCamX-(mouse.x-editorPanStartX),0,Math.max(0,editorWorldW-canvas.width+180));
+    editorCamY=clamp(editorPanCamY-(mouse.y-editorPanStartY),0,Math.max(0,editorWorldH-canvas.height));
   }
   if(editorDragIdx>=0&&gameState==='levelEditor'){
     const sideW=180;
