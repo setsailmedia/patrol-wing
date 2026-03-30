@@ -1601,7 +1601,7 @@ function fireWeapon(){
   const deadEyeMult=P.craftIdx===SNIPER_IDX()?Math.min(3.0,1.0+(deadEyeMs/2000)*2.0):1.0;
   const dmg=w.dmg*(P.overchargeMs>0?2.3:1)*deadEyeMult,half=(w.count-1)/2;
   if(w.id==='boomr'){
-    const spd=13;
+    const spd=26;
     boomerangs.push({
       x:P.x, y:P.y,
       vx:Math.cos(P.aim)*spd, vy:Math.sin(P.aim)*spd,
@@ -3711,7 +3711,7 @@ function drawSeekers(){
 }
 // ─── BOOMERANGS ───────────────────────────────────────────────────
 const BOOMR_SPD=13;
-const BOOMR_RETURN_SPD=15; // slightly faster on return
+const BOOMR_RETURN_SPD=22.5; // slightly faster on return
 function tickBoomerangs(dt){
   const step=dt*60;
   for(let bi=boomerangs.length-1;bi>=0;bi--){
@@ -3957,7 +3957,7 @@ function checkCollisions(){
       if(jrHit&&!playerHit) spawnParts(pk.x,pk.y,'#44ffcc',_pCount(8),2.5,4,300); // J R pickup sparkle
       switch(pk.type){
         case'battery':P.bat=Math.min(P.maxBat,P.bat+58);score+=50;spawnParts(pk.x,pk.y,'#00ff88',_pCount(14),3.5,5,420);SFX.pickup();weaponFlash={prefix:'COLLECTED',name:'BATTERY PACK +58',ms:1400};break;
-        case'health':P.hp=Math.min(P.maxHp,P.hp+48);if(miniMe.active)miniMe.hp=Math.min(MM_HP,miniMe.hp+24);score+=50;spawnParts(pk.x,pk.y,'#ff4466',_pCount(14),3.5,5,420);SFX.pickup();weaponFlash={prefix:'COLLECTED',name:'HULL REPAIR +48',ms:1400};break;
+        case'health':P.hp=Math.min(P.maxHp,P.hp+48);if(miniMe.active)miniMe.hp=Math.min(MM_HP,miniMe.hp+24);score+=50;spawnParts(pk.x,pk.y,'#ff4466',_pCount(14),3.5,5,420);SFX.pickup();weaponFlash={prefix:'COLLECTED',name:'CRAFT REPAIR +48',ms:1400};break;
         case'medkit':P.hp=Math.min(P.maxHp,P.hp+22);if(miniMe.active)miniMe.hp=Math.min(MM_HP,miniMe.hp+11);score+=30;spawnParts(pk.x,pk.y,'#44ffdd',_pCount(12),3,4.5,380);SFX.pickup();weaponFlash={prefix:'COLLECTED',name:'MED KIT +22',ms:1400};break;
         case'weapon':
           if(P.unlockedW.size<WEAPONS.length){
@@ -3969,7 +3969,7 @@ function checkCollisions(){
               P.weaponIdx=next;
               weaponFlash={name:WEAPONS[next].name,ms:3000};
             } else {
-              weaponFlash={prefix:'UNLOCKED',name:`${WEAPONS[next].name} - LOADOUT FULL`,ms:3000};
+              weaponFlash={prefix:'UNLOCKED',name:`${WEAPONS[next].name} - ARSENAL FULL`,ms:3000};
             }
             score+=100;
             spawnParts(pk.x,pk.y,WEAPONS[next].color,_pCount(22),5,7,550); SFX.weapon();
@@ -4077,20 +4077,20 @@ function drawWeaponBar(){
     ctx.font=`${act?'bold ':''}${iconSz}px "Courier New"`;ctx.fillStyle=iconCol;
     ctx.fillText(GLYPHS[wIdx]||'?',x+bw/2,by+bh/2+(T?5:7));
     if(w.id==='mine'){
-      ctx.font=`bold ${T?7:9}px "Courier New"`;
+      ctx.font=`bold ${T?8:10}px "Courier New"`;
       ctx.fillStyle=P.mineStock>0?(act?'#ff2200':'rgba(180,60,30,0.8)'):'rgba(100,50,40,0.6)';
       ctx.fillText(`×${P.mineStock}`,x+bw/2,by+bh-(T?2:4));
     } else if(w.id==='seekr'){
-      ctx.font=`bold ${T?7:9}px "Courier New"`;
+      ctx.font=`bold ${T?8:10}px "Courier New"`;
       ctx.fillStyle=P.seekStock>0?(act?SEEKR_COL:'rgba(180,130,30,0.8)'):'rgba(100,50,40,0.6)';
       ctx.fillText(`×${P.seekStock}`,x+bw/2,by+bh-(T?2:4));
     } else if(w.id==='tractor'){
       const secLeft=(P.stocks['tractor']||0)/1000;
-      ctx.font=`bold ${T?7:9}px "Courier New"`;
+      ctx.font=`bold ${T?8:10}px "Courier New"`;
       ctx.fillStyle=secLeft>0?(act?'#44aaff':'rgba(60,130,200,0.8)'):'rgba(60,80,120,0.5)';
       ctx.fillText(secLeft>0?`${Math.ceil(secLeft)}s`:'OUT',x+bw/2,by+bh-(T?2:4));
     } else if(wStock!==null){
-      ctx.font=`bold ${T?7:9}px "Courier New"`;
+      ctx.font=`bold ${T?8:10}px "Courier New"`;
       const label=wStock>=1000?`${Math.floor(wStock/1000)}k`:wStock<=0?'OUT':`×${wStock}`;
       ctx.fillStyle=wStock>0?(act?w.color:'rgba(120,140,160,0.7)'):'rgba(200,60,60,0.7)';
       ctx.fillText(label,x+bw/2,by+bh-(T?2:4));
@@ -4103,7 +4103,7 @@ function drawWeaponBar(){
       ctx.fillRect(px2,py2,pw*hpPct,ph);
     }
     if(w.id==='minime'&&mmLost){
-      ctx.font=`bold ${T?7:9}px "Courier New"`;ctx.fillStyle='rgba(200,60,60,0.8)';
+      ctx.font=`bold ${T?8:10}px "Courier New"`;ctx.fillStyle='rgba(200,60,60,0.8)';
       ctx.fillText('KIA',x+bw/2,by+bh-(T?2:4));
     }
   }
@@ -4116,11 +4116,11 @@ function drawWeaponBar(){
   const mmLabel=cw.id==='minime'?(miniMe.active?' [ACTIVE]':miniMe.lost?' [KIA]':''):'';
   const cwStock=cw.stock!==null&&cw.id!=='mine'?P.stocks[cw.id]??cw.stock:null;
   const stockLabel=cwStock!==null?(cwStock>=1000?` [${Math.floor(cwStock/1000)}k rds]`:cwStock<=0?' [OUT]':` [${cwStock} rds]`):'';
-  ctx.fillText(cw.name+mineLabel+seekrLabel+mmLabel+stockLabel,canvas.width/2,by+bh+(T?9:13));ctx.shadowBlur=0;
+  ctx.fillText(cw.name+mineLabel+seekrLabel+mmLabel+stockLabel,canvas.width/2,by-(T?8:14));ctx.shadowBlur=0;
   if(weaponFlash.ms>0){
     const a=Math.min(1,weaponFlash.ms/700);ctx.globalAlpha=a;
     ctx.font=`bold ${T?11:16}px "Courier New"`;ctx.fillStyle=cw.color;ctx.shadowBlur=T?14:24;ctx.shadowColor=cw.color;
-    ctx.fillText(`${weaponFlash.prefix??'⬆ WEAPON:'} ${weaponFlash.name}`,canvas.width/2,by-(T?14:24));ctx.shadowBlur=0;ctx.globalAlpha=1;
+    ctx.fillText(`${weaponFlash.prefix??'⬆ WEAPON:'} ${weaponFlash.name}`,canvas.width/2,by-(T?22:38));ctx.shadowBlur=0;ctx.globalAlpha=1;
   }
   ctx.textAlign='left';
 }
@@ -4354,7 +4354,7 @@ function drawLoadoutEdit(){
   ctx.fillStyle='rgba(4,10,26,0.88)';ctx.fillRect(0,0,W,H);
   ctx.textAlign='center';
   ctx.font='bold 24px "Courier New"';ctx.fillStyle='#00ccff';ctx.shadowBlur=20;ctx.shadowColor='#00aaff';
-  ctx.fillText('WEAPONS LOADOUT',cx,50);ctx.shadowBlur=0;
+  ctx.fillText('WEAPONS ARSENAL',cx,50);ctx.shadowBlur=0;
   ctx.font='12px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.7)';
   ctx.fillText(`${c.name}  —  ${lo.length}/${c.maxSlots} SLOTS`,cx,72);
   const GLYPHS=['•','►','»','↩','∿','↯','|','↪','⊙','‖','⊸','◈','◎','⊞','⊛','⇝','⬆','⊕','⌬','◉','⊗','≋','※'];
@@ -4832,7 +4832,8 @@ function _hangarLayout(){
   const rowW=Math.min(W*0.82,11*(swatchR*2+10)-10);
   const itemStep=rowW/10;
   const rowStartX=cx-rowW/2;
-  const swatchCY=swatchLabelY+swatchR+26;
+  const swatchZoneTop=swatchLabelY+18, swatchZoneBot=btnY-btnH-10;
+  const swatchCY=swatchZoneTop+(swatchZoneBot-swatchZoneTop)/2;
   const spacing=Math.min(220,W*0.22);
   const startX=cx-(HANGAR_VISIBLE-1)*spacing/2;
   const arrowW=36,arrowH=cardH;
@@ -4954,7 +4955,7 @@ function drawHangarScreen(){
   roundRect(ctx,elX,elY,elW,elH,6);ctx.stroke();ctx.shadowBlur=0;
   ctx.textAlign='center';ctx.font='bold 12px "Courier New"';
   ctx.fillStyle=elHov?'#000':'rgba(100,200,255,0.9)';
-  ctx.fillText('EDIT LOADOUT',cx,elY+elH/2+4);
+  ctx.fillText('EDIT ARSENAL',cx,elY+elH/2+4);
 
   // ── Bottom buttons ───────────────────────────────────────────
   const cancelHov=mouse.x>cancelX&&mouse.x<cancelX+cancelW&&mouse.y>btnY&&mouse.y<btnY+btnH;
@@ -7360,21 +7361,38 @@ function drawCustomObjectives(){
       ctx.fillText(customWinCondition==='retrieve'?'GOAL':'ZONE',sx,sy+r+14);
     }
   }
+  // Objective HUD text
+  ctx.textAlign='center';
+  if(customWinCondition==='killAll'){
+    ctx.font='bold 14px "Courier New"';ctx.fillStyle='#ff4444';ctx.shadowBlur=8;ctx.shadowColor='#ff2200';
+    ctx.fillText(`ELIMINATE ALL HOSTILES  (${enemies.length} remaining)`,canvas.width/2,80);ctx.shadowBlur=0;
+  }
+  if(customWinCondition==='reachFinish'){
+    ctx.font='bold 14px "Courier New"';ctx.fillStyle='#ffdd00';ctx.shadowBlur=8;ctx.shadowColor='#ffaa00';
+    const dToFinish=Math.round(dist(P.x,P.y,customFinishX,customFinishY));
+    ctx.fillText(`REACH THE FINISH LINE  (${dToFinish}m)`,canvas.width/2,80);ctx.shadowBlur=0;
+  }
   if(customWinCondition==='survive'&&customSurviveMs>0){
     const sec=Math.ceil(customSurviveMs/1000);
-    ctx.textAlign='center';ctx.font='bold 24px "Courier New"';
+    ctx.font='bold 24px "Courier New"';
     ctx.fillStyle=sec<=10?'#ff4400':'#00ccff';ctx.shadowBlur=14;ctx.shadowColor=sec<=10?'#ff2200':'#00aaff';
     ctx.fillText(`SURVIVE  ${sec}s`,canvas.width/2,80);ctx.shadowBlur=0;
   }
   if(customWinCondition==='collectAll'){
-    ctx.textAlign='center';ctx.font='bold 14px "Courier New"';
+    ctx.font='bold 14px "Courier New"';
     ctx.fillStyle='#ffdd00';ctx.shadowBlur=8;ctx.shadowColor='#ffaa00';
     ctx.fillText(`KEYS  ${customKeysCollected}/${customKeysTotal}`,canvas.width/2,80);ctx.shadowBlur=0;
   }
   if(customWinCondition==='retrieve'){
-    ctx.textAlign='center';ctx.font='bold 14px "Courier New"';
+    ctx.font='bold 14px "Courier New"';
     ctx.fillStyle=customItemHeld?'#00ff88':'#ff8800';ctx.shadowBlur=8;ctx.shadowColor=customItemHeld?'#00ff88':'#ff8800';
     ctx.fillText(customItemHeld?'ITEM HELD - REACH GOAL':'FIND THE ITEM',canvas.width/2,80);ctx.shadowBlur=0;
+  }
+  // Pack progress + level name
+  if(customPack&&customPack.levels.length>1){
+    ctx.font='11px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.55)';
+    const lvl=customPack.levels[customPack.currentIdx];
+    ctx.fillText(`${customPack.packName} - ${lvl?lvl.name:''}  (${customPack.currentIdx+1}/${customPack.levels.length})`,canvas.width/2,58);
   }
   ctx.textAlign='left';
 }
@@ -8270,7 +8288,7 @@ function _drawIntroSeq3(){
   const hA=_iFadeIn(ms,0,700);
   ctx.save(); ctx.globalAlpha=hA; ctx.textAlign='center';
   ctx.font='bold 28px "Courier New"'; ctx.shadowBlur=22; ctx.shadowColor='#0088cc';
-  ctx.fillStyle='#00ccff'; ctx.fillText('WEAPONS LOADOUT',cx,70); ctx.shadowBlur=0; ctx.restore();
+  ctx.fillStyle='#00ccff'; ctx.fillText('WEAPONS ARSENAL',cx,70); ctx.shadowBlur=0; ctx.restore();
   const wA=_iFadeIn(ms,400,900);
   if(wA>0){
     ctx.save(); ctx.globalAlpha=wA;
@@ -8298,7 +8316,7 @@ function _drawIntroSeq3(){
     ctx.restore();
   }
   const nA=_iFadeIn(ms,0,800);
-  _iNarrative(['#UNLOCK & UPGRADE YOUR LOADOUT','Collect YELLOW ★ pickups to unlock the next weapon.','Press keys 1–6 or cycle with Q / E to switch weapons.','~[ PROX MINE: key [6] — arm delay — detonates on enemy proximity ]'],canvas.height*0.73,nA);
+  _iNarrative(['#UNLOCK & UPGRADE YOUR ARSENAL','Collect YELLOW ★ pickups to unlock the next weapon.','Press keys 1–6 or cycle with Q / E to switch weapons.','~[ PROX MINE: key [6] — arm delay — detonates on enemy proximity ]'],canvas.height*0.73,nA);
   _iButtons(false); _iSeqLabel('ARSENAL');
 }
 
