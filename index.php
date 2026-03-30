@@ -399,6 +399,7 @@ canvas.addEventListener('mousedown',e=>{
     if(editorWinCondition==='survive'&&mouse.y>py+8&&mouse.y<py+8+slH&&mouse.x>panelX&&mouse.x<panelX+panelW){editorSliderDrag='seconds';return;}
   }
   if(gameState==='levelEditor'&&e.button===2){
+    if(editorTool==='_assignGuard'){editorTool='';return;}
     const sideW=180;
     if(mouse.x>sideW){
       const gx=Math.round((mouse.x-sideW+editorCamX)/50)*50;
@@ -7922,6 +7923,17 @@ function _editorHitTest(item,gx,gy){
   }
   return dist(item.x,item.y,gx,gy)<30;
 }
+function _gateOverlaps(newX,newY,newOrient,items){
+  const nw=newOrient==='h'?120:26,nh=newOrient==='h'?26:120;
+  const nx=newOrient==='h'?newX:newX-13,ny=newOrient==='h'?newY-13:newY;
+  for(const item of items){
+    if(item.subtype!=='gate')continue;
+    const ew=item.orient==='h'?120:26,eh=item.orient==='h'?26:120;
+    const ex=item.orient==='h'?item.x:item.x-13,ey=item.orient==='h'?item.y-13:item.y;
+    if(nx<ex+ew&&nx+nw>ex&&ny<ey+eh&&nh+ny>ey)return true;
+  }
+  return false;
+}
 function _findToolDef(toolId){
   for(const cat of _getEditorCategories()) for(const item of cat.items) if(item.tool===toolId) return item;
   return null;
@@ -8146,6 +8158,11 @@ function drawLevelEditor(){
       ctx.fillStyle=col;ctx.beginPath();ctx.arc(sx,sy,10,0,Math.PI*2);ctx.fill();
       ctx.font='bold 8px "Courier New"';ctx.fillStyle='#fff';ctx.textAlign='center';
       ctx.fillText(GLYPHS_E[item.subtype]||'?',sx,sy+3);
+      if(editorTool==='_assignGuard'&&item.cat==='enemy'){
+        const pulse=0.5+0.5*Math.sin(Date.now()/200);
+        ctx.strokeStyle=`rgba(0,255,136,${0.4+0.4*pulse})`;ctx.lineWidth=3;
+        ctx.beginPath();ctx.arc(sx,sy,16,0,Math.PI*2);ctx.stroke();
+      }
     } else if(item.cat==='pickup'){
       const col=PTYPES[item.subtype]?PTYPES[item.subtype].color:'#ffee00';
       ctx.fillStyle=col;ctx.save();ctx.translate(sx,sy);ctx.rotate(Math.PI/4);
@@ -8253,6 +8270,12 @@ function drawLevelEditor(){
   ctx.textAlign='right';ctx.font='10px "Courier New"';ctx.fillStyle='rgba(100,160,220,0.6)';
   ctx.fillText(`${editorPlacedItems.length} items  |  ${editorLevel?editorLevel.name:''}`,W-tmargin,tmargin+tbtnH+18);
   ctx.textAlign='left';
+  if(editorTool==='_assignGuard'){
+    ctx.fillStyle='rgba(0,80,40,0.8)';ctx.fillRect(sideW,40,W-sideW,24);
+    ctx.textAlign='center';ctx.font='bold 11px "Courier New"';ctx.fillStyle='#00ff88';
+    ctx.fillText('CLICK AN ENEMY TO ASSIGN AS GUARD  |  RIGHT-CLICK OR ESC TO CANCEL',sideW+(W-sideW)/2,56);
+    ctx.textAlign='left';
+  }
 }
 
 function startBattle(){
@@ -8533,7 +8556,7 @@ function _doClick(){
             editorDirty=true;SFX.select();editorTool='';return;
           }
         }
-        editorTool='';return;
+        return;
       }
       // Select gate on click
       for(let i=editorPlacedItems.length-1;i>=0;i--){
@@ -8558,6 +8581,7 @@ function _doClick(){
         return;
       }
       if(toolDef.subtype==='gate'){
+        if(_gateOverlaps(gx,gy,'h',editorPlacedItems))return; // blocked by existing gate
         const gate={cat:'obstacle',subtype:'gate',x:gx,y:gy,orient:'h',hinge:'left',unlockType:toolDef.unlockType,unlockParams:{}};
         if(toolDef.unlockType==='guard') gate.unlockParams={guardPositions:[],radius:200};
         else if(toolDef.unlockType==='key') gate.unlockParams={keyId:'gate_key_'+Date.now()};
@@ -8568,6 +8592,14 @@ function _doClick(){
           editorPlacedItems.push({cat:'objective',subtype:'gate_key',x:gx+200,y:gy,keyId:gate.unlockParams.keyId});
         }
         return;
+      }
+      // Prevent placing on top of gates
+      for(const item of editorPlacedItems){
+        if(item.subtype==='gate'){
+          const ew=item.orient==='h'?120:26,eh=item.orient==='h'?26:120;
+          const ex=item.orient==='h'?item.x:item.x-13,ey=item.orient==='h'?item.y-13:item.y;
+          if(gx>=ex&&gx<=ex+ew&&gy>=ey&&gy<=ey+eh)return;
+        }
       }
       editorPlacedItems.push({...toolDef,x:gx,y:gy});
       editorDirty=true;SFX.select();
@@ -9785,7 +9817,11 @@ function loop(now){
   }
 
   if(K['Escape']){
-    if(gameState==='levelEditor'){K['Escape']=false;gameState='customSelect';SFX.select();return;}
+    if(gameState==='levelEditor'){
+      K['Escape']=false;
+      if(editorTool==='_assignGuard'){editorTool='';return;}
+      gameState='customSelect';SFX.select();return;
+    }
   }
 
   // Level editor camera panning
