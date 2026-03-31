@@ -4712,54 +4712,28 @@ function drawPauseScreen(){
 
   // Resume button
   const bw=290,bh=50,bx=cx-bw/2,by=cy+48;
-  const bhov=mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh;
-  ctx.shadowBlur=bhov?30:14; ctx.shadowColor='#00ff88';
-  ctx.fillStyle=bhov?'#00ff88':'rgba(0,0,0,0.75)';
-  roundRect(ctx,bx,by,bw,bh,10); ctx.fill();
-  ctx.strokeStyle='#00ff88'; ctx.lineWidth=2.2;
-  roundRect(ctx,bx,by,bw,bh,10); ctx.stroke();
-  ctx.shadowBlur=0;
-  ctx.font='bold 16px "Courier New"';
-  ctx.fillStyle=bhov?'#000':'#00ff88';
-  ctx.fillText('▶  RETURN TO FLIGHT',cx,by+32);
+  _btn(bx,by,bw,bh,'RETURN TO FLIGHT','primary','\u25B6');
 
   // Space hint
   if(Math.floor(now*1.6)%2===0){
     ctx.font='11px "Courier New"';
     ctx.fillStyle='rgba(80,140,200,0.55)';
-    ctx.fillText(IS_TOUCH?'TAP  ▶ RETURN TO FLIGHT  to resume':'SPACE · P · ESC  to resume',cx,by+bh+22);
+    ctx.fillText(IS_TOUCH?'TAP  \u25B6 RETURN TO FLIGHT  to resume':'SPACE \u00B7 P \u00B7 ESC  to resume',cx,by+bh+22);
   }
 
   // Modify Weapons button
   const mw2=290,mh2=44,mx2=cx-mw2/2,my2=by+bh+40;
-  const mhov=mouse.x>mx2&&mouse.x<mx2+mw2&&mouse.y>my2&&mouse.y<my2+mh2;
-  ctx.shadowBlur=mhov?22:8;ctx.shadowColor='#00ccff';
-  ctx.fillStyle=mhov?'rgba(0,140,200,0.85)':'rgba(0,0,0,0.65)';
-  roundRect(ctx,mx2,my2,mw2,mh2,8);ctx.fill();
-  ctx.strokeStyle=mhov?'#00eeff':'rgba(0,140,220,0.7)';ctx.lineWidth=1.8;
-  roundRect(ctx,mx2,my2,mw2,mh2,8);ctx.stroke();ctx.shadowBlur=0;
-  ctx.font='bold 13px "Courier New"';
-  ctx.fillStyle=mhov?'#000':'rgba(100,200,255,0.9)';
-  ctx.fillText('MODIFY WEAPONS',cx,my2+mh2/2+5);
+  _btn(mx2,my2,mw2,mh2,'MODIFY WEAPONS','default','\u2699');
 
   // Music status
   ctx.font='10px "Courier New"';
-  const musicLabel = Music.isMuted() ? '♪ MUSIC OFF' : `♪ MUSIC  [${Music.mode().toUpperCase()}]`;
+  const musicLabel = Music.isMuted() ? '\u266A MUSIC OFF' : `\u266A MUSIC  [${Music.mode().toUpperCase()}]`;
   ctx.fillStyle = Music.isMuted() ? 'rgba(160,80,50,0.6)' : 'rgba(0,160,180,0.5)';
-  ctx.fillText(`${musicLabel}  ·  M to toggle`,cx,my2+mh2+18);
+  ctx.fillText(`${musicLabel}  \u00B7  M to toggle`,cx,my2+mh2+18);
 
   // Abort button
   const aw=290,ah=44,ax=cx-aw/2,ay=my2+mh2+30;
-  const ahov=mouse.x>ax&&mouse.x<ax+aw&&mouse.y>ay&&mouse.y<ay+ah;
-  ctx.shadowBlur=ahov?22:8; ctx.shadowColor='#ff3300';
-  ctx.fillStyle=ahov?'rgba(180,30,10,0.92)':'rgba(0,0,0,0.65)';
-  roundRect(ctx,ax,ay,aw,ah,8); ctx.fill();
-  ctx.strokeStyle=ahov?'#ff5522':'rgba(180,50,30,0.7)'; ctx.lineWidth=1.8;
-  roundRect(ctx,ax,ay,aw,ah,8); ctx.stroke();
-  ctx.shadowBlur=0;
-  ctx.font='bold 13px "Courier New"';
-  ctx.fillStyle=ahov?'#ffccaa':'rgba(200,80,50,0.85)';
-  ctx.fillText('✕  ABORT THE MISSION',cx,ay+ah/2+5);
+  _btn(ax,ay,aw,ah,'ABORT MISSION','danger','\u2715');
 
   ctx.textAlign='left';
 }
@@ -4824,14 +4798,7 @@ function drawLoadoutEdit(){
     ctx.textAlign='left';ctx.fillText(w.name,x+30,y+cardH/2+4);ctx.textAlign='center';
   }
   const dbw=200,dbh=44,dbx=cx-dbw/2,dby=H-80;
-  const dhov=mouse.x>dbx&&mouse.x<dbx+dbw&&mouse.y>dby&&mouse.y<dby+dbh;
-  ctx.shadowBlur=dhov?24:10;ctx.shadowColor='#00ff88';
-  ctx.fillStyle=dhov?'#00ff88':'rgba(0,0,0,0.7)';
-  roundRect(ctx,dbx,dby,dbw,dbh,8);ctx.fill();
-  ctx.strokeStyle='#00ff88';ctx.lineWidth=2;
-  roundRect(ctx,dbx,dby,dbw,dbh,8);ctx.stroke();ctx.shadowBlur=0;
-  ctx.font='bold 14px "Courier New"';ctx.fillStyle=dhov?'#000':'#00ff88';
-  ctx.fillText('DONE',cx,dby+dbh/2+5);
+  _btn(dbx,dby,dbw,dbh,'DONE','primary','\u2714');
   ctx.textAlign='left';
 }
 function drawMinimap(){
@@ -5362,34 +5329,14 @@ function drawHangarScreen(){
   ctx.font=`${Math.max(7,swatchR*0.55)}px "Courier New"`;ctx.fillStyle='rgba(180,210,255,0.8)';ctx.textAlign='center';
   ctx.fillText('🎨',cbX,cbY+5);
 
-  // Edit Loadout button
-  const elW=200,elH=38,elX=cx-elW/2,elY=btnY-54;
-  const elHov=mouse.x>elX&&mouse.x<elX+elW&&mouse.y>elY&&mouse.y<elY+elH;
-  ctx.shadowBlur=elHov?20:8;ctx.shadowColor='#00ccff';
-  ctx.fillStyle=elHov?'rgba(0,140,200,0.85)':'rgba(0,0,0,0.65)';
-  roundRect(ctx,elX,elY,elW,elH,6);ctx.fill();
-  ctx.strokeStyle=elHov?'#00eeff':'rgba(0,140,220,0.6)';ctx.lineWidth=1.5;
-  roundRect(ctx,elX,elY,elW,elH,6);ctx.stroke();ctx.shadowBlur=0;
-  ctx.textAlign='center';ctx.font='bold 12px "Courier New"';
-  ctx.fillStyle=elHov?'#000':'rgba(100,200,255,0.9)';
-  ctx.fillText('EDIT ARSENAL',cx,elY+elH/2+4);
-
-  // ── Bottom buttons ───────────────────────────────────────────
-  const cancelHov=mouse.x>cancelX&&mouse.x<cancelX+cancelW&&mouse.y>btnY&&mouse.y<btnY+btnH;
-  ctx.fillStyle=cancelHov?'rgba(180,50,30,0.22)':'rgba(0,0,0,0.6)';
-  roundRect(ctx,cancelX,btnY,cancelW,btnH,8);ctx.fill();
-  ctx.strokeStyle=cancelHov?'rgba(220,80,50,0.8)':'rgba(130,50,30,0.5)';ctx.lineWidth=1.8;
-  roundRect(ctx,cancelX,btnY,cancelW,btnH,8);ctx.stroke();
-  ctx.font='bold 13px "Courier New"';ctx.fillStyle=cancelHov?'#ff8866':'rgba(200,100,70,0.8)';
-  ctx.textAlign='center';ctx.fillText('✕  CANCEL',cancelX+cancelW/2,btnY+btnH/2+5);
-
-  const saveHov=mouse.x>saveX&&mouse.x<saveX+saveW&&mouse.y>btnY&&mouse.y<btnY+btnH;
-  ctx.shadowBlur=saveHov?22:8;ctx.shadowColor='#ff8800';
-  ctx.fillStyle=saveHov?'#ff8800':'rgba(0,0,0,0.7)';
-  roundRect(ctx,saveX,btnY,saveW,btnH,8);ctx.fill();
-  ctx.strokeStyle='#ff8800';ctx.lineWidth=2;roundRect(ctx,saveX,btnY,saveW,btnH,8);ctx.stroke();ctx.shadowBlur=0;
-  ctx.font='bold 14px "Courier New"';ctx.fillStyle=saveHov?'#000':'#ff8800';
-  ctx.textAlign='center';ctx.fillText('✔  SAVE CHANGES',saveX+saveW/2,btnY+btnH/2+5);
+  // ── Bottom buttons — single row ───────────────────────────────
+  const elW=200;
+  const totalBtnW2=cancelW+saveW+elW+24;
+  const rowX=cx-totalBtnW2/2;
+  ctx.textAlign='center';
+  _btn(rowX, btnY, cancelW, btnH, 'CANCEL', 'danger', '\u25C0');
+  _btn(rowX+cancelW+12, btnY, elW, btnH, 'EDIT ARSENAL', 'default', '\u2699');
+  _btn(rowX+cancelW+12+elW+12, btnY, saveW, btnH, 'SAVE', 'primary', '\u2714');
 
   ctx.textAlign='left';
 }
@@ -5465,28 +5412,10 @@ function drawStartScreen(){
 
   // Menu buttons
   const rects=getMenuRects();
-  const btnSz=Math.max(10,Math.min(rects[0].h*0.36,15));
+  const _menuIcons={'Battle Waves':'\u25B6','Time Trials':'\u25B6','Combat Training':'\u25B6','Level Designer':'\u270E','Aircraft Hangar':'\u2699','Hall of Fame':'\u2605','Setup':'\u2699'};
   for(let i=0;i<rects.length;i++){
     const {x,y,w,h,item}=rects[i];
-    const hov=(i===menuHover);
-    const dim=item.dim;
-    // BG
-    ctx.fillStyle=hov&&!dim?'rgba(0,180,255,0.18)':hov&&dim?'rgba(30,55,90,0.55)':!dim?'rgba(0,55,115,0.55)':'rgba(10,18,38,0.45)';
-    ctx.fillRect(x,y,w,h);
-    // Border
-    ctx.strokeStyle=hov&&!dim?'#00ccff':hov&&dim?'rgba(80,130,180,0.85)':!dim?'rgba(0,140,220,0.75)':'rgba(35,60,95,0.6)';
-    ctx.lineWidth=hov?2:1;
-    ctx.shadowBlur=hov&&!dim?20:hov&&dim?10:0;ctx.shadowColor=hov&&dim?'rgba(80,140,200,0.6)':'#00ccff';
-    ctx.strokeRect(x,y,w,h);ctx.shadowBlur=0;
-    // Left accent bar on non-dim hover
-    if(hov&&!dim){ctx.fillStyle='#00ccff';ctx.fillRect(x,y,3,h);}
-    // Label
-    ctx.textAlign='center';
-    ctx.font=`bold ${btnSz}px "Courier New"`;
-    ctx.fillStyle=hov&&!dim?'#00eeff':hov&&dim?'rgba(130,175,220,0.85)':!dim?'rgba(150,205,255,0.92)':'rgba(55,85,125,0.55)';
-    ctx.shadowBlur=hov&&!dim?14:hov&&dim?6:0;ctx.shadowColor=hov&&dim?'rgba(100,160,220,0.5)':'#00ccff';
-    ctx.fillText(item.label,x+w/2,y+h/2+btnSz*0.36);
-    ctx.shadowBlur=0;
+    _btn(x,y,w,h,item.label,'default',_menuIcons[item.label]);
   }
   ctx.textAlign='left';
   // Sound toggle — top-right corner
@@ -5494,18 +5423,7 @@ function drawStartScreen(){
   const _stW=Math.max(80,W*0.075),_stH=Math.max(28,H*0.042);
   const _stX=W-_stPad-_stW,_stY=_stPad;
   const _stMuted=Music.isMuted();
-  const _stHov=soundToggleHover;
-  ctx.fillStyle=_stHov?'rgba(0,180,255,0.18)':'rgba(0,55,115,0.55)';
-  ctx.fillRect(_stX,_stY,_stW,_stH);
-  ctx.strokeStyle=_stHov?'#00ccff':'rgba(0,140,220,0.75)';
-  ctx.lineWidth=_stHov?2:1;
-  ctx.shadowBlur=_stHov?20:0;ctx.shadowColor='#00ccff';
-  ctx.strokeRect(_stX,_stY,_stW,_stH);ctx.shadowBlur=0;
-  const _stSz=Math.max(9,Math.min(_stH*0.38,13));
-  ctx.font=`bold ${_stSz}px "Courier New"`;
-  ctx.textAlign='center';
-  ctx.fillStyle=_stHov?'#00eeff':'rgba(150,205,255,0.92)';
-  ctx.fillText(_stMuted?'✕ SOUND OFF':'♪ SOUND ON',_stX+_stW/2,_stY+_stH/2+_stSz*0.36);
+  _btn(_stX,_stY,_stW,_stH,_stMuted?'SOUND OFF':'SOUND ON','default',_stMuted?'\u2715':'\u266A');
   ctx.textAlign='left';
 }
 function _roundRect(x,y,w,h,r){
@@ -5677,17 +5595,7 @@ function drawSetupScreen(){
     hofClearFlashMs-=16;
   }
   const{x,y,w,h}=L.backBtn;
-  const backHov=mouse.x>=x&&mouse.x<=x+w&&mouse.y>=y&&mouse.y<=y+h;
-  ctx.fillStyle=backHov?'rgba(0,180,255,0.18)':'rgba(0,55,115,0.55)';
-  ctx.fillRect(x,y,w,h);
-  ctx.strokeStyle=backHov?'#00ccff':'rgba(0,140,220,0.75)';
-  ctx.lineWidth=backHov?2:1;
-  ctx.shadowBlur=backHov?20:0;ctx.shadowColor='#00ccff';
-  ctx.strokeRect(x,y,w,h);ctx.shadowBlur=0;
-  const bSz=Math.max(9,Math.min(h*0.38,13));
-  ctx.font=`bold ${bSz}px "Courier New"`;
-  ctx.fillStyle=backHov?'#00eeff':'rgba(150,205,255,0.92)';
-  ctx.fillText('◀ BACK',x+w/2,y+h/2+bSz*0.36);
+  _btn(x,y,w,h,'BACK','default','\u25C0');
   ctx.textAlign='left';
 }
 function drawWaveClearScreen(){
@@ -5942,14 +5850,7 @@ function drawTimeTrialResult(){
   ctx.fillText(`FINAL SCORE  ${ttFinalScore.toLocaleString()}`,cx,cy+68);ctx.shadowBlur=0;
   // Return button
   const bw=260,bh=46,bx=cx-bw/2,by=cy+104;
-  const bhov=mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh;
-  ctx.fillStyle=bhov?'rgba(0,180,255,0.22)':'rgba(0,0,0,0.6)';
-  roundRect(ctx,bx,by,bw,bh,10);ctx.fill();
-  ctx.strokeStyle=bhov?'#00ccff':'rgba(0,140,220,0.6)';ctx.lineWidth=2;
-  roundRect(ctx,bx,by,bw,bh,10);ctx.stroke();
-  ctx.font='bold 14px "Courier New"';
-  ctx.fillStyle=bhov?'#00eeff':'rgba(100,180,255,0.9)';
-  ctx.fillText('RETURN TO BASE',cx,by+bh/2+5);
+  _btn(bx,by,bw,bh,'RETURN TO BASE','default','\u25C0');
   ctx.textAlign='left';
 }
 
@@ -6435,9 +6336,9 @@ function drawTTLevelSelect(){
       ctx.shadowBlur=0;
     });
 
-  // Back button — left-anchored, _briefBtn style
+  // Back button
   const bw=140,bh=36,bx=Math.max(20,W*0.03),by=H-backH+8;
-  _briefBtn(bx,by,bw,bh,'◀  BACK','#aaccff',false);
+  _btn(bx,by,bw,bh,'BACK','default','\u25C0');
   ctx.textAlign='left';
 }
 
@@ -6652,13 +6553,7 @@ function drawCTResult(){
   ctx.font='11px "Courier New"';ctx.fillStyle='rgba(80,140,200,0.5)';
   ctx.fillText('SCORE + TIME EFFICIENCY BONUS PER ROUND',cx,cy+48);
   const bw=240,bh=44,bx=cx-bw/2,by=cy+74;
-  const bhov=mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh;
-  ctx.fillStyle=bhov?'rgba(0,200,120,0.18)':'rgba(0,0,0,0.6)';
-  roundRect(ctx,bx,by,bw,bh,8);ctx.fill();
-  ctx.strokeStyle=bhov?'#00ff88':'rgba(0,160,100,0.5)';ctx.lineWidth=1.8;
-  roundRect(ctx,bx,by,bw,bh,8);ctx.stroke();ctx.shadowBlur=0;
-  ctx.font='bold 14px "Courier New"';ctx.fillStyle=bhov?'#00ff88':'rgba(0,220,140,0.8)';
-  ctx.fillText('◀  RETURN TO BASE',cx,by+bh/2+5);
+  _btn(bx,by,bw,bh,'RETURN TO BASE','default','\u25C0');
   ctx.textAlign='left';
 }
 
@@ -6882,8 +6777,8 @@ function drawBriefingScreen(){
   const btnW=Math.min(220,W*0.28),btnH=46,btnGap=20;
   const btnY=H-btnH-Math.max(28,H*0.04);
   const backX=Math.max(20,W*0.03), launchX=W-Math.max(20,W*0.03)-btnW;
-  _briefBtn(backX,btnY,btnW,btnH,'◀  BACK','#aaccff',false);
-  _briefBtn(launchX,btnY,btnW,btnH,'▶  TAKE FLIGHT',b.color,true);
+  _btn(backX,btnY,btnW,btnH,'BACK','default','\u25C0');
+  _btn(launchX,btnY,btnW,btnH,'TAKE FLIGHT','primary','\u25B6');
 
   // Top-down content layout
   let y=Math.max(24,H*0.04);
@@ -6935,16 +6830,27 @@ function drawBriefingScreen(){
 
   ctx.textAlign='left';
 }
-function _briefBtn(x,y,w,h,label,col,primary){
+function _btn(x,y,w,h,label,variant,icon){
   const hov=mouse.x>x&&mouse.x<x+w&&mouse.y>y&&mouse.y<y+h;
-  ctx.fillStyle=hov?col+'22':'rgba(0,0,0,0.55)';
-  roundRect(ctx,x,y,w,h,8);ctx.fill();
-  ctx.strokeStyle=hov?col:col+'55';ctx.lineWidth=hov?2:1.2;
-  ctx.shadowBlur=hov?16:0;ctx.shadowColor=col;
-  roundRect(ctx,x,y,w,h,8);ctx.stroke();ctx.shadowBlur=0;
-  ctx.font=`${primary?'bold ':''} 13px "Courier New"`;
-  ctx.fillStyle=hov?col:col+'bb';
-  ctx.fillText(label,x+w/2,y+h/2+5);
+  const cols={
+    default:{bg:'rgba(0,0,0,0.65)',border:'rgba(0,180,220,0.6)',text:'rgba(0,200,240,0.85)',hBg:'rgba(0,180,220,0.15)',hBorder:'#00ccff',hText:'#00eeff',glow:'#00ccff'},
+    primary:{bg:'rgba(0,0,0,0.65)',border:'rgba(0,180,100,0.6)',text:'rgba(0,200,120,0.85)',hBg:'rgba(0,180,100,0.15)',hBorder:'#00ff88',hText:'#00ff88',glow:'#00ff88'},
+    danger:{bg:'rgba(0,0,0,0.65)',border:'rgba(180,50,30,0.6)',text:'rgba(200,80,50,0.85)',hBg:'rgba(180,50,30,0.15)',hBorder:'#ff5533',hText:'#ffaa88',glow:'#ff3300'},
+  };
+  const c=cols[variant]||cols.default;
+  ctx.fillStyle=hov?c.hBg:c.bg;
+  roundRect(ctx,x,y,w,h,2);ctx.fill();
+  ctx.strokeStyle=hov?c.hBorder:c.border;ctx.lineWidth=hov?2:1;
+  if(hov){ctx.shadowBlur=8;ctx.shadowColor=c.glow;}
+  roundRect(ctx,x,y,w,h,2);ctx.stroke();
+  ctx.shadowBlur=0;
+  ctx.textAlign='center';ctx.font='bold 13px "Courier New"';
+  ctx.fillStyle=hov?c.hText:c.text;
+  ctx.fillText(icon?`${icon}  ${label}`:label,x+w/2,y+h/2+5);
+  return hov;
+}
+function _briefBtn(x,y,w,h,label,col,primary){
+  return _btn(x,y,w,h,label,primary?'primary':'default');
 }
 function _wrapText(text,cx,y,maxW,lineH,color,font){
   ctx.font=font;ctx.fillStyle=color;
@@ -7019,48 +6925,20 @@ function drawDeathScreen(){
   if(gameMode==='custom'&&customPack){
     // TRY AGAIN
     const by0=cy+112;
-    const bhov0=mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by0&&mouse.y<by0+bh;
-    ctx.fillStyle=bhov0?'rgba(0,180,80,0.18)':'rgba(0,0,0,0.6)';
-    roundRect(ctx,bx,by0,bw,bh,8);ctx.fill();
-    ctx.strokeStyle=bhov0?'#00ff88':'rgba(0,140,60,0.5)';ctx.lineWidth=bhov0?2:1.3;
-    ctx.shadowBlur=bhov0?14:0;ctx.shadowColor='#00ff88';
-    roundRect(ctx,bx,by0,bw,bh,8);ctx.stroke();ctx.shadowBlur=0;
-    ctx.font='bold 13px "Courier New"';ctx.fillStyle=bhov0?'#00ff88':'rgba(80,200,120,0.8)';
-    ctx.fillText('↺  TRY AGAIN',cx,by0+bh/2+5);
+    _btn(bx,by0,bw,bh,'TRY AGAIN','primary','\u25B6');
     // BACK TO LEVELS
     const by1=by0+bh+gap;
-    const bhov1=mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by1&&mouse.y<by1+bh;
-    ctx.fillStyle=bhov1?'rgba(0,180,200,0.18)':'rgba(0,0,0,0.6)';
-    roundRect(ctx,bx,by1,bw,bh,8);ctx.fill();
-    ctx.strokeStyle=bhov1?'#00eeff':'rgba(0,130,160,0.5)';ctx.lineWidth=bhov1?2:1.3;
-    ctx.shadowBlur=bhov1?14:0;ctx.shadowColor='#00eeff';
-    roundRect(ctx,bx,by1,bw,bh,8);ctx.stroke();ctx.shadowBlur=0;
-    ctx.font='bold 13px "Courier New"';ctx.fillStyle=bhov1?'#00eeff':'rgba(80,180,220,0.8)';
-    ctx.fillText('◀  BACK TO LEVELS',cx,by1+bh/2+5);
+    _btn(bx,by1,bw,bh,'BACK TO LEVELS','default','\u25C0');
     // MAIN MENU
     const by2=by1+bh+gap;
-    const bhov2=mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by2&&mouse.y<by2+bh;
-    ctx.fillStyle=bhov2?'rgba(180,30,30,0.18)':'rgba(0,0,0,0.6)';
-    roundRect(ctx,bx,by2,bw,bh,8);ctx.fill();
-    ctx.strokeStyle=bhov2?'#ff4444':'rgba(140,30,30,0.5)';ctx.lineWidth=bhov2?2:1.3;
-    ctx.shadowBlur=bhov2?14:0;ctx.shadowColor='#ff4444';
-    roundRect(ctx,bx,by2,bw,bh,8);ctx.stroke();ctx.shadowBlur=0;
-    ctx.font='bold 13px "Courier New"';ctx.fillStyle=bhov2?'#ff4444':'rgba(200,100,100,0.8)';
-    ctx.fillText('✕  MAIN MENU',cx,by2+bh/2+5);
+    _btn(bx,by2,bw,bh,'MAIN MENU','danger','\u2715');
     // Countdown (anchored below last button)
     ctx.font='11px "Courier New"';ctx.fillStyle='rgba(100,120,160,0.6)';
     ctx.fillText(`Auto-returning in ${Math.ceil(countdown)}s`,cx,by2+bh+22);
     if(countdown<=0){ _returnToStart(); }
   } else {
     const by=cy+112;
-    const bhov=mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh;
-    ctx.fillStyle=bhov?'rgba(0,140,200,0.18)':'rgba(0,0,0,0.6)';
-    roundRect(ctx,bx,by,bw,bh,8);ctx.fill();
-    ctx.strokeStyle=bhov?'#00ccff':'rgba(0,100,160,0.5)';ctx.lineWidth=bhov?2:1.3;
-    ctx.shadowBlur=bhov?14:0;ctx.shadowColor='#00ccff';
-    roundRect(ctx,bx,by,bw,bh,8);ctx.stroke();ctx.shadowBlur=0;
-    ctx.font='bold 13px "Courier New"';ctx.fillStyle=bhov?'#00ccff':'rgba(100,160,220,0.8)';
-    ctx.fillText('◀  MAIN MENU',cx,by+bh/2+5);
+    _btn(bx,by,bw,bh,'MAIN MENU','default','\u25C0');
     // Countdown
     ctx.font='11px "Courier New"';ctx.fillStyle='rgba(100,120,160,0.6)';
     ctx.fillText(`Auto-returning in ${Math.ceil(countdown)}s`,cx,by+bh+22);
@@ -7207,7 +7085,7 @@ function drawHallOfFame(){
   ctx.restore();
   // Back button
   const bw=160,bh=40,bx=Math.max(20,W*0.03),by=H-70;
-  _briefBtn(bx,by,bw,bh,'◀  BACK','#00ccff',false);
+  _btn(bx,by,bw,bh,'BACK','default','\u25C0');
   ctx.textAlign='left';
 }
 
@@ -8002,7 +7880,7 @@ function drawCustomResult(){
   ctx.fillText(`SCORE  ${String(score).padStart(8,'0')}   TIME  ${mins}:${String(secs).padStart(2,'0')}`,cx,H*0.25+96);
   ctx.textAlign='center';
   const bw=Math.min(160,W*0.2),bh=40,bx=Math.max(20,W*0.03),by=H-70;
-  _briefBtn(bx,by,bw,bh,'◀  BACK','#00ccff',false);
+  _btn(bx,by,bw,bh,'BACK TO MENU','default','\u25C0');
   ctx.textAlign='left';
 }
 
@@ -8015,14 +7893,8 @@ function drawCustomSelect(){
   const packs=_loadCustomLevels();
   // CREATE NEW button
   const newW=200,newH=40,newX=cx-newW/2,newY=82;
-  const nhov=mouse.x>newX&&mouse.x<newX+newW&&mouse.y>newY&&mouse.y<newY+newH;
-  ctx.shadowBlur=nhov?18:6;ctx.shadowColor='#00ff88';
-  ctx.fillStyle=nhov?'#00ff88':'rgba(0,40,20,0.6)';
-  roundRect(ctx,newX,newY,newW,newH,6);ctx.fill();
-  ctx.strokeStyle=nhov?'#00ff88':'rgba(0,180,100,0.5)';ctx.lineWidth=1.5;
-  roundRect(ctx,newX,newY,newW,newH,6);ctx.stroke();ctx.shadowBlur=0;
-  ctx.textAlign='center';ctx.font='bold 13px "Courier New"';ctx.fillStyle=nhov?'#000':'#00ff88';
-  ctx.fillText('+ CREATE NEW',cx,newY+newH/2+5);
+  ctx.textAlign='center';
+  _btn(newX,newY,newW,newH,'CREATE NEW','primary','+');
 
   if(packs.length===0){
     ctx.font='14px "Courier New"';ctx.fillStyle='rgba(100,140,180,0.6)';
@@ -8048,23 +7920,11 @@ function drawCustomSelect(){
       const pbtnW=48,pbtnH=24,pbtnY=cy+(cardH-pbtnH)/2;
       const delX=cx+cardW/2-pbtnW-8,cloneX=delX-pbtnW-6,playX=cloneX-pbtnW-6;
       // DEL
-      const dHov=mouse.x>delX&&mouse.x<delX+pbtnW&&mouse.y>pbtnY&&mouse.y<pbtnY+pbtnH;
-      ctx.fillStyle=dHov?'rgba(180,30,10,0.8)':'rgba(80,20,10,0.4)';
-      roundRect(ctx,delX,pbtnY,pbtnW,pbtnH,3);ctx.fill();
-      ctx.textAlign='center';ctx.font='bold 9px "Courier New"';ctx.fillStyle=dHov?'#ffccaa':'rgba(200,80,50,0.7)';
-      ctx.fillText('DEL',delX+pbtnW/2,pbtnY+pbtnH/2+3);
+      _btn(delX,pbtnY,pbtnW,pbtnH,'DEL','danger');
       // CLONE
-      const cHov=mouse.x>cloneX&&mouse.x<cloneX+pbtnW&&mouse.y>pbtnY&&mouse.y<pbtnY+pbtnH;
-      ctx.fillStyle=cHov?'rgba(0,100,60,0.7)':'rgba(0,50,30,0.4)';
-      roundRect(ctx,cloneX,pbtnY,pbtnW,pbtnH,3);ctx.fill();
-      ctx.fillStyle=cHov?'#00ff88':'rgba(0,180,100,0.6)';
-      ctx.fillText('CLONE',cloneX+pbtnW/2,pbtnY+pbtnH/2+3);
+      _btn(cloneX,pbtnY,pbtnW,pbtnH,'CLONE','default');
       // PLAY
-      const pHov=mouse.x>playX&&mouse.x<playX+pbtnW&&mouse.y>pbtnY&&mouse.y<pbtnY+pbtnH;
-      ctx.fillStyle=pHov?'rgba(0,80,40,0.7)':'rgba(0,40,20,0.4)';
-      roundRect(ctx,playX,pbtnY,pbtnW,pbtnH,3);ctx.fill();
-      ctx.fillStyle=pHov?'#00ff88':'rgba(0,180,100,0.6)';
-      ctx.fillText('PLAY',playX+pbtnW/2,pbtnY+pbtnH/2+3);
+      _btn(playX,pbtnY,pbtnW,pbtnH,'PLAY','primary');
       cy+=cardH+cardGap;
       // Expanded: show levels
       if(expanded&&pk.levels){
@@ -8083,19 +7943,10 @@ function drawCustomSelect(){
           // Level buttons: PLAY, EDIT, COPY, DEL
           const lbW=38,lbH=22,lbY=cy+(subH-lbH)/2;
           const lDelX=cx+cardW/2-lbW-8,lCopyX=lDelX-lbW-4,lEditX=lCopyX-lbW-4,lPlayX=lEditX-lbW-4;
-          const btns=[
-            {x:lPlayX,label:'PLAY',col:'#00ff88',bg:'rgba(0,80,40,0.6)'},
-            {x:lEditX,label:'EDIT',col:'#00ccff',bg:'rgba(0,50,100,0.5)'},
-            {x:lCopyX,label:'COPY',col:'#ffaa00',bg:'rgba(80,50,0,0.4)'},
-            {x:lDelX,label:'DEL',col:'#ff5533',bg:'rgba(80,20,10,0.4)'},
-          ];
-          for(const btn of btns){
-            const bh2=mouse.x>btn.x&&mouse.x<btn.x+lbW&&mouse.y>lbY&&mouse.y<lbY+lbH;
-            ctx.fillStyle=bh2?btn.col+'33':btn.bg;
-            roundRect(ctx,btn.x,lbY,lbW,lbH,3);ctx.fill();
-            ctx.textAlign='center';ctx.font='bold 8px "Courier New"';ctx.fillStyle=bh2?btn.col:btn.col+'99';
-            ctx.fillText(btn.label,btn.x+lbW/2,lbY+lbH/2+3);
-          }
+          _btn(lPlayX,lbY,lbW,lbH,'PLAY','primary');
+          _btn(lEditX,lbY,lbW,lbH,'EDIT','default');
+          _btn(lCopyX,lbY,lbW,lbH,'COPY','default');
+          _btn(lDelX,lbY,lbW,lbH,'DEL','danger');
           cy+=subH+4;
         }
         // Leaderboard + Awards stubs (when a level is selected)
@@ -8118,10 +7969,10 @@ function drawCustomSelect(){
       }
     }
   }
-  // Back button — left-anchored, _briefBtn style
+  // Back button
   ctx.textAlign='center';
   const bbw=Math.min(160,W*0.2),bbh=40,bbx=Math.max(20,W*0.03),bby=H-70;
-  _briefBtn(bbx,bby,bbw,bbh,'◀  BACK','#00ccff',false);
+  _btn(bbx,bby,bbw,bbh,'BACK','default','\u25C0');
   ctx.textAlign='left';
 }
 
@@ -8234,17 +8085,10 @@ function drawLevelSetup(){
   ctx.textAlign='center';
   const btnW=200,btnH=44;
   const startX=cx-btnW/2,startY=Math.max(py+20,H-120);
-  const shov=mouse.x>startX&&mouse.x<startX+btnW&&mouse.y>startY&&mouse.y<startY+btnH;
-  ctx.shadowBlur=shov?24:10;ctx.shadowColor='#00ff88';
-  ctx.fillStyle=shov?'#00ff88':'rgba(0,0,0,0.7)';
-  roundRect(ctx,startX,startY,btnW,btnH,8);ctx.fill();
-  ctx.strokeStyle='#00ff88';ctx.lineWidth=2;
-  roundRect(ctx,startX,startY,btnW,btnH,8);ctx.stroke();ctx.shadowBlur=0;
-  ctx.font='bold 14px "Courier New"';ctx.fillStyle=shov?'#000':'#00ff88';
-  ctx.fillText('START EDITING',cx,startY+btnH/2+5);
+  _btn(startX,startY,btnW,btnH,'START EDITING','primary','\u25B6');
 
   const backW=Math.min(160,W*0.2),backH=40,backX=Math.max(20,W*0.03),backY=H-70;
-  _briefBtn(backX,backY,backW,backH,'◀  BACK','#00ccff',false);
+  _btn(backX,backY,backW,backH,'BACK','default','\u25C0');
   ctx.textAlign='left';
 }
 
@@ -8514,23 +8358,9 @@ function drawLevelSavePrompt(){
   ctx.fillText(`Pack total: ${editorPack?editorPack.levels.length:0} level${editorPack&&editorPack.levels.length!==1?'s':''}`,cx,H*0.2+80);
   const btnW=260,btnH=46,gap=16;
   const addY=H*0.5;
-  const ahov=mouse.x>cx-btnW/2&&mouse.x<cx+btnW/2&&mouse.y>addY&&mouse.y<addY+btnH;
-  ctx.shadowBlur=ahov?22:8;ctx.shadowColor='#00ccff';
-  ctx.fillStyle=ahov?'rgba(0,140,200,0.85)':'rgba(0,0,0,0.65)';
-  roundRect(ctx,cx-btnW/2,addY,btnW,btnH,8);ctx.fill();
-  ctx.strokeStyle=ahov?'#00eeff':'rgba(0,140,220,0.6)';ctx.lineWidth=1.5;
-  roundRect(ctx,cx-btnW/2,addY,btnW,btnH,8);ctx.stroke();ctx.shadowBlur=0;
-  ctx.font='bold 13px "Courier New"';ctx.fillStyle=ahov?'#000':'rgba(100,200,255,0.9)';
-  ctx.fillText('+ ADD ANOTHER LEVEL',cx,addY+btnH/2+5);
+  _btn(cx-btnW/2,addY,btnW,btnH,'ADD ANOTHER','default','+');
   const doneY=addY+btnH+gap;
-  const dhov=mouse.x>cx-btnW/2&&mouse.x<cx+btnW/2&&mouse.y>doneY&&mouse.y<doneY+btnH;
-  ctx.shadowBlur=dhov?24:10;ctx.shadowColor='#00ff88';
-  ctx.fillStyle=dhov?'#00ff88':'rgba(0,0,0,0.7)';
-  roundRect(ctx,cx-btnW/2,doneY,btnW,btnH,8);ctx.fill();
-  ctx.strokeStyle='#00ff88';ctx.lineWidth=2;
-  roundRect(ctx,cx-btnW/2,doneY,btnW,btnH,8);ctx.stroke();ctx.shadowBlur=0;
-  ctx.font='bold 13px "Courier New"';ctx.fillStyle=dhov?'#000':'#00ff88';
-  ctx.fillText('DONE - SAVE PACK',cx,doneY+btnH/2+5);
+  _btn(cx-btnW/2,doneY,btnW,btnH,'DONE - SAVE PACK','primary','\u2714');
   ctx.textAlign='left';
 }
 
@@ -9682,9 +9512,16 @@ function _doClick(){
     }
     const cbX=rowStartX+10*itemStep;
     if(dist(mouse.x,mouse.y,cbX,swatchCY)<swatchR+8){colorPick.click();return;}
-    // Edit Loadout button
-    const elW=200,elH=38,elX=canvas.width/2-elW/2,elY=btnY-54;
-    if(mouse.x>elX&&mouse.x<elX+elW&&mouse.y>elY&&mouse.y<elY+elH){
+    // Bottom row buttons: CANCEL | EDIT ARSENAL | SAVE
+    const cx2=canvas.width/2;
+    const elW=200;
+    const totalBtnW2=cancelW+saveW+elW+24;
+    const rowX=cx2-totalBtnW2/2;
+    if(mouse.x>rowX&&mouse.x<rowX+cancelW&&mouse.y>btnY&&mouse.y<btnY+btnH){
+      _loadHangar();hangarCraft=selectedCraft;hangarColor=selectedColor;
+      gameState='start';SFX.select();return;
+    }
+    if(mouse.x>rowX+cancelW+12&&mouse.x<rowX+cancelW+12+elW&&mouse.y>btnY&&mouse.y<btnY+btnH){
       const cId=CRAFTS[hangarCraft].id;
       const maxSl=CRAFTS[hangarCraft].maxSlots;
       hangarLoadout=_loadLoadout(cId,maxSl)||[CRAFTS[hangarCraft].startWeapon||0];
@@ -9692,11 +9529,7 @@ function _doClick(){
       gameState='loadoutEdit';
       SFX.select();return;
     }
-    if(mouse.x>cancelX&&mouse.x<cancelX+cancelW&&mouse.y>btnY&&mouse.y<btnY+btnH){
-      _loadHangar();hangarCraft=selectedCraft;hangarColor=selectedColor;
-      gameState='start';SFX.select();return;
-    }
-    if(mouse.x>saveX&&mouse.x<saveX+saveW&&mouse.y>btnY&&mouse.y<btnY+btnH){
+    if(mouse.x>rowX+cancelW+12+elW+12&&mouse.x<rowX+totalBtnW2&&mouse.y>btnY&&mouse.y<btnY+btnH){
       selectedCraft=hangarCraft;selectedColor=hangarColor;P.craftIdx=selectedCraft;P.color=selectedColor;
       _saveHangar();weaponFlash={name:'HANGAR SAVED',ms:2000};gameState='start';SFX.confirm();return;
     }
