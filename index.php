@@ -490,6 +490,10 @@ canvas.addEventListener('wheel',(e)=>{
     editorSidebarScroll=Math.max(0,editorSidebarScroll+e.deltaY*0.5);
     e.preventDefault();
   }
+  if(gameState==='hallOfFame'){
+    hofScroll=Math.max(0,hofScroll+e.deltaY*0.5);
+    e.preventDefault();
+  }
 },{passive:false});
 
 // ─── CONSTANTS ───────────────────────────────────────────────────
@@ -6689,6 +6693,7 @@ const GAME_NAME='PATROL WING'; // ← change here to rename the game everywhere
 const HOF_KEY='pw_hof_scores';
 const HOF_MAX=20;
 let hofTab=0; // 0=This Device, 1=Best Globally
+let hofScroll=0;
 
 const MODE_LABELS={
   'battle':        'BATTLE WAVES',
@@ -7071,17 +7076,17 @@ function _returnToStart(){
 }
 
 function drawHallOfFame(){
-  const W=canvas.width,H=canvas.height,cx=W/2,cy=H/2;
+  const W=canvas.width,H=canvas.height,cx=W/2;
   ctx.fillStyle='#050d1a';ctx.fillRect(0,0,W,H);
   ctx.strokeStyle='rgba(0,80,160,0.07)';ctx.lineWidth=1;
   for(let x=0;x<W;x+=70){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
   for(let y=0;y<H;y+=70){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
   ctx.textAlign='center';
-  ctx.font='bold 36px "Courier New"';ctx.fillStyle='#ffdd00';ctx.shadowBlur=28;ctx.shadowColor='#ffaa00';
-  ctx.fillText('HALL OF FAME',cx,46);ctx.shadowBlur=0;
+  ctx.font='bold 42px "Courier New"';ctx.fillStyle='#ffdd00';ctx.shadowBlur=28;ctx.shadowColor='#ffaa00';
+  ctx.fillText('HALL OF FAME',cx,54);ctx.shadowBlur=0;
   // Tabs
   const tabW=Math.min(200,W*0.28),tabH=36,tabGap=12;
-  const tab1X=cx-tabW-tabGap/2, tab2X=cx+tabGap/2, tabY=68;
+  const tab1X=cx-tabW-tabGap/2, tab2X=cx+tabGap/2, tabY=86;
   const tab1Hov=mouse.x>tab1X&&mouse.x<tab1X+tabW&&mouse.y>tabY&&mouse.y<tabY+tabH;
   const tab2Hov=mouse.x>tab2X&&mouse.x<tab2X+tabW&&mouse.y>tabY&&mouse.y<tabY+tabH;
   [[tab1X,'THIS DEVICE',0],[tab2X,'BEST GLOBALLY',1]].forEach(([tx,label,idx])=>{
@@ -7095,9 +7100,11 @@ function drawHallOfFame(){
     ctx.fillStyle=act?'#00eeff':'rgba(80,140,200,0.7)';
     ctx.fillText(label,tx+tabW/2,tabY+tabH/2+5);
   });
-  const listY=tabY+tabH+14, listH=H-listY-58;
+  const listY=tabY+tabH+14, listH=H-listY-80;
   ctx.fillStyle='rgba(0,0,0,0.35)';ctx.fillRect(cx-W*0.46,listY,W*0.92,listH);
   ctx.strokeStyle='rgba(0,80,160,0.25)';ctx.lineWidth=1;ctx.strokeRect(cx-W*0.46,listY,W*0.92,listH);
+  // clip chart area
+  ctx.save();ctx.beginPath();ctx.rect(cx-W*0.46,listY,W*0.92,listH);ctx.clip();
   if(hofTab===0){
     // ── THIS DEVICE ──
     const scores=_hofLoad();
@@ -7105,20 +7112,27 @@ function drawHallOfFame(){
       ctx.font='13px "Courier New"';ctx.fillStyle='rgba(80,120,180,0.6)';
       ctx.fillText('NO SCORES RECORDED YET — COMPLETE A MISSION TO APPEAR HERE',cx,listY+listH/2);
     } else {
-      const rowH=Math.min(32, listH/(scores.length+1));
+      const rowH=32;
+      const totalRows=scores.length;
+      const maxScroll=Math.max(0,totalRows*rowH+26-(listH-22));
+      hofScroll=Math.min(hofScroll,maxScroll);
       const colX={rank:cx-W*0.44,mode:cx-W*0.30,score:cx+W*0.04,dur:cx+W*0.22,date:cx+W*0.38};
-      ctx.font='bold 9px "Courier New"';ctx.fillStyle='rgba(0,180,255,0.55)';
-      ctx.textAlign='left';
-      ctx.fillText('#',   colX.rank, listY+14);
-      ctx.fillText('MODE',colX.mode, listY+14);
-      ctx.fillText('SCORE',colX.score,listY+14);
-      ctx.fillText('TIME', colX.dur,  listY+14);
-      ctx.fillText('DATE', colX.date, listY+14);
-      ctx.strokeStyle='rgba(0,100,160,0.3)';ctx.lineWidth=1;
-      ctx.beginPath();ctx.moveTo(cx-W*0.44,listY+18);ctx.lineTo(cx+W*0.46,listY+18);ctx.stroke();
+      const headerY=listY+14-hofScroll;
+      if(headerY>listY-2){
+        ctx.font='bold 9px "Courier New"';ctx.fillStyle='rgba(0,180,255,0.55)';
+        ctx.textAlign='left';
+        ctx.fillText('#',   colX.rank, headerY);
+        ctx.fillText('MODE',colX.mode, headerY);
+        ctx.fillText('SCORE',colX.score,headerY);
+        ctx.fillText('TIME', colX.dur,  headerY);
+        ctx.fillText('DATE', colX.date, headerY);
+        ctx.strokeStyle='rgba(0,100,160,0.3)';ctx.lineWidth=1;
+        ctx.beginPath();ctx.moveTo(cx-W*0.44,listY+18-hofScroll);ctx.lineTo(cx+W*0.46,listY+18-hofScroll);ctx.stroke();
+      }
       scores.forEach((s,i)=>{
-        const ry=listY+26+i*rowH;
-        if(ry+rowH>listY+listH) return;
+        const ry=listY+26+i*rowH-hofScroll;
+        if(ry+rowH<listY) return;
+        if(ry>listY+listH) return;
         const gold=i===0,silver=i===1,bronze=i===2;
         ctx.font=`${gold?'bold ':''}${Math.min(11,rowH*0.38)}px "Courier New"`;
         ctx.fillStyle=gold?'#ffdd44':silver?'#cccccc':bronze?'#cc8844':'rgba(140,180,220,0.85)';
@@ -7131,25 +7145,41 @@ function drawHallOfFame(){
         ctx.fillText(_fmtDur(s.duration),colX.dur,ry);
         ctx.fillText(_fmtDate(s.date),colX.date,ry);
       });
+      // scroll indicators
+      if(hofScroll>0){
+        const grad=ctx.createLinearGradient(0,listY,0,listY+24);
+        grad.addColorStop(0,'rgba(6,12,24,0.9)');grad.addColorStop(1,'rgba(6,12,24,0)');
+        ctx.fillStyle=grad;ctx.fillRect(cx-W*0.46,listY,W*0.92,24);
+      }
+      if(hofScroll<maxScroll){
+        const grad=ctx.createLinearGradient(0,listY+listH-24,0,listY+listH);
+        grad.addColorStop(0,'rgba(6,12,24,0)');grad.addColorStop(1,'rgba(6,12,24,0.9)');
+        ctx.fillStyle=grad;ctx.fillRect(cx-W*0.46,listY+listH-24,W*0.92,24);
+      }
     }
   } else {
     // ── BEST GLOBALLY (placeholder) ──
     ctx.font='9px "Courier New"';ctx.fillStyle='rgba(255,180,40,0.45)';
-    ctx.fillText('— LIVE LEADERBOARD COMING SOON — PLACEHOLDER DATA SHOWN —',cx,listY+12);
-    const rowH=Math.min(28, (listH-24)/(HOF_GLOBAL.length+1));
+    ctx.fillText('— LIVE LEADERBOARD COMING SOON — PLACEHOLDER DATA SHOWN —',cx,listY+12-hofScroll);
+    const rowH=28;
+    const totalRows=HOF_GLOBAL.length;
+    const maxScroll=Math.max(0,totalRows*rowH+44-(listH-24));
+    hofScroll=Math.min(hofScroll,maxScroll);
     const colX={rank:cx-W*0.44,name:cx-W*0.36,country:cx+W*0.04,score:cx+W*0.16,time:cx+W*0.32};
     ctx.font='bold 9px "Courier New"';ctx.fillStyle='rgba(0,180,255,0.55)';
     ctx.textAlign='left';
-    ctx.fillText('#',      colX.rank,   listY+28);
-    ctx.fillText('HANDLE', colX.name,   listY+28);
-    ctx.fillText('COUNTRY',colX.country,listY+28);
-    ctx.fillText('SCORE',  colX.score,  listY+28);
-    ctx.fillText('BEST TIME',colX.time, listY+28);
+    const hdrY=listY+28-hofScroll;
+    ctx.fillText('#',      colX.rank,   hdrY);
+    ctx.fillText('HANDLE', colX.name,   hdrY);
+    ctx.fillText('COUNTRY',colX.country,hdrY);
+    ctx.fillText('SCORE',  colX.score,  hdrY);
+    ctx.fillText('BEST TIME',colX.time, hdrY);
     ctx.strokeStyle='rgba(0,100,160,0.3)';ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(cx-W*0.44,listY+33);ctx.lineTo(cx+W*0.46,listY+33);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx-W*0.44,listY+33-hofScroll);ctx.lineTo(cx+W*0.46,listY+33-hofScroll);ctx.stroke();
     HOF_GLOBAL.forEach((g,i)=>{
-      const ry=listY+44+i*rowH;
-      if(ry+rowH>listY+listH) return;
+      const ry=listY+44+i*rowH-hofScroll;
+      if(ry+rowH<listY) return;
+      if(ry>listY+listH) return;
       const gold=i===0,silver=i===1,bronze=i===2;
       ctx.font=`${gold?'bold ':''}${Math.min(11,rowH*0.38)}px "Courier New"`;
       ctx.fillStyle=gold?'#ffdd44':silver?'#cccccc':bronze?'#cc8844':'rgba(140,180,220,0.85)';
@@ -7162,7 +7192,19 @@ function drawHallOfFame(){
       ctx.textAlign='left';
       ctx.fillText(g.time,  colX.time,ry);
     });
+    // scroll indicators
+    if(hofScroll>0){
+      const grad=ctx.createLinearGradient(0,listY,0,listY+24);
+      grad.addColorStop(0,'rgba(6,12,24,0.9)');grad.addColorStop(1,'rgba(6,12,24,0)');
+      ctx.fillStyle=grad;ctx.fillRect(cx-W*0.46,listY,W*0.92,24);
+    }
+    if(hofScroll<maxScroll){
+      const grad=ctx.createLinearGradient(0,listY+listH-24,0,listY+listH);
+      grad.addColorStop(0,'rgba(6,12,24,0)');grad.addColorStop(1,'rgba(6,12,24,0.9)');
+      ctx.fillStyle=grad;ctx.fillRect(cx-W*0.46,listY+listH-24,W*0.92,24);
+    }
   }
+  ctx.restore();
   // Back button
   const bw=160,bh=40,bx=Math.max(20,W*0.03),by=H-70;
   _briefBtn(bx,by,bw,bh,'◀  BACK','#00ccff',false);
@@ -9492,7 +9534,7 @@ function _doClick(){
         if(item.label==='Time Trials'){  gameMode='timetrial'; gameState='ttLevelSelect'; SFX.select(); }
         if(item.label==='Combat Training'){ activeBriefing='brief_ct'; gameState='briefing'; SFX.select(); }
         if(item.label==='Aircraft Hangar'){ hangarCraft=selectedCraft; hangarColor=selectedColor; hangarScroll=Math.max(0,Math.min(hangarCraft,CRAFTS.length-HANGAR_VISIBLE)); gameState='hangar'; SFX.select(); }
-        if(item.label==='Hall of Fame'){ hofTab=0; gameState='hallOfFame'; SFX.select(); }
+        if(item.label==='Hall of Fame'){ hofTab=0; hofScroll=0; gameState='hallOfFame'; SFX.select(); }
         if(item.label==='Level Designer'){ gameState='customSelect'; SFX.select(); }
         if(item.label==='Setup'){ gameState='setup'; SFX.select(); }
         return;
@@ -9549,10 +9591,10 @@ function _doClick(){
   }
   if(gameState==='hallOfFame'){
     const W=canvas.width,cx=W/2;
-    const tabW=Math.min(200,W*0.28),tabH=36,tabGap=12,tabY=68;
+    const tabW=Math.min(200,W*0.28),tabH=36,tabGap=12,tabY=86;
     const tab1X=cx-tabW-tabGap/2, tab2X=cx+tabGap/2;
-    if(mouse.x>tab1X&&mouse.x<tab1X+tabW&&mouse.y>tabY&&mouse.y<tabY+tabH){hofTab=0;SFX.select();return;}
-    if(mouse.x>tab2X&&mouse.x<tab2X+tabW&&mouse.y>tabY&&mouse.y<tabY+tabH){hofTab=1;SFX.select();return;}
+    if(mouse.x>tab1X&&mouse.x<tab1X+tabW&&mouse.y>tabY&&mouse.y<tabY+tabH){hofTab=0;hofScroll=0;SFX.select();return;}
+    if(mouse.x>tab2X&&mouse.x<tab2X+tabW&&mouse.y>tabY&&mouse.y<tabY+tabH){hofTab=1;hofScroll=0;SFX.select();return;}
     const bw=160,bh=40,bx=Math.max(20,canvas.width*0.03),by=canvas.height-70;
     if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){gameState='start';SFX.select();return;}
     return;
