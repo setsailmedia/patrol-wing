@@ -6337,7 +6337,7 @@ function drawTTLevelSelect(){
     });
 
   // Back button
-  const bw=140,bh=36,bx=Math.max(20,W*0.03),by=H-backH+8;
+  const bw=Math.min(220,W*0.28),bh=46,bx=Math.max(20,W*0.03),by=H-bh-Math.max(28,H*0.04);
   _btn(bx,by,bw,bh,'BACK','default','\u25C0');
   ctx.textAlign='left';
 }
@@ -6983,7 +6983,7 @@ function drawHallOfFame(){
     } else {
       const rowH=32;
       const totalRows=scores.length;
-      const maxScroll=Math.max(0,totalRows*rowH+42-(listH-22));
+      const maxScroll=Math.max(0,totalRows*rowH+52-(listH-22));
       hofScroll=Math.min(hofScroll,maxScroll);
       const colX={rank:cx-W*0.44,mode:cx-W*0.30,score:cx+W*0.04,dur:cx+W*0.22,date:cx+W*0.38};
       const headerY=listY+18-hofScroll;
@@ -6999,7 +6999,7 @@ function drawHallOfFame(){
         ctx.beginPath();ctx.moveTo(cx-W*0.44,listY+26-hofScroll);ctx.lineTo(cx+W*0.46,listY+26-hofScroll);ctx.stroke();
       }
       scores.forEach((s,i)=>{
-        const ry=listY+42+i*rowH-hofScroll;
+        const ry=listY+52+i*rowH-hofScroll;
         if(ry+rowH<listY) return;
         if(ry>listY+listH) return;
         const gold=i===0,silver=i===1,bronze=i===2;
@@ -7032,7 +7032,7 @@ function drawHallOfFame(){
     ctx.fillText('— LIVE LEADERBOARD COMING SOON — PLACEHOLDER DATA SHOWN —',cx,listY+12-hofScroll);
     const rowH=28;
     const totalRows=HOF_GLOBAL.length;
-    const maxScroll=Math.max(0,totalRows*rowH+56-(listH-24));
+    const maxScroll=Math.max(0,totalRows*rowH+62-(listH-24));
     hofScroll=Math.min(hofScroll,maxScroll);
     const colX={rank:cx-W*0.44,name:cx-W*0.36,country:cx+W*0.04,score:cx+W*0.16,time:cx+W*0.32};
     ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(0,180,255,0.7)';
@@ -7046,7 +7046,7 @@ function drawHallOfFame(){
     ctx.strokeStyle='rgba(0,100,160,0.3)';ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(cx-W*0.44,listY+40-hofScroll);ctx.lineTo(cx+W*0.46,listY+40-hofScroll);ctx.stroke();
     HOF_GLOBAL.forEach((g,i)=>{
-      const ry=listY+56+i*rowH-hofScroll;
+      const ry=listY+62+i*rowH-hofScroll;
       if(ry+rowH<listY) return;
       if(ry>listY+listH) return;
       const gold=i===0,silver=i===1,bronze=i===2;
@@ -7074,9 +7074,6 @@ function drawHallOfFame(){
     }
   }
   ctx.restore();
-  // Back button
-  const bw=160,bh=40,bx=Math.max(20,W*0.03),by=H-70;
-  _btn(bx,by,bw,bh,'BACK','default','\u25C0');
   ctx.textAlign='left';
 }
 
@@ -9473,7 +9470,7 @@ function _doClick(){
     if(mouse.x>c5X&&mouse.x<c5X+cardW&&mouse.y>row2Y&&mouse.y<row2Y+cardH){
       activeBriefing='brief_tt5'; gameState='briefing'; SFX.select(); return;
     }
-    const bw=140,bh=36,bx=Math.max(20,W*0.03),by=H-backH+8;
+    const bw=Math.min(220,W*0.28),bh=46,bx=Math.max(20,W*0.03),by=H-bh-Math.max(28,H*0.04);
     if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){gameState='start';SFX.select();return;}
     return;
   }
