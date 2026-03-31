@@ -5054,9 +5054,22 @@ function drawCraftCard(craft,cx,cy,idx,hov,sel){
   });
 
   // Ability
-  ctx.font='7.5px "Courier New"';ctx.textAlign='center';ctx.fillStyle=isActive?'rgba(200,230,255,0.75)':'rgba(80,110,145,0.6)';
-  const words=craft.ability.split('  —  ');
-  ctx.fillText(words[0],cx,y+274);ctx.fillText(words[1]||'',cx,y+286);
+  ctx.font='bold 7.5px "Courier New"';ctx.textAlign='center';ctx.fillStyle=isActive?craft.defaultColor:'rgba(80,130,180,0.7)';
+  const abilParts=craft.ability.split('  —  ');
+  ctx.fillText(abilParts[0],cx,y+274);
+  ctx.font='7.5px "Courier New"';ctx.fillStyle=isActive?'rgba(200,230,255,0.75)':'rgba(80,110,145,0.6)';
+  if(abilParts[1]){
+    const maxW=CW-20;
+    const abilWords=abilParts[1].split(' ');
+    let line='',lineY=y+288;
+    for(const w of abilWords){
+      const test=line?line+' '+w:w;
+      if(ctx.measureText(test).width>maxW&&line){
+        ctx.fillText(line,cx,lineY);lineY+=11;line=w;
+      } else line=test;
+    }
+    if(line)ctx.fillText(line,cx,lineY);
+  }
 
   // Selected tick
   if(sel===idx){
