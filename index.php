@@ -807,7 +807,7 @@ const TRAINING_PROTOCOLS={
   ],
 };
 const SETTINGS_KEY='pw_settings';
-const SETTINGS_DEFAULT={musicVol:1,sfxVol:1,uiVol:1,screenShake:true,particles:'full'};
+const SETTINGS_DEFAULT={musicVol:1,sfxVol:1,uiVol:1,screenShake:true,particles:'full',perfLevel:null};
 let settings=Object.assign({},SETTINGS_DEFAULT);
 function _loadSettings(){
   try{const s=JSON.parse(localStorage.getItem(SETTINGS_KEY));if(s)settings=Object.assign({},SETTINGS_DEFAULT,s);}catch(e){}
@@ -836,6 +836,29 @@ colorPick.addEventListener('input',e=>{
   else selectedColor=e.target.value;
 });
 _loadSettings();
+// Performance detection
+let perfLevel='high'; // 'high','medium','low'
+function _detectPerformance(){
+  const canvas2=document.createElement('canvas');
+  canvas2.width=200;canvas2.height=200;
+  const ctx2=canvas2.getContext('2d');
+  const start=performance.now();
+  for(let i=0;i<500;i++){
+    ctx2.beginPath();ctx2.arc(100,100,50,0,Math.PI*2);ctx2.fill();
+    ctx2.clearRect(0,0,200,200);
+  }
+  const elapsed=performance.now()-start;
+  // Also check hardware concurrency and memory
+  const cores=navigator.hardwareConcurrency||2;
+  const mem=(navigator.deviceMemory||4);
+  const isMobile=IS_TOUCH;
+  if(elapsed>80||cores<=2||mem<=2||isMobile) perfLevel='low';
+  else if(elapsed>40||cores<=4||mem<=4) perfLevel='medium';
+  else perfLevel='high';
+  // Apply saved override if exists
+  if(settings.perfLevel) perfLevel=settings.perfLevel;
+}
+_detectPerformance();
 _loadHangar(); // apply saved craft+color immediately
 
 // ─── GAME STATE ──────────────────────────────────────────────────
@@ -969,9 +992,16 @@ const SHOCKWAVE_KB     =14;
 
 // ─── PARTICLES ───────────────────────────────────────────────────
 function _pCount(n){
-  if(settings.particles==='off')return 0;
-  if(settings.particles==='reduced')return Math.max(1,Math.ceil(n*0.4));
-  return n;
+  if(settings.particles==='off') return 0;
+  let c=settings.particles==='reduced'?Math.ceil(n*0.4):n;
+  if(perfLevel==='low') c=Math.ceil(c*0.3);
+  else if(perfLevel==='medium') c=Math.ceil(c*0.6);
+  return c;
+}
+function _shadow(blur,color){
+  if(perfLevel==='low'){ctx.shadowBlur=0;return;}
+  if(perfLevel==='medium'){ctx.shadowBlur=Math.ceil(blur*0.5);ctx.shadowColor=color;return;}
+  ctx.shadowBlur=blur;ctx.shadowColor=color;
 }
 function spawnParts(x,y,color,n=10,sp=4,sz=5,life=450){
   if(n<=0)return;
@@ -1539,6 +1569,10 @@ function drawObstacles(){
       const sx=o.x-camX,sy=o.y-camY;if(sx+o.r<-5||sx-o.r>canvas.width+5||sy+o.r<-5||sy-o.r>canvas.height+5)continue;
       ctx.save();ctx.translate(sx,sy);ctx.rotate(o.rot);
       ctx.beginPath();for(let i=0;i<6;i++){const a=(Math.PI/3)*i;i===0?ctx.moveTo(Math.cos(a)*o.r,Math.sin(a)*o.r):ctx.lineTo(Math.cos(a)*o.r,Math.sin(a)*o.r);}ctx.closePath();
+      if(perfLevel==='low'){
+        ctx.fillStyle='rgba(10,25,60,0.95)';ctx.fill();ctx.strokeStyle='rgba(30,100,200,0.5)';ctx.lineWidth=1.5;ctx.stroke();
+        ctx.restore();continue;
+      }
       const gr=ctx.createRadialGradient(0,0,0,0,0,o.r);gr.addColorStop(0,'rgba(18,42,90,0.98)');gr.addColorStop(1,'rgba(5,14,38,0.99)');
       ctx.fillStyle=gr;ctx.fill();ctx.shadowBlur=12;ctx.shadowColor='rgba(0,100,220,0.55)';ctx.strokeStyle='rgba(30,120,230,0.65)';ctx.lineWidth=2.2;ctx.stroke();ctx.shadowBlur=0;
       ctx.strokeStyle='rgba(0,60,160,0.28)';ctx.lineWidth=0.8;for(let j=0;j<3;j++){const a=(Math.PI/3)*j+Math.PI/6;ctx.beginPath();ctx.moveTo(Math.cos(a)*o.r*0.38,Math.sin(a)*o.r*0.38);ctx.lineTo(-Math.cos(a)*o.r*0.38,-Math.sin(a)*o.r*0.38);ctx.stroke();}
@@ -5471,6 +5505,7 @@ function _getSetupLayout(W,H){
   const particleY=y;y+=rowH+sectionGap;
   const gameplayHeaderY=y;y+=labelSz*2+8;
   const shakeY=y;y+=rowH+sectionGap;
+  const perfHeaderY=y;y+=rowH+sectionGap;
   const dataHeaderY=y;y+=labelSz*2+8;
   const hofBtnY=y;
   const hofBtnW=Math.max(220,W*0.28),hofBtnH=btnH;
@@ -5481,6 +5516,7 @@ function _getSetupLayout(W,H){
     audioHeaderY,sliders,trackThumbR:8,
     displayHeaderY,particleY,
     gameplayHeaderY,shakeY,
+    perfHeaderY,
     dataHeaderY,hofBtnY,hofBtnW,hofBtnH,
     backBtn};
 }
@@ -5599,6 +5635,25 @@ function drawSetupScreen(){
   _drawToggle3(L,'particles',['FULL','REDUCED','OFF'],['full','reduced','off'],_particleBtnRects(L),'Particle Intensity');
   _sh('GAMEPLAY',L.gameplayHeaderY);
   _drawToggle2(L,'screenShake',_shakeBtnRects(L),'Screen Shake');
+  _sh('PERFORMANCE',L.perfHeaderY);
+  const perfModes=['AUTO','HIGH','MEDIUM','LOW'];
+  const perfVals=[null,'high','medium','low'];
+  const perfBtnW=Math.max(60,L.trackW/4-6);
+  for(let p=0;p<4;p++){
+    const px=L.trackX+p*(perfBtnW+8),py=L.perfHeaderY+L.labelSz+12;
+    const active=(settings.perfLevel===perfVals[p])||(settings.perfLevel===null&&p===0);
+    const hov=mouse.x>px&&mouse.x<px+perfBtnW&&mouse.y>py&&mouse.y<py+L.togH;
+    ctx.fillStyle=active?'rgba(0,180,255,0.25)':hov?'rgba(0,80,160,0.2)':'rgba(0,30,80,0.3)';
+    _roundRect(px,py,perfBtnW,L.togH,4);ctx.fill();
+    ctx.strokeStyle=active?'#00ccff':'rgba(0,100,160,0.4)';ctx.lineWidth=active?2:1;
+    _roundRect(px,py,perfBtnW,L.togH,4);ctx.stroke();
+    ctx.font=`${active?'bold ':''}${L.labelSz}px "Courier New"`;
+    ctx.fillStyle=active?'#00eeff':'rgba(100,170,230,0.7)';
+    ctx.fillText(perfModes[p],px+perfBtnW/2,py+L.togH/2+L.labelSz*0.36);
+  }
+  // Show detected level
+  ctx.font=`${L.labelSz*0.85}px "Courier New"`;ctx.fillStyle='rgba(80,140,200,0.5)';
+  ctx.fillText(`Detected: ${perfLevel.toUpperCase()}`,L.cx,L.perfHeaderY+L.labelSz+12+L.togH+L.labelSz+4);
   _sh('DATA',L.dataHeaderY);
   _drawHofClearBtn(L,now);
   if(hofClearFlashMs>0){
@@ -9443,6 +9498,18 @@ function _doClick(){
         settings.screenShake=b.val;_saveSettings();SFX.select();return;
       }
     }
+    // Performance buttons
+    const perfBtnW=Math.max(60,L.trackW/4-6);
+    const perfVals=[null,'high','medium','low'];
+    for(let p=0;p<4;p++){
+      const px=L.trackX+p*(perfBtnW+8),py=L.perfHeaderY+L.labelSz+12;
+      if(mouse.x>px&&mouse.x<px+perfBtnW&&mouse.y>py&&mouse.y<py+L.togH){
+        settings.perfLevel=perfVals[p];
+        perfLevel=perfVals[p]||perfLevel;
+        if(perfVals[p]===null) _detectPerformance();
+        _saveSettings();SFX.select();return;
+      }
+    }
     const hx=L.cx-L.hofBtnW/2;
     if(mouse.x>=hx&&mouse.x<=hx+L.hofBtnW&&mouse.y>=L.hofBtnY&&mouse.y<=L.hofBtnY+L.hofBtnH){
       if(hofClearStep===0){hofClearStep=1;hofClearResetAt=Date.now()+3000;SFX.select();}
@@ -10379,6 +10446,8 @@ function tickHullBeep(now){
 // ─── MAIN LOOP ────────────────────────────────────────────────────
 function loop(now){
   requestAnimationFrame(loop);
+  // Frame skip for low performance
+  if(perfLevel==='low'&&now-lastTime<20) return; // cap at ~50fps
   const dt=clamp((now-lastTime)/1000,0,0.05);lastTime=now;
   if(screenLockMs>0) screenLockMs-=dt*1000;
   Music.tick();
