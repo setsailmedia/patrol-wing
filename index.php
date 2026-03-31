@@ -5002,7 +5002,7 @@ function drawStatBar(x,y,w,h,val,max,col){
 
 function drawCraftCard(craft,cx,cy,idx,hov,sel){
   const t=Date.now()/1000;
-  const CW=200,CH=340;
+  const CW=200,CH=360;
   const x=cx-CW/2,y=cy-CH/2;
   const isActive=hov===idx||sel===idx;
   const accCol=isActive?craft.defaultColor:'rgba(30,55,90,0.7)';
@@ -5205,7 +5205,7 @@ function _hangarLayout(){
   const W=canvas.width, H=canvas.height, cx=W/2;
   const btnH=44, btnY=H-72;
   const headerBottom=72, previewTopPad=24, previewBotPad=44;
-  const cardBotPad=44, swatchZoneH=54, cardH=340;
+  const cardBotPad=44, swatchZoneH=54, cardH=360;
   const fixedH=previewTopPad+previewBotPad+cardH+cardBotPad+swatchZoneH+32+btnH;
   const previewAvail=Math.max(60, Math.min(H-headerBottom-fixedH, 140));
   const previewSize=Math.min(42,(previewAvail-24)/2);
@@ -9486,7 +9486,7 @@ function _doClick(){
     }
     for(let i=hangarScroll;i<Math.min(hangarScroll+HANGAR_VISIBLE,CRAFTS.length);i++){
       const cardX=startX+(i-hangarScroll)*spacing;
-      if(mouse.x>cardX-100&&mouse.x<cardX+100&&mouse.y>cardsCY-170&&mouse.y<cardsCY+170){
+      if(mouse.x>cardX-100&&mouse.x<cardX+100&&mouse.y>cardsCY-180&&mouse.y<cardsCY+180){
         hangarCraft=i;
         // Auto-scroll to keep selection visible
         if(i<hangarScroll) hangarScroll=i;
@@ -9657,7 +9657,7 @@ canvas.addEventListener('mousemove',()=>{
   if(gameState==='hangar'){
     const {cardsCY,swatchR,rowStartX,itemStep,swatchCY,startX}=_hangarLayout();
     const spacing=Math.min(220,canvas.width*0.22);
-    for(let i=hangarScroll;i<Math.min(hangarScroll+HANGAR_VISIBLE,CRAFTS.length);i++){const cardX=startX+(i-hangarScroll)*spacing;if(mouse.x>cardX-100&&mouse.x<cardX+100&&mouse.y>cardsCY-170&&mouse.y<cardsCY+170){hoverCard=i;break;}}
+    for(let i=hangarScroll;i<Math.min(hangarScroll+HANGAR_VISIBLE,CRAFTS.length);i++){const cardX=startX+(i-hangarScroll)*spacing;if(mouse.x>cardX-100&&mouse.x<cardX+100&&mouse.y>cardsCY-180&&mouse.y<cardsCY+180){hoverCard=i;break;}}
     for(let i=0;i<SWATCHES.length;i++){const sx=rowStartX+i*itemStep;if(dist(mouse.x,mouse.y,sx,swatchCY)<swatchR+8){hoverSwatch=i;break;}}
   }
   // Track sound toggle hover for start screen highlight
