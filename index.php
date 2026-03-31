@@ -6962,23 +6962,14 @@ function drawHallOfFame(){
   ctx.textAlign='center';
   ctx.font='bold 42px "Courier New"';ctx.fillStyle='#ffdd00';ctx.shadowBlur=28;ctx.shadowColor='#ffaa00';
   ctx.fillText('HALL OF FAME',cx,54);ctx.shadowBlur=0;
-  // Tabs
-  const tabW=Math.min(200,W*0.28),tabH=36,tabGap=12;
-  const tab1X=cx-tabW-tabGap/2, tab2X=cx+tabGap/2, tabY=86;
-  const tab1Hov=mouse.x>tab1X&&mouse.x<tab1X+tabW&&mouse.y>tabY&&mouse.y<tabY+tabH;
-  const tab2Hov=mouse.x>tab2X&&mouse.x<tab2X+tabW&&mouse.y>tabY&&mouse.y<tabY+tabH;
-  [[tab1X,'THIS DEVICE',0],[tab2X,'BEST GLOBALLY',1]].forEach(([tx,label,idx])=>{
-    const act=hofTab===idx;
-    ctx.fillStyle=act?'rgba(0,180,255,0.18)':'rgba(0,0,0,0.5)';
-    roundRect(ctx,tx,tabY,tabW,tabH,6);ctx.fill();
-    ctx.strokeStyle=act?'#00ccff':'rgba(0,100,160,0.4)';ctx.lineWidth=act?2:1;
-    ctx.shadowBlur=act?12:0;ctx.shadowColor='#00ccff';
-    roundRect(ctx,tx,tabY,tabW,tabH,6);ctx.stroke();ctx.shadowBlur=0;
-    ctx.font=`${act?'bold ':''}12px "Courier New"`;
-    ctx.fillStyle=act?'#00eeff':'rgba(80,140,200,0.7)';
-    ctx.fillText(label,tx+tabW/2,tabY+tabH/2+5);
-  });
-  const listY=tabY+tabH+14, listH=H-listY-80;
+  // Bottom button row (BACK, THIS DEVICE, BEST GLOBALLY)
+  const btnW=Math.min(180,W*0.24),btnH=40,btnGap=12;
+  const totalBtnW=btnW*3+btnGap*2;
+  const btnRowX=cx-totalBtnW/2,btnRowY=H-58;
+  _btn(btnRowX,btnRowY,btnW,btnH,'BACK','default','\u25C0');
+  _btn(btnRowX+btnW+btnGap,btnRowY,btnW,btnH,'THIS DEVICE',hofTab===0?'primary':'default','\u2302');
+  _btn(btnRowX+2*(btnW+btnGap),btnRowY,btnW,btnH,'GLOBAL',hofTab===1?'primary':'default','\u2605');
+  const listY=86, listH=H-86-72;
   ctx.fillStyle='rgba(0,0,0,0.35)';ctx.fillRect(cx-W*0.46,listY,W*0.92,listH);
   ctx.strokeStyle='rgba(0,80,160,0.25)';ctx.lineWidth=1;ctx.strokeRect(cx-W*0.46,listY,W*0.92,listH);
   // clip chart area
@@ -6992,7 +6983,7 @@ function drawHallOfFame(){
     } else {
       const rowH=32;
       const totalRows=scores.length;
-      const maxScroll=Math.max(0,totalRows*rowH+34-(listH-22));
+      const maxScroll=Math.max(0,totalRows*rowH+42-(listH-22));
       hofScroll=Math.min(hofScroll,maxScroll);
       const colX={rank:cx-W*0.44,mode:cx-W*0.30,score:cx+W*0.04,dur:cx+W*0.22,date:cx+W*0.38};
       const headerY=listY+18-hofScroll;
@@ -7008,7 +6999,7 @@ function drawHallOfFame(){
         ctx.beginPath();ctx.moveTo(cx-W*0.44,listY+26-hofScroll);ctx.lineTo(cx+W*0.46,listY+26-hofScroll);ctx.stroke();
       }
       scores.forEach((s,i)=>{
-        const ry=listY+34+i*rowH-hofScroll;
+        const ry=listY+42+i*rowH-hofScroll;
         if(ry+rowH<listY) return;
         if(ry>listY+listH) return;
         const gold=i===0,silver=i===1,bronze=i===2;
@@ -7041,7 +7032,7 @@ function drawHallOfFame(){
     ctx.fillText('— LIVE LEADERBOARD COMING SOON — PLACEHOLDER DATA SHOWN —',cx,listY+12-hofScroll);
     const rowH=28;
     const totalRows=HOF_GLOBAL.length;
-    const maxScroll=Math.max(0,totalRows*rowH+50-(listH-24));
+    const maxScroll=Math.max(0,totalRows*rowH+56-(listH-24));
     hofScroll=Math.min(hofScroll,maxScroll);
     const colX={rank:cx-W*0.44,name:cx-W*0.36,country:cx+W*0.04,score:cx+W*0.16,time:cx+W*0.32};
     ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(0,180,255,0.7)';
@@ -7055,7 +7046,7 @@ function drawHallOfFame(){
     ctx.strokeStyle='rgba(0,100,160,0.3)';ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(cx-W*0.44,listY+40-hofScroll);ctx.lineTo(cx+W*0.46,listY+40-hofScroll);ctx.stroke();
     HOF_GLOBAL.forEach((g,i)=>{
-      const ry=listY+50+i*rowH-hofScroll;
+      const ry=listY+56+i*rowH-hofScroll;
       if(ry+rowH<listY) return;
       if(ry>listY+listH) return;
       const gold=i===0,silver=i===1,bronze=i===2;
@@ -9420,13 +9411,13 @@ function _doClick(){
     return;
   }
   if(gameState==='hallOfFame'){
-    const W=canvas.width,cx=W/2;
-    const tabW=Math.min(200,W*0.28),tabH=36,tabGap=12,tabY=86;
-    const tab1X=cx-tabW-tabGap/2, tab2X=cx+tabGap/2;
-    if(mouse.x>tab1X&&mouse.x<tab1X+tabW&&mouse.y>tabY&&mouse.y<tabY+tabH){hofTab=0;hofScroll=0;SFX.select();return;}
-    if(mouse.x>tab2X&&mouse.x<tab2X+tabW&&mouse.y>tabY&&mouse.y<tabY+tabH){hofTab=1;hofScroll=0;SFX.select();return;}
-    const bw=160,bh=40,bx=Math.max(20,canvas.width*0.03),by=canvas.height-70;
-    if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){gameState='start';SFX.select();return;}
+    const W=canvas.width,H=canvas.height,cx=W/2;
+    const btnW=Math.min(180,W*0.24),btnH=40,btnGap=12;
+    const totalBtnW=btnW*3+btnGap*2;
+    const btnRowX=cx-totalBtnW/2,btnRowY=H-58;
+    if(mouse.x>btnRowX&&mouse.x<btnRowX+btnW&&mouse.y>btnRowY&&mouse.y<btnRowY+btnH){gameState='start';SFX.select();return;}
+    if(mouse.x>btnRowX+btnW+btnGap&&mouse.x<btnRowX+2*btnW+btnGap&&mouse.y>btnRowY&&mouse.y<btnRowY+btnH){hofTab=0;hofScroll=0;SFX.select();return;}
+    if(mouse.x>btnRowX+2*(btnW+btnGap)&&mouse.x<btnRowX+3*btnW+2*btnGap&&mouse.y>btnRowY&&mouse.y<btnRowY+btnH){hofTab=1;hofScroll=0;SFX.select();return;}
     return;
   }
 
