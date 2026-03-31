@@ -6992,12 +6992,12 @@ function drawHallOfFame(){
     } else {
       const rowH=32;
       const totalRows=scores.length;
-      const maxScroll=Math.max(0,totalRows*rowH+26-(listH-22));
+      const maxScroll=Math.max(0,totalRows*rowH+34-(listH-22));
       hofScroll=Math.min(hofScroll,maxScroll);
       const colX={rank:cx-W*0.44,mode:cx-W*0.30,score:cx+W*0.04,dur:cx+W*0.22,date:cx+W*0.38};
-      const headerY=listY+14-hofScroll;
+      const headerY=listY+18-hofScroll;
       if(headerY>listY-2){
-        ctx.font='bold 9px "Courier New"';ctx.fillStyle='rgba(0,180,255,0.55)';
+        ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(0,180,255,0.7)';
         ctx.textAlign='left';
         ctx.fillText('#',   colX.rank, headerY);
         ctx.fillText('MODE',colX.mode, headerY);
@@ -7005,10 +7005,10 @@ function drawHallOfFame(){
         ctx.fillText('TIME', colX.dur,  headerY);
         ctx.fillText('DATE', colX.date, headerY);
         ctx.strokeStyle='rgba(0,100,160,0.3)';ctx.lineWidth=1;
-        ctx.beginPath();ctx.moveTo(cx-W*0.44,listY+18-hofScroll);ctx.lineTo(cx+W*0.46,listY+18-hofScroll);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(cx-W*0.44,listY+26-hofScroll);ctx.lineTo(cx+W*0.46,listY+26-hofScroll);ctx.stroke();
       }
       scores.forEach((s,i)=>{
-        const ry=listY+26+i*rowH-hofScroll;
+        const ry=listY+34+i*rowH-hofScroll;
         if(ry+rowH<listY) return;
         if(ry>listY+listH) return;
         const gold=i===0,silver=i===1,bronze=i===2;
@@ -7041,21 +7041,21 @@ function drawHallOfFame(){
     ctx.fillText('— LIVE LEADERBOARD COMING SOON — PLACEHOLDER DATA SHOWN —',cx,listY+12-hofScroll);
     const rowH=28;
     const totalRows=HOF_GLOBAL.length;
-    const maxScroll=Math.max(0,totalRows*rowH+44-(listH-24));
+    const maxScroll=Math.max(0,totalRows*rowH+50-(listH-24));
     hofScroll=Math.min(hofScroll,maxScroll);
     const colX={rank:cx-W*0.44,name:cx-W*0.36,country:cx+W*0.04,score:cx+W*0.16,time:cx+W*0.32};
-    ctx.font='bold 9px "Courier New"';ctx.fillStyle='rgba(0,180,255,0.55)';
+    ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(0,180,255,0.7)';
     ctx.textAlign='left';
-    const hdrY=listY+28-hofScroll;
+    const hdrY=listY+32-hofScroll;
     ctx.fillText('#',      colX.rank,   hdrY);
     ctx.fillText('HANDLE', colX.name,   hdrY);
     ctx.fillText('COUNTRY',colX.country,hdrY);
     ctx.fillText('SCORE',  colX.score,  hdrY);
     ctx.fillText('BEST TIME',colX.time, hdrY);
     ctx.strokeStyle='rgba(0,100,160,0.3)';ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(cx-W*0.44,listY+33-hofScroll);ctx.lineTo(cx+W*0.46,listY+33-hofScroll);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx-W*0.44,listY+40-hofScroll);ctx.lineTo(cx+W*0.46,listY+40-hofScroll);ctx.stroke();
     HOF_GLOBAL.forEach((g,i)=>{
-      const ry=listY+44+i*rowH-hofScroll;
+      const ry=listY+50+i*rowH-hofScroll;
       if(ry+rowH<listY) return;
       if(ry>listY+listH) return;
       const gold=i===0,silver=i===1,bronze=i===2;
