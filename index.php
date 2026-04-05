@@ -158,6 +158,25 @@ NET._onMsg=function(msg){
   if(msg.event==='client-launch'&&gameState==='waitingRoom'&&!NET.isHost){
     const lm=msg.data&&msg.data.mode||'coop';
     if(lm==='pvp'){pvpRound=0;pvpScore=[0,0];startPvP();}
+    else if(lm==='ctf'){
+      ctfScores=[0,0];ctfCarryingFlag=-1;ctfFlagPositions=[null,null];ctfRoundOverMs=0;
+      loadCustomLevel({
+        name:'CTF Arena',worldW:3200,worldH:2400,winCondition:'captureFlag',winParams:{},
+        spawnX:400,spawnY:1200,
+        obstacles:[
+          {type:'wall',x:1500,y:400,w:26,h:600},{type:'wall',x:1500,y:1400,w:26,h:600},
+          {type:'pillar',x:800,y:600,r:40},{type:'pillar',x:800,y:1800,r:40},
+          {type:'pillar',x:2400,y:600,r:40},{type:'pillar',x:2400,y:1800,r:40},
+        ],
+        enemies:[{type:'scout',x:1600,y:600},{type:'scout',x:1600,y:1800},{type:'guard',x:1600,y:1200}],
+        pickups:[{type:'health',x:1600,y:1000,hidden:false},{type:'health',x:1600,y:1400,hidden:false},{type:'weapon',x:800,y:1200,hidden:false},{type:'weapon',x:2400,y:1200,hidden:false}],
+        hazards:[],
+        objectives:[
+          {type:'flag_red',x:200,y:1200},{type:'base_red',x:200,y:1200},
+          {type:'flag_blue',x:3000,y:1200},{type:'base_blue',x:3000,y:1200},
+        ],
+      });
+    }
     else{gameMode='battle';startBattle();}
     SFX.confirm();
   }
@@ -1171,6 +1190,11 @@ let pvpScore=[0,0];
 let pvpBestOf=3;
 let pvpRoundOverMs=0;
 let pvpWinner=-1;
+let ctfScores=[0,0]; // [red captures, blue captures]
+let ctfCapturesToWin=3;
+let ctfCarryingFlag=-1; // -1=not carrying, 0=carrying red flag, 1=carrying blue flag
+let ctfFlagPositions=[null,null]; // current world positions of [red,blue] flags (null=at base)
+let ctfRoundOverMs=0;
 let customSelectExpanded=-1;
 let customSelectSelectedLevel=-1;
 // Level 2 — Nuclear Disarm
@@ -5029,6 +5053,23 @@ function drawHUD(){
     ctx.fillText(`BEST OF ${pvpBestOf}  |  ROUND ${pvpRound}`,canvas.width/2,pad+28);
     ctx.shadowBlur=0;ctx.textAlign='left';
   }
+  if(customWinCondition==='captureFlag'){
+    ctx.textAlign='center';ctx.font='bold 18px "Courier New"';
+    const rCol='#ff4444',bCol='#4488ff';
+    ctx.fillStyle=rCol;ctx.fillText(`${ctfScores[0]}`,canvas.width/2-30,pad+14);
+    ctx.fillStyle='rgba(200,200,200,0.6)';ctx.fillText('-',canvas.width/2,pad+14);
+    ctx.fillStyle=bCol;ctx.fillText(`${ctfScores[1]}`,canvas.width/2+30,pad+14);
+    ctx.font='10px "Courier New"';ctx.fillStyle='rgba(200,200,200,0.5)';
+    ctx.fillText(`FIRST TO ${ctfCapturesToWin}`,canvas.width/2,pad+30);
+    if(ctfCarryingFlag>=0){
+      ctx.font='bold 14px "Courier New"';
+      ctx.fillStyle=ctfCarryingFlag===0?rCol:bCol;
+      ctx.shadowBlur=10;ctx.shadowColor=ctx.fillStyle;
+      ctx.fillText('FLAG CARRIER -- RETURN TO BASE',canvas.width/2,80);
+      ctx.shadowBlur=0;
+    }
+    ctx.textAlign='left';
+  }
 }
 function pauseBtnRect(){
   const{pbX,pbY,pbW,pbH}=mlLayout();
@@ -5208,6 +5249,17 @@ function drawMinimap(){
   for(const p of pickups){ctx.fillStyle=PTYPES[p.type].color+(p.hidden?'55':'bb');ctx.fillRect(mx+p.x*scx-1,my+p.y*scy-1,2.5,2.5);}
   for(const e of enemies){ctx.fillStyle=e.color;ctx.fillRect(mx+e.x*scx-2,my+e.y*scy-2,4,4);}
   for(const p of players){if(!p.alive)continue;ctx.fillStyle=p.color;ctx.shadowBlur=8;ctx.shadowColor=p.color;ctx.fillRect(mx+p.x*scx-2.5,my+p.y*scy-2.5,5,5);ctx.shadowBlur=0;}
+  // CTF flags on minimap
+  if(customWinCondition==='captureFlag'){
+    for(const obj of customObjectives){
+      if((obj.type==='flag_red'||obj.type==='flag_blue')&&!obj.collected){
+        const fx=ctfFlagPositions[obj.type==='flag_red'?0:1];
+        const fmx=fx?fx.x:obj.x,fmy=fx?fx.y:obj.y;
+        ctx.fillStyle=obj.type==='flag_red'?'#ff4444':'#4488ff';
+        ctx.fillRect(mx+fmx*scx-2,my+fmy*scy-2,5,5);
+      }
+    }
+  }
   // Portal markers
   if(portalActive){
     portalPositions.forEach((pos,i)=>{
@@ -7594,8 +7646,8 @@ function drawWaitingRoom(){
 
   // Mode selector
   if(waitingRoomIsHost){
-    const modes=['coop','pvp'];
-    const mLabels=['CO-OP','PVP'];
+    const modes=['coop','pvp','ctf'];
+    const mLabels=['CO-OP','PVP','CTF'];
     const mW=100,mH=34,mGap=12;
     const mStartX=cx-(modes.length*(mW+mGap)-mGap)/2;
     for(let m=0;m<modes.length;m++){
@@ -8395,6 +8447,7 @@ function loadCustomLevel(levelData){
     }
   }
   customWinCondition=levelData.winCondition||'killAll';
+  ctfScores=[0,0];ctfCarryingFlag=-1;ctfFlagPositions=[null,null];ctfRoundOverMs=0;
   customWinParams=levelData.winParams||{};
   customObjectives=levelData.objectives||[];
   customSurviveMs=(customWinCondition==='survive'&&customWinParams.seconds)?customWinParams.seconds*1000:0;
@@ -8439,6 +8492,52 @@ function tickCustomWinCondition(dt){
     if(customItemHeld&&dist(P.x,P.y,customGoalX,customGoalY)<50) customLevelWin();
   } else if(customWinCondition==='collectAll'){
     if(customKeysTotal>0&&customKeysCollected>=customKeysTotal) customLevelWin();
+  } else if(customWinCondition==='captureFlag'){
+    if(ctfRoundOverMs>0){ctfRoundOverMs-=dt*1000;return;}
+    const flagRed=customObjectives.find(o=>o.type==='flag_red');
+    const flagBlue=customObjectives.find(o=>o.type==='flag_blue');
+    const baseRed=customObjectives.find(o=>o.type==='base_red');
+    const baseBlue=customObjectives.find(o=>o.type==='base_blue');
+    if(!flagRed||!flagBlue||!baseRed||!baseBlue)return;
+    const frx=ctfFlagPositions[0]?ctfFlagPositions[0].x:flagRed.x;
+    const fry=ctfFlagPositions[0]?ctfFlagPositions[0].y:flagRed.y;
+    const fbx=ctfFlagPositions[1]?ctfFlagPositions[1].x:flagBlue.x;
+    const fby=ctfFlagPositions[1]?ctfFlagPositions[1].y:flagBlue.y;
+    if(P.alive&&ctfCarryingFlag<0){
+      if(!flagBlue.collected&&dist(P.x,P.y,fbx,fby)<40){
+        ctfCarryingFlag=1;flagBlue.collected=true;
+        ctfFlagPositions[1]={x:P.x,y:P.y};
+        P.spd*=JRR_CARRY_SPD;
+        weaponFlash={prefix:'',name:'FLAG CAPTURED -- RETURN TO BASE',ms:2500};
+        SFX.pickup();
+      }
+    }
+    if(ctfCarryingFlag>=0&&P.alive){
+      ctfFlagPositions[ctfCarryingFlag]={x:P.x,y:P.y};
+      if(ctfCarryingFlag===1&&dist(P.x,P.y,baseRed.x,baseRed.y)<50){
+        ctfScores[0]++;
+        ctfCarryingFlag=-1;
+        ctfFlagPositions[1]=null;
+        flagBlue.collected=false;
+        P.spd=CRAFTS[P.craftIdx].spd;
+        spawnParts(baseRed.x,baseRed.y,'#ff4444',_pCount(25),5,7,600);
+        weaponFlash={prefix:'',name:`RED SCORES! ${ctfScores[0]}-${ctfScores[1]}`,ms:2500};
+        SFX.confirm();
+        if(ctfScores[0]>=ctfCapturesToWin) customLevelWin();
+      }
+    }
+    if(!P.alive&&ctfCarryingFlag>=0){
+      ctfFlagPositions[ctfCarryingFlag]={x:P.x,y:P.y};
+      ctfCarryingFlag=-1;
+      P.spd=CRAFTS[P.craftIdx].spd;
+      weaponFlash={prefix:'',name:'FLAG DROPPED',ms:1800};
+    }
+    if(ctfFlagPositions[0]&&P.alive&&dist(P.x,P.y,ctfFlagPositions[0].x,ctfFlagPositions[0].y)<40){
+      ctfFlagPositions[0]=null;
+      flagRed.collected=false;
+      weaponFlash={prefix:'',name:'FLAG RETURNED',ms:1500};
+      SFX.select();
+    }
   }
 }
 function tickCustomObjectivePickup(){
@@ -8496,6 +8595,36 @@ function drawCustomObjectives(){
       ctx.shadowBlur=18*pulse;ctx.shadowColor='#00ff88';ctx.stroke();ctx.shadowBlur=0;
       ctx.font='10px "Courier New"';ctx.fillStyle='rgba(0,255,136,0.7)';ctx.textAlign='center';
       ctx.fillText(customWinCondition==='retrieve'?'GOAL':'ZONE',sx,sy+r+14);
+    } else if(obj.type==='flag_red'&&!obj.collected){
+      const pulse=0.5+0.5*Math.sin(t*3);
+      ctx.save();ctx.translate(sx,sy);
+      ctx.shadowBlur=12*pulse;ctx.shadowColor='#ff4444';
+      ctx.strokeStyle='#aaaaaa';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,12);ctx.lineTo(0,-12);ctx.stroke();
+      ctx.fillStyle=`rgba(255,68,68,${0.8+0.2*pulse})`;ctx.beginPath();ctx.moveTo(0,-12);ctx.lineTo(14,-6);ctx.lineTo(0,0);ctx.closePath();ctx.fill();
+      ctx.shadowBlur=0;ctx.restore();
+    } else if(obj.type==='flag_blue'&&!obj.collected){
+      const pulse=0.5+0.5*Math.sin(t*3+1);
+      ctx.save();ctx.translate(sx,sy);
+      ctx.shadowBlur=12*pulse;ctx.shadowColor='#4488ff';
+      ctx.strokeStyle='#aaaaaa';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,12);ctx.lineTo(0,-12);ctx.stroke();
+      ctx.fillStyle=`rgba(68,136,255,${0.8+0.2*pulse})`;ctx.beginPath();ctx.moveTo(0,-12);ctx.lineTo(14,-6);ctx.lineTo(0,0);ctx.closePath();ctx.fill();
+      ctx.shadowBlur=0;ctx.restore();
+    } else if(obj.type==='base_red'){
+      const pulse=0.4+0.3*Math.sin(t*2);
+      const r=50+4*pulse;
+      ctx.beginPath();ctx.arc(sx,sy,r,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(255,68,68,${0.35+0.2*pulse})`;ctx.lineWidth=3;
+      ctx.shadowBlur=14*pulse;ctx.shadowColor='#ff4444';ctx.stroke();ctx.shadowBlur=0;
+      ctx.font='10px "Courier New"';ctx.fillStyle='rgba(255,100,100,0.7)';ctx.textAlign='center';
+      ctx.fillText('RED BASE',sx,sy+r+14);
+    } else if(obj.type==='base_blue'){
+      const pulse=0.4+0.3*Math.sin(t*2+1);
+      const r=50+4*pulse;
+      ctx.beginPath();ctx.arc(sx,sy,r,0,Math.PI*2);
+      ctx.strokeStyle=`rgba(68,136,255,${0.35+0.2*pulse})`;ctx.lineWidth=3;
+      ctx.shadowBlur=14*pulse;ctx.shadowColor='#4488ff';ctx.stroke();ctx.shadowBlur=0;
+      ctx.font='10px "Courier New"';ctx.fillStyle='rgba(100,150,255,0.7)';ctx.textAlign='center';
+      ctx.fillText('BLUE BASE',sx,sy+r+14);
     } else if(obj.type==='gate_key'&&!obj.collected){
       const pulse=0.6+0.4*Math.sin(t*4+obj.x);
       ctx.save();ctx.translate(sx,sy);
@@ -8728,11 +8857,12 @@ function drawLevelSetup(){
     {id:'survive',label:'SURVIVE',desc:'Survive for set duration'},
     {id:'retrieve',label:'RETRIEVE',desc:'Get item, return to goal'},
     {id:'collectAll',label:'COLLECT ALL',desc:'Find all keys'},
+    {id:'captureFlag',label:'CAPTURE FLAG',desc:'Grab flag, return to base'},
   ];
   const condW=(panelW-2*8)/3,condH=52;
   for(let i=0;i<conditions.length;i++){
     const row=i<3?0:1,col=i<3?i:i-3;
-    const rowW=row===0?3:2;
+    const rowW=3;
     const rowStartX=panelX+(panelW-(rowW*(condW+8)-8))/2;
     const c=conditions[i],cx2=rowStartX+col*(condW+8),cy2=py+row*(condH+6);
     const sel=editorWinCondition===c.id;
@@ -8820,6 +8950,12 @@ function _getEditorCategories(){
       ...(editorWinCondition==='reachFinish'?[{tool:'obj_finish',label:'Finish Line',cat:'objective',subtype:'finish'}]:[]),
       ...(editorWinCondition==='collectAll'?[{tool:'obj_key',label:'Key',cat:'objective',subtype:'key'}]:[]),
       ...(editorWinCondition==='retrieve'?[{tool:'obj_item',label:'Item',cat:'objective',subtype:'item'},{tool:'obj_goal',label:'Goal Zone',cat:'objective',subtype:'goal'}]:[]),
+      ...(editorWinCondition==='captureFlag'?[
+        {tool:'obj_flag_red',label:'Flag Red',cat:'objective',subtype:'flag_red'},
+        {tool:'obj_flag_blue',label:'Flag Blue',cat:'objective',subtype:'flag_blue'},
+        {tool:'obj_base_red',label:'Base Red',cat:'objective',subtype:'base_red'},
+        {tool:'obj_base_blue',label:'Base Blue',cat:'objective',subtype:'base_blue'},
+      ]:[]),
     ]},
     {id:'tools',label:'TOOLS',items:[{tool:'move',label:'Move',cat:'special',subtype:'move'},{tool:'adjust',label:'Adjust',cat:'special',subtype:'adjust'},{tool:'timekeeper',label:'Timekeeper',cat:'special',subtype:'timekeeper'},{tool:'eraser',label:'Eraser',cat:'special',subtype:'eraser'}]},
   ];
@@ -9174,6 +9310,21 @@ function drawLevelEditor(){
       else if(item.subtype==='key'){ctx.font='bold 16px "Courier New"';ctx.fillStyle='#ffdd00';ctx.textAlign='center';ctx.fillText('K',sx,sy+5);}
       else if(item.subtype==='item'){ctx.fillStyle='#ff8800';ctx.save();ctx.translate(sx,sy);ctx.beginPath();ctx.moveTo(0,-10);ctx.lineTo(8,0);ctx.lineTo(0,10);ctx.lineTo(-8,0);ctx.closePath();ctx.fill();ctx.restore();}
       else if(item.subtype==='goal'){ctx.strokeStyle='#00ff88';ctx.lineWidth=2;ctx.beginPath();ctx.arc(sx,sy,30,0,Math.PI*2);ctx.stroke();ctx.font='9px "Courier New"';ctx.fillStyle='#00ff88';ctx.textAlign='center';ctx.fillText('GOAL',sx,sy+42);}
+      else if(item.subtype==='flag_red'){
+        ctx.strokeStyle='#aaa';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(sx,sy+10);ctx.lineTo(sx,sy-10);ctx.stroke();
+        ctx.fillStyle='#ff4444';ctx.beginPath();ctx.moveTo(sx,sy-10);ctx.lineTo(sx+12,sy-5);ctx.lineTo(sx,sy);ctx.closePath();ctx.fill();
+        ctx.font='8px "Courier New"';ctx.fillStyle='#ff6666';ctx.textAlign='center';ctx.fillText('FLAG R',sx,sy+20);
+      } else if(item.subtype==='flag_blue'){
+        ctx.strokeStyle='#aaa';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(sx,sy+10);ctx.lineTo(sx,sy-10);ctx.stroke();
+        ctx.fillStyle='#4488ff';ctx.beginPath();ctx.moveTo(sx,sy-10);ctx.lineTo(sx+12,sy-5);ctx.lineTo(sx,sy);ctx.closePath();ctx.fill();
+        ctx.font='8px "Courier New"';ctx.fillStyle='#6699ff';ctx.textAlign='center';ctx.fillText('FLAG B',sx,sy+20);
+      } else if(item.subtype==='base_red'){
+        ctx.strokeStyle='rgba(255,68,68,0.5)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(sx,sy,30,0,Math.PI*2);ctx.stroke();
+        ctx.font='8px "Courier New"';ctx.fillStyle='#ff6666';ctx.textAlign='center';ctx.fillText('BASE R',sx,sy+38);
+      } else if(item.subtype==='base_blue'){
+        ctx.strokeStyle='rgba(68,136,255,0.5)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(sx,sy,30,0,Math.PI*2);ctx.stroke();
+        ctx.font='8px "Courier New"';ctx.fillStyle='#6699ff';ctx.textAlign='center';ctx.fillText('BASE B',sx,sy+38);
+      }
     }
     if(item.appearAfter>0||item.duration>0){
       ctx.font='bold 7px "Courier New"';ctx.textAlign='center';
@@ -9963,11 +10114,11 @@ function _doClick(){
     // Height slider
     py+=slH+22;
     // Win conditions (2-row layout: 3 top, 2 bottom)
-    const conditions=['killAll','reachFinish','survive','retrieve','collectAll'];
+    const conditions=['killAll','reachFinish','survive','retrieve','collectAll','captureFlag'];
     const condW=(panelW-2*8)/3,condH=52;
     for(let i=0;i<conditions.length;i++){
       const row=i<3?0:1,col=i<3?i:i-3;
-      const rowW=row===0?3:2;
+      const rowW=3;
       const rowStartX=panelX+(panelW-(rowW*(condW+8)-8))/2;
       const cx2=rowStartX+col*(condW+8),cy2=py+row*(condH+6);
       if(mouse.x>cx2&&mouse.x<cx2+condW&&mouse.y>cy2&&mouse.y<cy2+condH){
@@ -10263,7 +10414,7 @@ function _doClick(){
     const slotH=120,slotY=175;
     // Mode toggle (host only)
     if(waitingRoomIsHost&&rd){
-      const modes=['coop','pvp'];
+      const modes=['coop','pvp','ctf'];
       const mW=100,mH=34,mGap=12;
       const mStartX=cx-(modes.length*(mW+mGap)-mGap)/2;
       for(let m=0;m<modes.length;m++){
@@ -10281,6 +10432,25 @@ function _doClick(){
         const launchMode=rd.mode||'coop';
         NET.sendJSON('launch',{mode:launchMode});
         if(launchMode==='pvp'){pvpRound=0;pvpScore=[0,0];startPvP();}
+        else if(launchMode==='ctf'){
+          ctfScores=[0,0];ctfCarryingFlag=-1;ctfFlagPositions=[null,null];ctfRoundOverMs=0;
+          loadCustomLevel({
+            name:'CTF Arena',worldW:3200,worldH:2400,winCondition:'captureFlag',winParams:{},
+            spawnX:400,spawnY:1200,
+            obstacles:[
+              {type:'wall',x:1500,y:400,w:26,h:600},{type:'wall',x:1500,y:1400,w:26,h:600},
+              {type:'pillar',x:800,y:600,r:40},{type:'pillar',x:800,y:1800,r:40},
+              {type:'pillar',x:2400,y:600,r:40},{type:'pillar',x:2400,y:1800,r:40},
+            ],
+            enemies:[{type:'scout',x:1600,y:600},{type:'scout',x:1600,y:1800},{type:'guard',x:1600,y:1200}],
+            pickups:[{type:'health',x:1600,y:1000,hidden:false},{type:'health',x:1600,y:1400,hidden:false},{type:'weapon',x:800,y:1200,hidden:false},{type:'weapon',x:2400,y:1200,hidden:false}],
+            hazards:[],
+            objectives:[
+              {type:'flag_red',x:200,y:1200},{type:'base_red',x:200,y:1200},
+              {type:'flag_blue',x:3000,y:1200},{type:'base_blue',x:3000,y:1200},
+            ],
+          });
+        }
         else{gameMode='battle';startBattle();}
         SFX.confirm();return;
       }
