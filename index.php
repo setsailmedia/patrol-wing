@@ -861,8 +861,15 @@ const TRAINING_PROTOCOLS={
   ],
 };
 const SETTINGS_KEY='pw_settings';
-const SETTINGS_DEFAULT={musicVol:1,sfxVol:1,uiVol:1,screenShake:true,particles:'full',perfLevel:null};
+const SETTINGS_DEFAULT={musicVol:1,sfxVol:1,uiVol:1,screenShake:true,particles:'full',perfLevel:null,difficulty:'hard'};
 let settings=Object.assign({},SETTINGS_DEFAULT);
+const DIFF_TABLE={
+  intense:{hitbox:0.85,playerDmg:0.8,enemyDmg:1.4,pickupRate:0.7,enemyFireRate:0.85,enemyHp:1.15,label:'INTENSE'},
+  hard:{hitbox:1.0,playerDmg:1.0,enemyDmg:1.0,pickupRate:1.0,enemyFireRate:1.0,enemyHp:1.0,label:'HARD'},
+  mid:{hitbox:1.15,playerDmg:1.3,enemyDmg:0.7,pickupRate:1.3,enemyFireRate:1.2,enemyHp:0.85,label:'MID'},
+  easy:{hitbox:1.3,playerDmg:1.7,enemyDmg:0.45,pickupRate:1.6,enemyFireRate:1.5,enemyHp:0.7,label:'EASY'},
+};
+function DIFF(){return DIFF_TABLE[settings.difficulty]||DIFF_TABLE.hard;}
 function _loadSettings(){
   try{const s=JSON.parse(localStorage.getItem(SETTINGS_KEY));if(s)settings=Object.assign({},SETTINGS_DEFAULT,s);}catch(e){}
 }
@@ -1226,7 +1233,7 @@ function tickHazards(dt,now){
         const d2=_pointSegDist2(P.x,P.y,h.ax,h.ay,h.bx,h.by);
         if(d2<18*18){
           if(P.shieldMs>0){P.shieldMs=0;if(settings.screenShake)shake=8;spawnParts(P.x,P.y,'#44aaff',_pCount(14),4,5,400);SFX.shbreak();P.iframes=400;}
-          else{P.hp-=h.dmg*P.damageMult;P.iframes=600;if(settings.screenShake)shake=12;SFX.hit();spawnParts(P.x,P.y,'#ffff44',_pCount(8),3,4,300);if(P.hp<=0)P.alive=false;}
+          else{P.hp-=h.dmg*P.damageMult*DIFF().enemyDmg;P.iframes=600;if(settings.screenShake)shake=12;SFX.hit();spawnParts(P.x,P.y,'#ffff44',_pCount(8),3,4,300);if(P.hp<=0)P.alive=false;}
           h.cooldown=1200; // 1.2s recharge between zaps
           Music.onHit();
         }
@@ -1255,7 +1262,7 @@ function tickHazards(dt,now){
         if(P.invincMs<=0){
           const pDmg=Math.round(h.dmg*(1-dp/h.blastR));
           if(P.shieldMs>0){P.shieldMs=0;spawnParts(P.x,P.y,'#44aaff',_pCount(16),4,5,450);SFX.shbreak();P.iframes=400;}
-          else if(pDmg>0){P.hp-=pDmg*P.damageMult;P.iframes=500;if(settings.screenShake)shake=18;SFX.hit();if(P.hp<=0)P.alive=false;Music.onHit();}
+          else if(pDmg>0){P.hp-=pDmg*P.damageMult*DIFF().enemyDmg;P.iframes=500;if(settings.screenShake)shake=18;SFX.hit();if(P.hp<=0)P.alive=false;Music.onHit();}
         }
         // Damage nearby enemies
         for(let ei=enemies.length-1;ei>=0;ei--){
@@ -1270,7 +1277,7 @@ function tickHazards(dt,now){
       if(h.t>=h.duration){hazards.splice(hi,1);continue;}
       if(P.alive&&P.iframes<=0&&P.invincMs<=0&&dist(P.x,P.y,h.x,h.y)<h.r){
         if(P.shieldMs>0){P.shieldMs=0;spawnParts(P.x,P.y,'#44aaff',_pCount(14),4,5,400);SFX.shbreak();P.iframes=400;}
-        else{P.hp-=18*dt*P.damageMult;if(settings.screenShake)shake=Math.max(shake,6);SFX.hit();Music.onHit();if(P.hp<=0)P.alive=false;}
+        else{P.hp-=18*dt*P.damageMult*DIFF().enemyDmg;if(settings.screenShake)shake=Math.max(shake,6);SFX.hit();Music.onHit();if(P.hp<=0)P.alive=false;}
       }
     } else if(h.type==='gravity_vortex'){
       if(P.alive){
@@ -1280,7 +1287,7 @@ function tickHazards(dt,now){
           P.vx+=(h.x-P.x)/dp*str;
           P.vy+=(h.y-P.y)/dp*str;
           if(dp<20&&P.iframes<=0&&P.invincMs<=0){
-            P.hp-=h.coreDmg*dt*P.damageMult;
+            P.hp-=h.coreDmg*dt*P.damageMult*DIFF().enemyDmg;
             if(settings.screenShake)shake=Math.max(shake,4);
             if(P.hp<=0)P.alive=false;
           }
@@ -1690,7 +1697,7 @@ function spawnPickup(x,y,type=null,hidden=false){
 function spawnHiddenPickups(append=false){
   if(!append) pickups=pickups.filter(p=>!p.hidden);
   const allUnlocked=_allWeaponsUnlocked();
-  ['battery','battery','battery','battery','health','health','health','weapon','weapon','weapon','weapon','shield','shield','shield','emp','emp','overcharge','overcharge','battery','health','ammo','ammo','invincibility','cloak','portal','medkit','medkit','medkit'].forEach(type=>{
+  ['battery','battery','battery','battery','health','health','health','weapon','weapon','weapon','weapon','shield','shield','shield','emp','emp','overcharge','overcharge','battery','health','ammo','ammo','invincibility','cloak','portal','medkit','medkit','medkit'].filter(()=>Math.random()<DIFF().pickupRate).forEach(type=>{
     if(type==='weapon'&&allUnlocked) return;
     if(type==='ammo'&&!_pickAmmoWeapon()) return;
     let x,y,a=0;do{x=rng(140,WORLD_W-140);y=rng(140,WORLD_H-140);a++;}while(a<60&&(circleVsObs(x,y,22)||dist(x,y,WORLD_W/2,WORLD_H/2)<300||pickups.some(p=>dist(x,y,p.x,p.y)<40)));
@@ -2926,6 +2933,8 @@ function mkEnemy(type,x,y){
   if(type==='dreadnought'){ e.phase=1; e.phaseSwitched=false; e.shotCount=0; e.spiralAngle=0; }
   if(type==='harbinger')  { e.podThresholds=[0.66,0.33]; e.activePods=0; e.rageMs=0; e.spiralAngle=0; }
   e.fromHarbinger=false;
+  e.hp=Math.round(e.hp*DIFF().enemyHp);e.maxHp=e.hp;
+  e.fireMs=Math.round(e.fireMs*DIFF().enemyFireRate);
   return e;
 }
 // Returns a world position for an enemy of given type that:
@@ -3856,7 +3865,7 @@ function tickRockets(dt){
       if(dist2(r.x,r.y,enemies[ei].x,enemies[ei].y)<(enemies[ei].size+10)**2){
         r.hitEnemies.add(ei);
         const e=enemies[ei];
-        e.hp-=DMG;
+        e.hp-=DMG*DIFF().playerDmg;
         spawnParts(r.x,r.y,ROCKET_COL,_pCount(10),3.5,5,380);
         score+=10;
         if(e.hp<=0){SFX.boom();killEnemy(ei);}
@@ -3927,7 +3936,7 @@ function _detonateGrenade(gi){
   for(let ei=enemies.length-1;ei>=0;ei--){
     const e=enemies[ei];
     if(dist2(g.x,g.y,e.x,e.y)>GRENADE_BLAST_R*GRENADE_BLAST_R)continue;
-    e.hp-=DMG;
+    e.hp-=DMG*DIFF().playerDmg;
     spawnParts(e.x,e.y,e.color,_pCount(8),3,4.5,300);
     if(e.hp<=0){SFX.boom();killEnemy(ei);}
   }
@@ -4007,7 +4016,7 @@ function tickGravityWells(dt){
       e.vx+=(dx/d)*pullStr;
       e.vy+=(dy/d)*pullStr;
       if(d2<GRAVWELL_CRUSH_R*GRAVWELL_CRUSH_R){
-        e.hp-=GRAVWELL_DPS*dt;
+        e.hp-=GRAVWELL_DPS*dt*DIFF().playerDmg;
         if(e.hp<=0){SFX.boom();killEnemy(ei);ei--;}
       }
     }
@@ -4106,7 +4115,7 @@ function tickSeekers(dt,now){
       const e=enemies[s.target];
       if(dist2(s.x,s.y,e.x,e.y)<(e.size+5)**2){
         // 30% of enemy maxHp damage (+20% from 25%)
-        const dmg=e.maxHp*0.30;
+        const dmg=e.maxHp*0.30*DIFF().playerDmg;
         e.hp-=dmg;
         spawnParts(s.x,s.y,SEEKR_COL,_pCount(18),5,7,480);
         spawnParts(s.x,s.y,'#ffffff',_pCount(8),3,4,320);
@@ -4349,11 +4358,11 @@ function checkCollisions(){
     for(let ei=enemies.length-1;ei>=0;ei--){
       const e=enemies[ei];
       // infected enemies can still be shot and killed by the player
-      if(dist2(b.x,b.y,e.x,e.y)<e.size*e.size*1.21){
+      if(dist2(b.x,b.y,e.x,e.y)<e.size*e.size*1.21*DIFF().hitbox){
         if(b.isGrapple){
           e.anchorX=b.x;
           e.anchorY=b.y;
-          const anchDmg=e.maxHp*0.2;
+          const anchDmg=e.maxHp*0.2*DIFF().playerDmg;
           e.hp-=anchDmg;
           spawnParts(b.x,b.y,'#44ddff',_pCount(10),3,4.5,350);
           spawnParts(b.x,b.y,'#ffffff',_pCount(5),2,3,250);
@@ -4370,7 +4379,7 @@ function checkCollisions(){
         } else {
           score+=10;
           const dmgMult=(e.type==='dreadnought'&&e.phase===2)?2.0:1.0;
-          e.hp-=b.dmg*dmgMult; spawnParts(b.x,b.y,e.color,_pCount(6),2.8,3.5,230);
+          e.hp-=b.dmg*dmgMult*DIFF().playerDmg; spawnParts(b.x,b.y,e.color,_pCount(6),2.8,3.5,230);
           // Alert: enemy detects player on hit regardless of range (except turret stays put)
           if(e.type!=='turret'&&e.state==='patrol'){
             e.state=dist(P.x,P.y,e.x,e.y)<e.atk?'attack':'chase';
@@ -4439,7 +4448,7 @@ function checkCollisions(){
           continue;
         }
         if(P.shieldMs>0){P.shieldMs=0;if(settings.screenShake)shake=9;spawnParts(P.x,P.y,'#44aaff',_pCount(24),5,6,500);SFX.shbreak();P.iframes=400;}
-        else{const dmg=b.dmg*P.damageMult;P.hp-=dmg;P.iframes=700;if(settings.screenShake)shake=16;SFX.hit();Music.onHit();spawnParts(b.x,b.y,'#00eeff',_pCount(10),3,4,380);if(P.hp<=0)P.alive=false;}
+        else{const dmg=b.dmg*P.damageMult*DIFF().enemyDmg;P.hp-=dmg;P.iframes=700;if(settings.screenShake)shake=16;SFX.hit();Music.onHit();spawnParts(b.x,b.y,'#00eeff',_pCount(10),3,4,380);if(P.hp<=0)P.alive=false;}
         eBullets.splice(bi,1);
       }
     }
@@ -5576,6 +5585,7 @@ function _getSetupLayout(W,H){
   const particleY=y;y+=rowH+sectionGap;
   const gameplayHeaderY=y;y+=labelSz*2+8;
   const shakeY=y;y+=rowH+sectionGap;
+  const diffHeaderY=y;y+=rowH+sectionGap;
   const perfHeaderY=y;y+=rowH+sectionGap;
   const dataHeaderY=y;y+=labelSz*2+8;
   const hofBtnY=y;
@@ -5587,7 +5597,7 @@ function _getSetupLayout(W,H){
     audioHeaderY,sliders,trackThumbR:8,
     displayHeaderY,particleY,
     gameplayHeaderY,shakeY,
-    perfHeaderY,
+    diffHeaderY,perfHeaderY,
     dataHeaderY,hofBtnY,hofBtnW,hofBtnH,
     backBtn};
 }
@@ -5706,6 +5716,23 @@ function drawSetupScreen(){
   _drawToggle3(L,'particles',['FULL','REDUCED','OFF'],['full','reduced','off'],_particleBtnRects(L),'Particle Intensity');
   _sh('GAMEPLAY',L.gameplayHeaderY);
   _drawToggle2(L,'screenShake',_shakeBtnRects(L),'Screen Shake');
+  _sh('DIFFICULTY',L.diffHeaderY);
+  const diffModes=['INTENSE','HARD','MID','EASY'];
+  const diffVals=['intense','hard','mid','easy'];
+  const diffCols=['#ff4444','#ffaa00','#00ccff','#00ff88'];
+  const diffBtnW=Math.max(60,L.trackW/4-6);
+  for(let d=0;d<4;d++){
+    const dx=L.trackX+d*(diffBtnW+8),dy=L.diffHeaderY+L.labelSz+12;
+    const active=settings.difficulty===diffVals[d];
+    const hov=mouse.x>dx&&mouse.x<dx+diffBtnW&&mouse.y>dy&&mouse.y<dy+L.togH;
+    ctx.fillStyle=active?diffCols[d]+'40':hov?'rgba(0,80,160,0.2)':'rgba(0,30,80,0.3)';
+    _roundRect(dx,dy,diffBtnW,L.togH,4);ctx.fill();
+    ctx.strokeStyle=active?diffCols[d]:'rgba(0,100,160,0.4)';ctx.lineWidth=active?2:1;
+    _roundRect(dx,dy,diffBtnW,L.togH,4);ctx.stroke();
+    ctx.font=`${active?'bold ':''}${L.labelSz}px "Courier New"`;
+    ctx.fillStyle=active?diffCols[d]:'rgba(100,170,230,0.7)';
+    ctx.fillText(diffModes[d],dx+diffBtnW/2,dy+L.togH/2+L.labelSz*0.36);
+  }
   _sh('PERFORMANCE',L.perfHeaderY);
   const perfModes=['AUTO','HIGH','MEDIUM','LOW'];
   const perfVals=[null,'high','medium','low'];
@@ -9733,6 +9760,16 @@ function _doClick(){
         settings.screenShake=b.val;_saveSettings();SFX.select();return;
       }
     }
+    // Difficulty buttons
+    const diffVals2=['intense','hard','mid','easy'];
+    const diffBtnW2=Math.max(60,L.trackW/4-6);
+    for(let d=0;d<4;d++){
+      const dx=L.trackX+d*(diffBtnW2+8),dy=L.diffHeaderY+L.labelSz+12;
+      if(mouse.x>dx&&mouse.x<dx+diffBtnW2&&mouse.y>dy&&mouse.y<dy+L.togH){
+        settings.difficulty=diffVals2[d];
+        _saveSettings();SFX.select();return;
+      }
+    }
     // Performance buttons
     const perfBtnW=Math.max(60,L.trackW/4-6);
     const perfVals=[null,'high','medium','low'];
@@ -9953,6 +9990,8 @@ function _isOverSetupInteractive(mx,my){
   for(const s of L.sliders){if(mx>=L.trackX&&mx<=L.trackX+L.trackW&&my>=s.y-th&&my<=s.y+th)return true;}
   for(const b of _particleBtnRects(L)){if(mx>=b.x&&mx<=b.x+L.tog3W&&my>=b.y&&my<=b.y+L.togH)return true;}
   for(const b of _shakeBtnRects(L)){if(mx>=b.x&&mx<=b.x+L.tog2W&&my>=b.y&&my<=b.y+L.togH)return true;}
+  const diffBtnW3=Math.max(60,L.trackW/4-6);
+  for(let d=0;d<4;d++){const dx=L.trackX+d*(diffBtnW3+8),dy=L.diffHeaderY+L.labelSz+12;if(mx>dx&&mx<dx+diffBtnW3&&my>dy&&my<dy+L.togH)return true;}
   const hx=L.cx-L.hofBtnW/2;
   if(mx>=hx&&mx<=hx+L.hofBtnW&&my>=L.hofBtnY&&my<=L.hofBtnY+L.hofBtnH)return true;
   const{x,y,w,h}=L.backBtn;
