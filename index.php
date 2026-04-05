@@ -472,6 +472,16 @@ canvas.addEventListener('mousedown',e=>{
   }
   if(gameState==='levelEditor'&&e.button===0){
     const sideW=180;
+    // Minimap viewport drag
+    const mmW=160,mmH=120,mmX=canvas.width-mmW-10,mmY=canvas.height-mmH-24;
+    if(mouse.x>mmX&&mouse.x<mmX+mmW&&mouse.y>mmY&&mouse.y<mmY+mmH){
+      editorMinimapDrag=true;
+      const scX=mmW/editorWorldW,scY=mmH/editorWorldH;
+      const vpW=(canvas.width-sideW)*scX,vpH=canvas.height*scY;
+      editorCamX=clamp(((mouse.x-mmX)-vpW/2)/scX,0,Math.max(0,editorWorldW-canvas.width+sideW));
+      editorCamY=clamp(((mouse.y-mmY)-vpH/2)/scY,0,Math.max(0,editorWorldH-canvas.height));
+      return;
+    }
     if(editorTool==='move'&&mouse.x>sideW){
       editorPanning=true;
       editorPanStartX=mouse.x;editorPanStartY=mouse.y;
@@ -518,7 +528,7 @@ canvas.addEventListener('mousedown',e=>{
   }
   mouse.down=true; mouse.justDown=true;
 });
-canvas.addEventListener('mouseup',  e=>{if(e.button!==0)return; mouse.down=false; if(editorPanning){editorPanning=false;return;} if(setupSliderDrag)setupSliderDrag=null; if(editorDragIdx>=0){editorDragIdx=-1;}});
+canvas.addEventListener('mouseup',  e=>{if(e.button!==0)return; mouse.down=false; if(editorMinimapDrag){editorMinimapDrag=false;return;} if(editorPanning){editorPanning=false;return;} if(setupSliderDrag)setupSliderDrag=null; if(editorDragIdx>=0){editorDragIdx=-1;}});
 canvas.addEventListener('mouseup',  e=>{
   if(e.button!==2)return;
   // Portal: right-click cycles through portals (same as Space)
@@ -982,6 +992,7 @@ let editorDirty=false;
 let editorSliderDrag=null;
 let editorDragIdx=-1;
 let editorPanning=false;let editorPanStartX=0,editorPanStartY=0,editorPanCamX=0,editorPanCamY=0;
+let editorMinimapDrag=false;
 let editorSelectedGate=-1;
 let editorSelectedPickup=-1;
 let editorSelectedTimer=-1;
@@ -8959,13 +8970,22 @@ function drawLevelEditor(){
     ctx.fillText('WASD / ARROWS to pan  |  World extends beyond screen',sideW+(W-sideW)/2,H-10);
   }
   // Mini viewport indicator (bottom-right)
-  const mmW=80,mmH=60,mmX=W-mmW-10,mmY=H-mmH-24;
-  ctx.fillStyle='rgba(0,10,30,0.7)';ctx.fillRect(mmX,mmY,mmW,mmH);
+  const mmW=160,mmH=120,mmX=W-mmW-10,mmY=H-mmH-24;
+  ctx.fillStyle='rgba(0,10,30,0.8)';ctx.fillRect(mmX,mmY,mmW,mmH);
   ctx.strokeStyle='rgba(0,100,180,0.4)';ctx.lineWidth=1;ctx.strokeRect(mmX,mmY,mmW,mmH);
   const scX=mmW/editorWorldW,scY=mmH/editorWorldH;
+  // Draw placed items as dots on minimap
+  for(const item of editorPlacedItems){
+    const ix=mmX+item.x*scX,iy=mmY+item.y*scY;
+    const ic=item.cat==='enemy'?'#ff4444':item.cat==='pickup'?'#ffee00':item.cat==='hazard'?'#ff8800':item.cat==='objective'?'#00ff88':'rgba(80,120,180,0.6)';
+    ctx.fillStyle=ic;ctx.fillRect(ix-1,iy-1,3,3);
+  }
+  // Spawn marker
+  ctx.fillStyle='#00ddff';ctx.fillRect(mmX+editorSpawnX*scX-2,mmY+editorSpawnY*scY-2,4,4);
+  // Viewport box
   const vpX=mmX+editorCamX*scX,vpY=mmY+editorCamY*scY;
   const vpW=Math.min(mmW,(W-sideW)*scX),vpH=Math.min(mmH,H*scY);
-  ctx.strokeStyle='#00ccff';ctx.lineWidth=1;ctx.strokeRect(vpX,vpY,vpW,vpH);
+  ctx.strokeStyle='#00ccff';ctx.lineWidth=1.5;ctx.strokeRect(vpX,vpY,vpW,vpH);
   // Scrollbars
   const maxCamX=Math.max(1,editorWorldW-canvas.width+sideW);
   const maxCamY=Math.max(1,editorWorldH-canvas.height);
@@ -10077,6 +10097,14 @@ canvas.addEventListener('mousemove',e=>{
     if(editorSliderDrag==='width') editorWorldW=Math.round((400+pct*(4500-400))/100)*100;
     else if(editorSliderDrag==='height') editorWorldH=Math.round((400+pct*(4500-400))/100)*100;
     else if(editorSliderDrag==='seconds') editorWinSeconds=Math.round(10+pct*(180-10));
+  }
+  if(editorMinimapDrag&&gameState==='levelEditor'){
+    const sideW2=180;
+    const mmW2=160,mmH2=120,mmX2=canvas.width-mmW2-10,mmY2=canvas.height-mmH2-24;
+    const scX2=mmW2/editorWorldW,scY2=mmH2/editorWorldH;
+    const vpW2=(canvas.width-sideW2)*scX2,vpH2=canvas.height*scY2;
+    editorCamX=clamp(((mouse.x-mmX2)-vpW2/2)/scX2,0,Math.max(0,editorWorldW-canvas.width+sideW2));
+    editorCamY=clamp(((mouse.y-mmY2)-vpH2/2)/scY2,0,Math.max(0,editorWorldH-canvas.height));
   }
   if(editorPanning&&gameState==='levelEditor'){
     editorCamX=clamp(editorPanCamX-(mouse.x-editorPanStartX),0,Math.max(0,editorWorldW-canvas.width+180));
