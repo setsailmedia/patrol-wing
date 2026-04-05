@@ -1,0 +1,11 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Route /api/* requests to Laravel's public/index.php
+    RewriteCond %{REQUEST_URI} ^/api/
+    RewriteRule ^api/(.*)$ api/public/index.php [L,QSA]
+
+    # Handle Authorization Header passthrough
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>
