@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="reverb-key" content="32bgvjoz3qvpioxq8fqe">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, minimal-ui">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen">
@@ -89,6 +90,53 @@ const PW_API={
   async getMyScores(limit){return this._req('GET','/scores/me?limit='+(limit||20));},
 };
 PW_API._init();
+const NET={
+  ws:null,isHost:false,roomCode:null,connected:false,
+  lastSendTime:0,SEND_RATE:50,
+  interpBuffer:[],
+  peerPlayer:null,
+  _onMsg:null,
+  connect(roomCode,isHost){
+    if(this.ws)this.disconnect();
+    this.roomCode=roomCode;this.isHost=isHost;
+    try{
+      const wsUrl=`ws://${location.hostname}:8080/app/${document.querySelector('meta[name=reverb-key]')?.content||''}?protocol=7&client=js&version=7.0&flash=false`;
+      this.ws=new WebSocket(wsUrl);
+      this.ws.binaryType='arraybuffer';
+      this.ws.onopen=()=>{
+        this.connected=true;
+        // Subscribe to private channel via Reverb protocol
+        const auth=PW_API.token;
+        this.ws.send(JSON.stringify({event:'pusher:subscribe',data:{channel:`private-game.${roomCode}`,auth:`${auth}`}}));
+      };
+      this.ws.onmessage=(evt)=>{
+        if(typeof evt.data==='string'){
+          try{const msg=JSON.parse(evt.data);if(this._onMsg)this._onMsg(msg);}catch(e){}
+        } else {
+          // Binary game state
+          this._onBinary(new DataView(evt.data));
+        }
+      };
+      this.ws.onclose=()=>{this.connected=false;};
+      this.ws.onerror=()=>{this.connected=false;};
+    }catch(e){this.connected=false;}
+  },
+  disconnect(){
+    if(this.ws){try{this.ws.close();}catch(e){}}
+    this.ws=null;this.connected=false;this.roomCode=null;this.peerPlayer=null;
+  },
+  send(data){
+    if(!this.ws||this.ws.readyState!==1)return;
+    if(typeof data==='string') this.ws.send(data);
+    else this.ws.send(data);
+  },
+  sendJSON(event,data){
+    this.send(JSON.stringify({event:`client-${event}`,data,channel:`private-game.${this.roomCode}`}));
+  },
+  _onBinary(dv){
+    // Will be implemented in Sub-Project 4 for game state sync
+  },
+};
 let gameMode='battle';  // hoisted — needed by resize() before main game state block
 let gameState='intro';  // hoisted — needed by resize() before main game state block
 function resize(){

@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ScoreController;
 use App\Http\Controllers\EventController;
+use App\Http\Controllers\RoomController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -23,6 +24,13 @@ Route::prefix('v1')->group(function () {
         // Events
         Route::post('/events', [EventController::class, 'store'])->middleware('throttle:60,1');
         Route::post('/events/batch', [EventController::class, 'batch'])->middleware('throttle:60,1');
+
+        // Rooms
+        Route::post('/rooms', [RoomController::class, 'store']);
+        Route::get('/rooms/available', [RoomController::class, 'available']);
+        Route::get('/rooms/{code}', [RoomController::class, 'show']);
+        Route::post('/rooms/{code}/join', [RoomController::class, 'join']);
+        Route::delete('/rooms/{code}', [RoomController::class, 'leave']);
     });
 
     // Public leaderboard
