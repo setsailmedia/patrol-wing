@@ -117,7 +117,15 @@ const NET={
           this._onBinary(new DataView(evt.data));
         }
       };
-      this.ws.onclose=()=>{this.connected=false;};
+      this.ws.onclose=()=>{
+        this.connected=false;
+        if(gameState==='playing'&&players.length>1){
+          weaponFlash={prefix:'',name:'CONNECTION LOST — CONTINUING SOLO',ms:3000};
+          const idx=players.indexOf(this.peerPlayer);
+          if(idx>=0)players.splice(idx,1);
+          this.peerPlayer=null;
+        }
+      };
       this.ws.onerror=()=>{this.connected=false;};
     }catch(e){this.connected=false;}
   },
@@ -138,10 +146,90 @@ const NET={
   },
 };
 NET._onMsg=function(msg){
-  if(msg.event==='client-launch'&&gameState==='waitingRoom'&&!waitingRoomIsHost){
+  if(msg.event==='client-launch'&&gameState==='waitingRoom'&&!NET.isHost){
     gameMode='battle';startBattle();SFX.confirm();
   }
+  // Host receives guest input
+  if(msg.event==='client-input'&&NET.isHost&&NET.peerPlayer){
+    const d=msg.data;
+    if(d){
+      NET.peerPlayer.x=d.x;NET.peerPlayer.y=d.y;NET.peerPlayer.aim=d.aim;
+      NET.peerPlayer.vx=d.vx;NET.peerPlayer.vy=d.vy;NET.peerPlayer.rotor=d.rotor;
+      NET.peerPlayer.alive=d.alive;NET.peerPlayer.hp=d.hp;
+      if(d.fire&&NET.peerPlayer.alive){
+        const w=WEAPONS[d.weaponIdx];
+        if(w){
+          const angle=d.aim;
+          pBullets.push({x:d.x+Math.cos(angle)*20,y:d.y+Math.sin(angle)*20,vx:Math.cos(angle)*(w.spd||14),vy:Math.sin(angle)*(w.spd||14),dmg:w.dmg,bSz:w.bSz||3,color:w.color,stun:w.id==='stun',dinf:w.id==='dinf',fromInfected:false,isGrapple:w.id==='grapple',life:1700});
+        }
+      }
+    }
+  }
+  // Guest receives game state from host
+  if(msg.event==='client-gs'&&!NET.isHost){
+    const d=msg.data;
+    if(!d)return;
+    if(NET.peerPlayer&&d.hp){
+      const h=d.hp;
+      NET.peerPlayer.x=h.x;NET.peerPlayer.y=h.y;NET.peerPlayer.aim=h.aim;
+      NET.peerPlayer.hp=h.hp;NET.peerPlayer.bat=h.bat;NET.peerPlayer.alive=h.alive;
+      NET.peerPlayer.vx=h.vx;NET.peerPlayer.vy=h.vy;
+      NET.peerPlayer.shieldMs=h.shieldMs;NET.peerPlayer.invincMs=h.invincMs;
+      NET.peerPlayer.cloakMs=h.cloakMs;NET.peerPlayer.overchargeMs=h.overchargeMs;
+      NET.peerPlayer.rotor=h.rotor;NET.peerPlayer.iframes=h.iframes;
+      NET.peerPlayer.weaponIdx=h.weaponIdx;NET.peerPlayer.kills=h.kills;
+    }
+    if(d.en){
+      while(enemies.length>d.en.length)enemies.pop();
+      for(let i=0;i<d.en.length;i++){
+        if(i>=enemies.length){
+          enemies.push({x:0,y:0,vx:0,vy:0,aim:0,hp:100,maxHp:100,type:'scout',size:13,color:'#ff2244',accent:'#ff9aaa',state:'patrol',stunMs:0,stunMoveMs:0,stunFireMs:0,infected:false,lastFired:0,fromHarbinger:false,_visible:true,_appearAt:0,_duration:0});
+        }
+        const e=enemies[i],s=d.en[i];
+        e.x=s.x;e.y=s.y;e.aim=s.aim;e.hp=s.hp;e.maxHp=s.maxHp;e.type=s.type;
+        e.size=s.size;e.color=s.color;e.accent=s.accent;e.state=s.state;e.stunMs=s.stunMs;
+      }
+    }
+    if(d.pb){
+      pBullets.length=0;
+      for(const b of d.pb)pBullets.push({x:b.x,y:b.y,vx:b.vx,vy:b.vy,bSz:b.bSz,color:b.col,dmg:0,stun:false,dinf:false,fromInfected:false,isGrapple:false,life:500});
+    }
+    if(d.eb){
+      eBullets.length=0;
+      for(const b of d.eb)eBullets.push({x:b.x,y:b.y,vx:b.vx,vy:b.vy,dmg:10,bSz:3,isBrute:false,fromInfected:false,isBomb:false,life:1000});
+    }
+    if(d.sc!==undefined)score=d.sc;
+    if(d.wv!==undefined)wave=d.wv;
+    if(d.gs&&d.gs!==gameState){
+      if(d.gs==='gameover')gameState='gameover';
+      if(d.gs==='victory')gameState='victory';
+      if(d.gs==='waveClear')gameState='waveClear';
+    }
+    if(d.rv)mpRevivePos=d.rv;
+    else mpRevivePos=null;
+  }
 };
+function _mpHostBroadcast(){
+  if(!NET.connected||!NET.isHost)return;
+  const state={
+    t:'state',
+    hp:{x:P.x,y:P.y,aim:P.aim,hp:P.hp,bat:P.bat,alive:P.alive,vx:P.vx,vy:P.vy,shieldMs:P.shieldMs,invincMs:P.invincMs,cloakMs:P.cloakMs,overchargeMs:P.overchargeMs,rotor:P.rotor,iframes:P.iframes,weaponIdx:P.weaponIdx,kills:P.kills},
+    en:enemies.slice(0,40).map(e=>({x:e.x,y:e.y,aim:e.aim,hp:e.hp,maxHp:e.maxHp,type:e.type,size:e.size,color:e.color,accent:e.accent,state:e.state,stunMs:e.stunMs||0})),
+    sc:score,wv:wave,gs:gameState,
+    pb:pBullets.slice(0,60).map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy,bSz:b.bSz,col:b.color||'#00eeff'})),
+    eb:eBullets.slice(0,60).map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy})),
+    rv:mpRevivePos,
+  };
+  NET.sendJSON('gs',state);
+}
+function _mpGuestSendInput(firing){
+  if(!NET.connected||NET.isHost)return;
+  NET.sendJSON('input',{
+    x:P.x,y:P.y,aim:P.aim,vx:P.vx,vy:P.vy,rotor:P.rotor,
+    alive:P.alive,hp:P.hp,weaponIdx:P.weaponIdx,
+    fire:firing||false,
+  });
+}
 let gameMode='battle';  // hoisted — needed by resize() before main game state block
 let gameState='intro';  // hoisted — needed by resize() before main game state block
 function resize(){
@@ -1059,6 +1147,10 @@ let lobbyLoading=false;
 let waitingRoomData=null;
 let waitingRoomPollMs=0;
 let waitingRoomIsHost=false;
+let mpRevivePos=null; // {x,y} death position for revive mechanic
+let mpReviveMs=0; // revive hold progress
+const MP_REVIVE_RANGE=60;
+const MP_REVIVE_TIME=2000;
 let customSelectExpanded=-1;
 let customSelectSelectedLevel=-1;
 // Level 2 — Nuclear Disarm
@@ -2995,6 +3087,21 @@ function drawPlayer(){
       ctx.save();ctx.translate(sx,sy);ctx.rotate(-now/900);ctx.beginPath();ctx.arc(0,0,r*1.22,0,Math.PI*2);ctx.strokeStyle=`rgba(68,170,255,${0.22*fa})`;ctx.lineWidth=1;ctx.stroke();ctx.restore();
     }
   }
+  // Revive indicator
+  if(mpRevivePos&&NET.connected){
+    const rx=mpRevivePos.x-camX,ry=mpRevivePos.y-camY;
+    const pulse=0.5+0.5*Math.sin(Date.now()/200);
+    ctx.strokeStyle=`rgba(0,255,136,${0.4+0.3*pulse})`;ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(rx,ry,MP_REVIVE_RANGE,0,Math.PI*2);ctx.stroke();
+    ctx.font='bold 12px "Courier New"';ctx.fillStyle=`rgba(0,255,136,${0.7+0.3*pulse})`;
+    ctx.textAlign='center';ctx.fillText('REVIVE',rx,ry-MP_REVIVE_RANGE-8);
+    if(mpReviveMs>0){
+      const pct=mpReviveMs/MP_REVIVE_TIME;
+      ctx.strokeStyle='#00ff88';ctx.lineWidth=4;
+      ctx.beginPath();ctx.arc(rx,ry,MP_REVIVE_RANGE+6,-Math.PI/2,-Math.PI/2+pct*Math.PI*2);ctx.stroke();
+    }
+    ctx.textAlign='left';
+  }
 }
 
 // ─── ENEMIES ─────────────────────────────────────────────────────
@@ -3097,6 +3204,7 @@ function spawnWaveEnemies(n){
   }
 }
 function tickEnemies(dt,now){
+  if(NET.connected&&!NET.isHost)return; // guest gets enemies from host
   for(const e of enemies){
     if(e._visible===false)continue;
     const _tgt=nearestAlivePlayer(e.x,e.y);const dx=_tgt.x-e.x,dy=_tgt.y-e.y,d=Math.sqrt(dx*dx+dy*dy)||1;
@@ -4472,6 +4580,7 @@ function drawFractals(){
 }
 
 function checkCollisions(){
+  if(NET.connected&&!NET.isHost)return; // guest gets collision results from host
   outer:for(let bi=pBullets.length-1;bi>=0;bi--){
     const b=pBullets[bi];
     for(let ei=enemies.length-1;ei>=0;ei--){
@@ -4855,6 +4964,21 @@ function drawHUD(){
   }
   ctx.textAlign='left';drawWeaponBar();
   drawPauseBtn();drawMuteBtn();
+  // Multiplayer partner status
+  if(NET.connected&&players.length>1){
+    const p2=players.find(p=>p!==P);
+    if(p2){
+      const p2X=canvas.width-pad-bW,p2Y=pad;
+      ctx.textAlign='right';
+      hudBar(p2X,p2Y,bW,bH,p2.hp,p2.maxHp,p2.hp/p2.maxHp>0.5?'#22ee88':p2.hp/p2.maxHp>0.25?'#ffaa00':'#ff3333',`P2 ${Math.ceil(p2.hp)}%`);
+      hudBar(p2X,p2Y+bGap,bW,bH,p2.bat,p2.maxBat,p2.bat>25?'#ffee00':'#ff5500',`BATT ${Math.ceil(p2.bat)}%`);
+      if(!p2.alive){
+        ctx.font='bold 12px "Courier New"';ctx.fillStyle='#ff4444';
+        ctx.textAlign='right';ctx.fillText('PARTNER DOWN — FLY TO REVIVE',canvas.width-pad,p2Y+bGap+bH+18);
+      }
+      ctx.textAlign='left';
+    }
+  }
 }
 function pauseBtnRect(){
   const{pbX,pbY,pbW,pbH}=mlLayout();
@@ -5912,6 +6036,7 @@ function drawVictoryScreen(){
 
 // ─── GAME INIT ────────────────────────────────────────────────────
 function spawnWave(n){
+  if(NET.connected&&!NET.isHost)return; // guest gets wave data from host
   if(n>1)PW_API.queueEvent('wave_cleared',{wave:n-1,score,kills:P.kills});
   PW_API.flushEvents();
   pBullets.length=0;eBullets.length=0;mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;hazardProjectiles.length=0;
@@ -9260,6 +9385,15 @@ function startBattle(){
   hangarScroll=0; resetPlayer(); camX=P.x-canvas.width/2; camY=P.y-canvas.height/2;
   spawnWave(1); gameStartTime=Date.now(); gameState='playing'; _snapMouseToPlayer();
   PW_API.queueEvent('game_started',{mode:'battle',craft:CRAFTS[P.craftIdx].id});
+  if(NET.connected){
+    // Create player 2
+    const p2=mkPlayer(NET.isHost?0:P.craftIdx, NET.isHost?'#ff3300':'#00ddff');
+    p2.isLocal=false;
+    p2.x=WORLD_W/2+80;p2.y=WORLD_H/2;
+    players.push(p2);
+    NET.peerPlayer=p2;
+    mpRevivePos=null;mpReviveMs=0;
+  }
 }
 
 function startTimeTrial(){
@@ -11231,6 +11365,19 @@ function loop(now){
         if(pickups.length>idx) pickups[pickups.length-1].dropTimer=18000;
       }
     }
+    // Multiplayer sync
+    if(NET.connected){
+      const now2=performance.now();
+      if(NET.isHost){
+        if(now2-NET.lastSendTime>NET.SEND_RATE){_mpHostBroadcast();NET.lastSendTime=now2;}
+      } else {
+        if(now2-NET.lastSendTime>NET.SEND_RATE){
+          const shooting=mouse.down||(IS_TOUCH&&touchSticks.R.active&&Math.sqrt(touchSticks.R.dx**2+touchSticks.R.dy**2)/STICK_R>STICK_DEAD);
+          _mpGuestSendInput(shooting);
+          NET.lastSendTime=now2;
+        }
+      }
+    }
     drawWorld();drawObstacles();drawParticles();pickups.forEach(drawPickup);drawMines();drawFaradayCages();drawRockets();drawGrenades();drawGravityWells();drawSeekers();drawBoomerangs();drawTractorBeam();drawHazards();drawHazardProjectiles();drawFractals();drawBullets();drawEnemies();if(ttLevel===2)drawNukes();if(ttLevel===4)drawJRRescue();if(ttLevel===5)drawTNG();drawPlayer();drawCustomObjectives();drawCarrierDrones();
     if(slipstreamMs>0&&P.alive&&CRAFTS[P.craftIdx].id==='skirmisher'){
       const sx=P.x-camX, sy=P.y-camY;
@@ -11243,6 +11390,29 @@ function loop(now){
     }
     if(gameMode==='timetrial') drawFinishLine();
     drawEMPFlash();drawLaserFlash();drawLeechFlash();drawShockwaveFlash();drawPortals();drawHUD();drawMinimap();drawCrosshair();drawTouchSticks();drawMiniMe();drawBossWarning(dt);drawCustomTransition();
+    }
+    // Multiplayer revive: if one player dead and other alive, allow revive
+    if(NET.connected&&players.length>1){
+      const dead=players.find(p=>!p.alive);
+      const alive=players.find(p=>p.alive);
+      if(dead&&alive&&!mpRevivePos){
+        mpRevivePos={x:dead.x||P.x,y:dead.y||P.y};
+      }
+      if(mpRevivePos&&alive){
+        if(dist(alive.x,alive.y,mpRevivePos.x,mpRevivePos.y)<MP_REVIVE_RANGE){
+          mpReviveMs+=dt*1000;
+          if(mpReviveMs>=MP_REVIVE_TIME){
+            dead.alive=true;dead.hp=dead.maxHp*0.3;dead.iframes=2000;
+            dead.x=mpRevivePos.x;dead.y=mpRevivePos.y;
+            spawnParts(dead.x,dead.y,'#00ff88',_pCount(20),4,6,500);
+            mpRevivePos=null;mpReviveMs=0;
+            weaponFlash={prefix:'',name:'PARTNER REVIVED',ms:2000};
+            SFX.confirm();
+          }
+        } else {
+          mpReviveMs=Math.max(0,mpReviveMs-dt*500); // decay if not in range
+        }
+      }
     }
     if(!players.some(p=>p.alive)){
       mines.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;
