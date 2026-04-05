@@ -147,7 +147,13 @@ const NET={
 };
 NET._onMsg=function(msg){
   if(msg.event==='client-launch'&&gameState==='waitingRoom'&&!NET.isHost){
-    gameMode='battle';startBattle();SFX.confirm();
+    const lm=msg.data&&msg.data.mode||'coop';
+    if(lm==='pvp'){pvpRound=0;pvpScore=[0,0];startPvP();}
+    else{gameMode='battle';startBattle();}
+    SFX.confirm();
+  }
+  if(msg.event==='client-mode'&&msg.data&&waitingRoomData){
+    waitingRoomData.mode=msg.data.mode;
   }
   // Host receives guest input
   if(msg.event==='client-input'&&NET.isHost&&NET.peerPlayer){
@@ -160,7 +166,7 @@ NET._onMsg=function(msg){
         const w=WEAPONS[d.weaponIdx];
         if(w){
           const angle=d.aim;
-          pBullets.push({x:d.x+Math.cos(angle)*20,y:d.y+Math.sin(angle)*20,vx:Math.cos(angle)*(w.spd||14),vy:Math.sin(angle)*(w.spd||14),dmg:w.dmg,bSz:w.bSz||3,color:w.color,stun:w.id==='stun',dinf:w.id==='dinf',fromInfected:false,isGrapple:w.id==='grapple',life:1700});
+          pBullets.push({x:d.x+Math.cos(angle)*20,y:d.y+Math.sin(angle)*20,vx:Math.cos(angle)*(w.spd||14),vy:Math.sin(angle)*(w.spd||14),dmg:w.dmg,bSz:w.bSz||3,color:w.color,stun:w.id==='stun',dinf:w.id==='dinf',fromInfected:false,isGrapple:w.id==='grapple',life:1700,ownerId:1});
         }
       }
     }
@@ -1151,6 +1157,11 @@ let mpRevivePos=null; // {x,y} death position for revive mechanic
 let mpReviveMs=0; // revive hold progress
 const MP_REVIVE_RANGE=60;
 const MP_REVIVE_TIME=2000;
+let pvpRound=0;
+let pvpScore=[0,0];
+let pvpBestOf=3;
+let pvpRoundOverMs=0;
+let pvpWinner=-1;
 let customSelectExpanded=-1;
 let customSelectSelectedLevel=-1;
 // Level 2 — Nuclear Disarm
@@ -2005,7 +2016,7 @@ function drawPickup(p){
 }
 
 // ─── BULLETS ─────────────────────────────────────────────────────
-function firePBullet(x,y,angle,dmg,spd,bSz,color,stun=false){pBullets.push({x,y,vx:Math.cos(angle)*spd,vy:Math.sin(angle)*spd,life:1700,dmg,bSz,color,stun});}
+function firePBullet(x,y,angle,dmg,spd,bSz,color,stun=false){pBullets.push({x,y,vx:Math.cos(angle)*spd,vy:Math.sin(angle)*spd,life:1700,dmg,bSz,color,stun,ownerId:0});}
 function fireEBullet(x,y,angle,spd=7.5,dmg=20){eBullets.push({x,y,vx:Math.cos(angle)*spd,vy:Math.sin(angle)*spd,life:2400,dmg});}
 function fireWeapon(){
   Music.onShot();
@@ -2284,7 +2295,7 @@ function fireWeapon(){
   if(w.id==='rico'){
     // Fire a rico bullet — identical to plasma but tagged to bounce, 10s max life
     const angle=P.aim;
-    pBullets.push({x:P.x,y:P.y,vx:Math.cos(angle)*w.spd,vy:Math.sin(angle)*w.spd,life:10000,dmg,bSz:w.bSz,color:w.color,stun:false,rico:true});
+    pBullets.push({x:P.x,y:P.y,vx:Math.cos(angle)*w.spd,vy:Math.sin(angle)*w.spd,life:10000,dmg,bSz:w.bSz,color:w.color,stun:false,rico:true,ownerId:0});
     spawnParts(P.x+Math.cos(angle)*36,P.y+Math.sin(angle)*36,w.color,_pCount(5),2.5,3.5,160);
     SFX.rico();P.vx-=Math.cos(angle)*1.8;P.vy-=Math.sin(angle)*1.8;
     return;
@@ -2292,7 +2303,7 @@ function fireWeapon(){
   // ── Digital Infection — rapid green elongated electric rounds ──
   if(w.id==='dinf'){
     const angle=P.aim+(Math.random()-0.5)*0.06;
-    pBullets.push({x:P.x+Math.cos(angle)*22,y:P.y+Math.sin(angle)*22,vx:Math.cos(angle)*w.spd,vy:Math.sin(angle)*w.spd,life:1700,dmg,bSz:w.bSz,color:'#00ff88',stun:false,dinf:true});
+    pBullets.push({x:P.x+Math.cos(angle)*22,y:P.y+Math.sin(angle)*22,vx:Math.cos(angle)*w.spd,vy:Math.sin(angle)*w.spd,life:1700,dmg,bSz:w.bSz,color:'#00ff88',stun:false,dinf:true,ownerId:0});
     spawnParts(P.x+Math.cos(angle)*18,P.y+Math.sin(angle)*18,'#00ff88',_pCount(2),1.5,2.5,140);
     SFX.rapid();P.vx-=Math.cos(P.aim)*0.3;P.vy-=Math.sin(P.aim)*0.3;
     return;
@@ -2303,7 +2314,7 @@ function fireWeapon(){
       x:P.x+Math.cos(angle)*20, y:P.y+Math.sin(angle)*20,
       vx:Math.cos(angle)*18, vy:Math.sin(angle)*18,
       dmg:0, bSz:4, color:'#44ddff', life:1700, stun:false, dinf:false,
-      fromInfected:false, isGrapple:true
+      fromInfected:false, isGrapple:true, ownerId:0
     });
     spawnParts(P.x+Math.cos(angle)*16,P.y+Math.sin(angle)*16,'#44ddff',_pCount(4),2,3,180);
     SFX.select();
@@ -4631,6 +4642,28 @@ function checkCollisions(){
       }
     }
   }
+  // PvP: player bullets can hit other players
+  if(gameMode==='pvp'||gameMode==='battle_pvp'){
+    for(let bi=pBullets.length-1;bi>=0;bi--){
+      const b=pBullets[bi];
+      if(b.ownerId===undefined)continue;
+      for(const p of players){
+        if(!p.alive||p.iframes>0)continue;
+        const pIdx=players.indexOf(p);
+        if(pIdx===b.ownerId)continue;
+        if(dist2(b.x,b.y,p.x,p.y)<p.size*p.size*1.21){
+          if(p.shieldMs>0){p.shieldMs=0;spawnParts(p.x,p.y,'#44aaff',_pCount(14),4,5,400);SFX.shbreak();p.iframes=400;}
+          else{
+            p.hp-=b.dmg*p.damageMult;p.iframes=500;
+            if(settings.screenShake)shake=10;SFX.hit();
+            spawnParts(b.x,b.y,p.color,_pCount(8),3,4,300);
+            if(p.hp<=0){p.alive=false;spawnParts(p.x,p.y,p.color,_pCount(30),6,8,900);SFX.boom();}
+          }
+          pBullets.splice(bi,1);break;
+        }
+      }
+    }
+  }
   for(let bi=eBullets.length-1;bi>=0;bi--){
     const b=eBullets[bi];
     // miniMe intercepts bullets (checked before player)
@@ -4978,6 +5011,14 @@ function drawHUD(){
       }
       ctx.textAlign='left';
     }
+  }
+  if((gameMode==='pvp'||gameMode==='battle_pvp')&&pvpScore){
+    ctx.textAlign='center';ctx.font='bold 16px "Courier New"';
+    ctx.fillStyle='#ffdd00';ctx.shadowBlur=10;ctx.shadowColor='#ffaa00';
+    ctx.fillText(`${pvpScore[0]}  -  ${pvpScore[1]}`,canvas.width/2,pad+12);
+    ctx.font='10px "Courier New"';ctx.fillStyle='rgba(200,180,100,0.6)';
+    ctx.fillText(`BEST OF ${pvpBestOf}  |  ROUND ${pvpRound}`,canvas.width/2,pad+28);
+    ctx.shadowBlur=0;ctx.textAlign='left';
   }
 }
 function pauseBtnRect(){
@@ -7542,9 +7583,21 @@ function drawWaitingRoom(){
   ctx.font='10px "Courier New"';ctx.fillStyle='rgba(150,180,220,0.5)';
   ctx.fillText('Share this code with your partner',cx,120);
 
-  // Mode
-  ctx.font='bold 14px "Courier New"';ctx.fillStyle='rgba(0,200,255,0.8)';
-  ctx.fillText(`MODE: ${(rd.mode||'coop').toUpperCase()}`,cx,152);
+  // Mode selector
+  if(waitingRoomIsHost){
+    const modes=['coop','pvp'];
+    const mLabels=['CO-OP','PVP'];
+    const mW=100,mH=34,mGap=12;
+    const mStartX=cx-(modes.length*(mW+mGap)-mGap)/2;
+    for(let m=0;m<modes.length;m++){
+      const mx=mStartX+m*(mW+mGap),my=140;
+      const sel=(rd.mode||'coop')===modes[m];
+      _btn(mx,my,mW,mH,mLabels[m],sel?'primary':'default');
+    }
+  } else {
+    ctx.font='bold 14px "Courier New"';ctx.fillStyle='rgba(0,200,255,0.8)';
+    ctx.fillText(`MODE: ${(rd.mode||'coop').toUpperCase()}`,cx,152);
+  }
 
   // Players
   const slotW=200,slotH=120,slotGap=30;
@@ -9396,6 +9449,43 @@ function startBattle(){
   }
 }
 
+function startPvP(){
+  _hideAllAds();
+  gameMode='pvp';
+  ttLevel=1;nukes=[];
+  WORLD_W=1600;WORLD_H=1200;
+  score=0;wave=1;bossWarning=0;empFlash=0;weaponFlash={name:'PVP ARENA',ms:2500};lastHullBeepMs=0;
+  leechFlash={active:false,tx:0,ty:0,ms:0};shockwaveFlash={ms:0};
+  harbingerRef=null;portalActive=false;portalPositions=[];
+  particles.length=0;pickups.length=0;pBullets.length=0;eBullets.length=0;
+  mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;
+  hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;enemies.length=0;hazardProjectiles.length=0;
+  miniMe.active=false;miniMe.lost=false;miniMe.hp=MM_HP;miniMe.iframes=0;
+  hangarScroll=0;resetPlayer();
+  P.x=200;P.y=WORLD_H/2;
+  camX=P.x-canvas.width/2;camY=P.y-canvas.height/2;
+  generateObstacles(P.x,P.y);
+  for(let i=0;i<WEAPONS.length;i++)P.unlockedW.add(i);
+  P.loadout=WEAPONS.map((_,i)=>i).slice(0,CRAFTS[P.craftIdx].maxSlots);
+  P.weaponIdx=P.loadout[0];
+  P.stocks=mkStocks();P.mineStock=20;P.seekStock=15;
+  pvpRound++;pvpRoundOverMs=0;pvpWinner=-1;
+  ctNextPickupMs=15000;
+  if(NET.connected){
+    const p2=mkPlayer(NET.isHost?0:P.craftIdx,NET.isHost?'#ff3300':'#00ddff');
+    p2.isLocal=false;
+    p2.x=WORLD_W-200;p2.y=WORLD_H/2;
+    for(let i=0;i<WEAPONS.length;i++)p2.unlockedW.add(i);
+    p2.loadout=WEAPONS.map((_,i)=>i).slice(0,CRAFTS[p2.craftIdx].maxSlots);
+    p2.weaponIdx=p2.loadout[0];
+    p2.stocks=mkStocks();p2.mineStock=20;p2.seekStock=15;
+    players.push(p2);
+    NET.peerPlayer=p2;
+  }
+  gameStartTime=Date.now();gameState='playing';_snapMouseToPlayer();
+  PW_API.queueEvent('game_started',{mode:'pvp',craft:CRAFTS[P.craftIdx].id});
+}
+
 function startTimeTrial(){
   _hideAllAds();
   gameMode='timetrial';
@@ -10162,13 +10252,27 @@ function _doClick(){
     const W=canvas.width,H=canvas.height,cx=W/2;
     const rd=waitingRoomData;
     const slotH=120,slotY=175;
+    // Mode toggle (host only)
+    if(waitingRoomIsHost&&rd){
+      const modes=['coop','pvp'];
+      const mW=100,mH=34,mGap=12;
+      const mStartX=cx-(modes.length*(mW+mGap)-mGap)/2;
+      for(let m=0;m<modes.length;m++){
+        const mx=mStartX+m*(mW+mGap),my=140;
+        if(mouse.x>mx&&mouse.x<mx+mW&&mouse.y>my&&mouse.y<my+mH){
+          rd.mode=modes[m];
+          NET.sendJSON('mode',{mode:modes[m]});
+          SFX.select();return;
+        }
+      }
+    }
     // Launch button
     if(waitingRoomIsHost&&rd&&rd.guest){
       if(mouse.x>cx-100&&mouse.x<cx+100&&mouse.y>slotY+slotH+30&&mouse.y<slotY+slotH+76){
-        // Launch game -- tell guest via WebSocket
-        NET.sendJSON('launch',{mode:rd.mode||'coop'});
-        // Start battle locally
-        gameMode='battle';startBattle();
+        const launchMode=rd.mode||'coop';
+        NET.sendJSON('launch',{mode:launchMode});
+        if(launchMode==='pvp'){pvpRound=0;pvpScore=[0,0];startPvP();}
+        else{gameMode='battle';startBattle();}
         SFX.confirm();return;
       }
     }
@@ -11365,6 +11469,19 @@ function loop(now){
         if(pickups.length>idx) pickups[pickups.length-1].dropTimer=18000;
       }
     }
+    if(gameMode==='pvp'&&NET.isHost){
+      ctNextPickupMs-=dt*1000;
+      if(ctNextPickupMs<=0){
+        ctNextPickupMs=12000+Math.random()*8000;
+        let px,py,att=0;
+        do{px=rng(100,WORLD_W-100);py=rng(100,WORLD_H-100);att++;}while(att<40&&circleVsObs(px,py,24));
+        const types=['battery','health','medkit','shield','weapon','overcharge'];
+        const t=types[Math.floor(Math.random()*types.length)];
+        const idx=pickups.length;
+        spawnPickup(px,py,t,false);
+        if(pickups.length>idx)pickups[pickups.length-1].dropTimer=15000;
+      }
+    }
     // Multiplayer sync
     if(NET.connected){
       const now2=performance.now();
@@ -11390,6 +11507,31 @@ function loop(now){
     }
     if(gameMode==='timetrial') drawFinishLine();
     drawEMPFlash();drawLaserFlash();drawLeechFlash();drawShockwaveFlash();drawPortals();drawHUD();drawMinimap();drawCrosshair();drawTouchSticks();drawMiniMe();drawBossWarning(dt);drawCustomTransition();
+    }
+    // PvP win detection
+    if((gameMode==='pvp'||gameMode==='battle_pvp')&&NET.connected&&players.length>1){
+      const deadPlayer=players.findIndex(p=>!p.alive);
+      if(deadPlayer>=0&&pvpRoundOverMs<=0){
+        const winner=deadPlayer===0?1:0;
+        pvpScore[winner]++;
+        pvpRoundOverMs=3000;
+        pvpWinner=winner;
+        weaponFlash={prefix:'',name:`${players[winner]===P?'YOU WIN':'OPPONENT WINS'} ROUND ${pvpRound}`,ms:2800};
+        SFX.wave();
+      }
+      if(pvpRoundOverMs>0){
+        pvpRoundOverMs-=dt*1000;
+        if(pvpRoundOverMs<=0){
+          if(pvpScore[0]>=Math.ceil(pvpBestOf/2)||pvpScore[1]>=Math.ceil(pvpBestOf/2)){
+            const matchWinner=pvpScore[0]>pvpScore[1]?0:1;
+            weaponFlash={prefix:'',name:`${players[matchWinner]===P?'VICTORY':'DEFEAT'} -- ${pvpScore[0]}-${pvpScore[1]}`,ms:4000};
+            gameState='gameover';
+          } else {
+            startPvP();
+          }
+        }
+        return;
+      }
     }
     // Multiplayer revive: if one player dead and other alive, allow revive
     if(NET.connected&&players.length>1){
