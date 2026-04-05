@@ -892,6 +892,7 @@ colorPick.addEventListener('input',e=>{
 _loadSettings();
 // Performance detection
 let perfLevel='high'; // 'high','medium','low'
+let detectedPerfLevel='high'; // auto-detected value, never overwritten by user choice
 function _detectPerformance(){
   const canvas2=document.createElement('canvas');
   canvas2.width=200;canvas2.height=200;
@@ -909,6 +910,7 @@ function _detectPerformance(){
   if(elapsed>80||cores<=2||mem<=2||isMobile) perfLevel='low';
   else if(elapsed>40||cores<=4||mem<=4) perfLevel='medium';
   else perfLevel='high';
+  detectedPerfLevel=perfLevel;
   // Apply saved override if exists
   if(settings.perfLevel) perfLevel=settings.perfLevel;
 }
@@ -1691,7 +1693,7 @@ function spawnHiddenPickups(append=false){
   ['battery','battery','battery','battery','health','health','health','weapon','weapon','weapon','weapon','shield','shield','shield','emp','emp','overcharge','overcharge','battery','health','ammo','ammo','invincibility','cloak','portal','medkit','medkit','medkit'].forEach(type=>{
     if(type==='weapon'&&allUnlocked) return;
     if(type==='ammo'&&!_pickAmmoWeapon()) return;
-    let x,y,a=0;do{x=rng(140,WORLD_W-140);y=rng(140,WORLD_H-140);a++;}while((circleVsObs(x,y,22)||dist(x,y,WORLD_W/2,WORLD_H/2)<300)&&a<60);
+    let x,y,a=0;do{x=rng(140,WORLD_W-140);y=rng(140,WORLD_H-140);a++;}while(a<60&&(circleVsObs(x,y,22)||dist(x,y,WORLD_W/2,WORLD_H/2)<300||pickups.some(p=>dist(x,y,p.x,p.y)<40)));
     const pk={x,y,type,t:rng(0,Math.PI*2),hidden:true};
     if(Math.random()<0.05) pk.mystery=true; // ~5% of field pickups are mystery diamonds
     if(type==='ammo'){const w=_pickAmmoWeapon();if(!w)return;pk.weaponId=w.id;pk.ammoAmt=_randomAmmoAmt(w.id);pk.weaponColor=w.color;pk.weaponName=w.name;}
@@ -5722,7 +5724,7 @@ function drawSetupScreen(){
   }
   // Show detected level
   ctx.font=`${L.labelSz*0.85}px "Courier New"`;ctx.fillStyle='rgba(80,140,200,0.5)';
-  ctx.fillText(`Detected: ${perfLevel.toUpperCase()}`,L.cx,L.perfHeaderY+L.labelSz+12+L.togH+L.labelSz+4);
+  ctx.fillText(`Detected: ${detectedPerfLevel.toUpperCase()}`,L.cx,L.perfHeaderY+L.labelSz+12+L.togH+L.labelSz+4);
   _sh('DATA',L.dataHeaderY);
   _drawHofClearBtn(L,now);
   if(hofClearFlashMs>0){
@@ -9740,6 +9742,10 @@ function _doClick(){
         settings.perfLevel=perfVals[p];
         perfLevel=perfVals[p]||perfLevel;
         if(perfVals[p]===null) _detectPerformance();
+        if(perfVals[p]==='low'||(perfVals[p]===null&&perfLevel==='low')){
+          settings.particles='off';
+          settings.screenShake=false;
+        }
         _saveSettings();SFX.select();return;
       }
     }
