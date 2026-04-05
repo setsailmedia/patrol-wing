@@ -49,22 +49,31 @@ const PW_API={
   _init(){try{this.token=localStorage.getItem('pw_api_token');if(this.token)this.checkAuth();}catch(e){}},
   async _req(method,path,body){
     try{
-      const h={'Content-Type':'application/json'};
+      const h={'Content-Type':'application/json','Accept':'application/json'};
       if(this.token)h['Authorization']='Bearer '+this.token;
       const res=await fetch(this.baseUrl+path,{method,headers:h,body:body?JSON.stringify(body):undefined});
-      if(!res.ok)throw new Error(res.status);
+      if(!res.ok){
+        const err=await res.json().catch(()=>null);
+        console.warn('PW_API',res.status,path,err);
+        if(err&&(err.errors||err.message))return err; // return validation errors for display
+        return null;
+      }
       return await res.json();
     }catch(e){return null;}
   },
   async register(username,email,pw,pwConfirm){
     const r=await this._req('POST','/auth/register',{username,email,password:pw,password_confirmation:pwConfirm});
-    if(r&&r.token){this.token=r.token;this.user=r.user;this.online=true;try{localStorage.setItem('pw_api_token',r.token);}catch(e){}}
-    return r;
+    if(r&&r.token){this.token=r.token;this.user=r.user;this.online=true;this._lastError=null;try{localStorage.setItem('pw_api_token',r.token);}catch(e){}return r;}
+    if(r&&r.errors){this._lastError=Object.values(r.errors).flat().join(', ');return null;}
+    if(r&&r.message){this._lastError=r.message;return null;}
+    this._lastError=null;return r;
   },
   async login(email,pw){
     const r=await this._req('POST','/auth/login',{email,password:pw});
-    if(r&&r.token){this.token=r.token;this.user=r.user;this.online=true;try{localStorage.setItem('pw_api_token',r.token);}catch(e){}}
-    return r;
+    if(r&&r.token){this.token=r.token;this.user=r.user;this.online=true;this._lastError=null;try{localStorage.setItem('pw_api_token',r.token);}catch(e){}return r;}
+    if(r&&r.errors){this._lastError=Object.values(r.errors).flat().join(', ');return null;}
+    if(r&&r.message){this._lastError=r.message;return null;}
+    this._lastError=null;return r;
   },
   async logout(){
     await this._req('POST','/auth/logout');
@@ -10333,14 +10342,14 @@ function _doClick(){
           accountLoading=true;accountError='';
           PW_API.login(accountEmail.value,accountPw.value).then(r=>{
             accountLoading=false;
-            if(!r)accountError='Login failed -- check credentials';
+            if(!r)accountError=PW_API._lastError||'Login failed -- check credentials';
             else{gameState='start';SFX.confirm();}
           });
         } else {
           accountLoading=true;accountError='';
           PW_API.register(accountUsername.value,accountEmail.value,accountPw.value,accountPwConfirm.value).then(r=>{
             accountLoading=false;
-            if(!r)accountError='Registration failed -- try different username/email';
+            if(!r)accountError=PW_API._lastError||'Registration failed -- try different username/email';
             else{gameState='start';SFX.confirm();}
           });
         }
