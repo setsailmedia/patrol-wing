@@ -2633,6 +2633,7 @@ function drawPlayerCraft(x,y,aim,sz,col,acc,spin,hp){
 }
 
 // ─── PLAYER ──────────────────────────────────────────────────────
+const players=[];
 const P={
   x:WORLD_W/2,y:WORLD_H/2,vx:0,vy:0,aim:0,
   hp:100,maxHp:100,bat:100,maxBat:100,
@@ -2643,6 +2644,28 @@ const P={
   stocks:{rapid:1000,spread:100,sawtooth:200,laser:20,burst:500,plasma:50,rico:30},mineStock:0,seekStock:0,noAmmoCount:0,
   sawtoothAngle:0,
 };
+players.push(P);
+function nearestAlivePlayer(ex,ey){
+  let best=P,bestD=Infinity;
+  for(const p of players){if(!p.alive)continue;const d=dist(ex,ey,p.x,p.y);if(d<bestD){bestD=d;best=p;}}
+  return best;
+}
+function mkPlayer(craftIdx,color){
+  const c=CRAFTS[craftIdx];
+  return{
+    x:WORLD_W/2,y:WORLD_H/2,vx:0,vy:0,aim:0,
+    hp:c.hp,maxHp:c.hp,bat:100,maxBat:100,
+    rotor:0,iframes:0,lastShot:0,alive:true,size:c.size||18,kills:0,
+    weaponIdx:c.startWeapon||0,unlockedW:new Set([0,c.startWeapon||0]),loadout:[c.startWeapon||0],
+    shieldMs:0,overchargeMs:0,invincMs:0,cloakMs:0,
+    nukeKeys:new Set(),gateKeys:new Set(),weaponDisableMs:0,
+    craftIdx:craftIdx,color:color,
+    spd:c.spd,batDrain:c.batDrain,drag:c.drag,
+    damageMult:c.damageMult||1.0,detMult:c.detMult||1.0,
+    stocks:mkStocks(),mineStock:0,seekStock:0,noAmmoCount:0,
+    sawtoothAngle:0,isLocal:true,teamId:0,
+  };
+}
 function mkStocks(){
   const s={};
   WEAPONS.forEach(w=>{ if(w.stock!==null) s[w.id]=w.stock; });
@@ -2664,6 +2687,7 @@ function resetPlayer(){
   carrierDrones=[];if(c.id==='carrier') _initCarrierDrones();
   deadEyeMs=0;slipstreamMs=0;slipPrevVx=0;slipPrevVy=0;
   P.color=selectedColor;
+  players.length=0;players.push(P);
 }
 function triggerEMP(){
   empFlash=750;eBullets.length=0;
@@ -2884,32 +2908,32 @@ function tickPlayer(dt,now){
   else camY=(gameMode==='timetrial'&&(ttLevel===1||ttLevel===3))?0:clamp(camY,0,Math.max(0,WORLD_H-canvas.height));
 }
 function drawPlayer(){
-  if(!P.alive)return;
-  if(portalActive) return; // craft hidden during portal — ghost shown at origin portal instead
-  if(P.iframes>0&&Math.floor(P.iframes/75)%2===0)return;
-  const sx=P.x-camX,sy=P.y-camY,now=Date.now();
-  // Cloak: render at very low opacity
-  const baseAlpha=P.cloakMs>0?0.07:1.0;
-  if(baseAlpha<1) ctx.globalAlpha=baseAlpha;
-  if(P.overchargeMs>0){const a=0.5+0.5*Math.sin(now/120);ctx.beginPath();ctx.arc(sx,sy,P.size*1.95,0,Math.PI*2);ctx.fillStyle=`rgba(255,150,0,${0.08*a})`;ctx.fill();ctx.strokeStyle=`rgba(255,180,50,${0.55*a})`;ctx.lineWidth=1.6;ctx.shadowBlur=18;ctx.shadowColor='#ff9900';ctx.stroke();ctx.shadowBlur=0;}
-  // Invincibility: white spinning rings
-  if(P.invincMs>0){
-    const pulse=0.6+0.4*Math.sin(now/90);
-    ctx.save();ctx.translate(sx,sy);
-    ctx.rotate(now/220);ctx.strokeStyle=`rgba(255,255,255,${0.75*pulse})`;ctx.lineWidth=2.2;ctx.shadowBlur=18;ctx.shadowColor='#ffffff';
-    ctx.beginPath();ctx.arc(0,0,P.size*2.1,0,Math.PI*2);ctx.stroke();
-    ctx.rotate(-now/140);ctx.strokeStyle=`rgba(200,240,255,${0.45*pulse})`;ctx.lineWidth=1.2;
-    ctx.beginPath();ctx.arc(0,0,P.size*2.6,0,Math.PI*2);ctx.stroke();
-    ctx.shadowBlur=0;ctx.restore();
-  }
-  drawPlayerCraft(sx,sy,P.aim,P.size,P.color,lighten(P.color,90),P.rotor,P.hp/P.maxHp);
-  if(baseAlpha<1) ctx.globalAlpha=1.0;
-  if(P.shieldMs>0){
-    const r=P.size*2.15,fa=Math.min(1,P.shieldMs/1200);
-    ctx.save();ctx.translate(sx,sy);ctx.rotate(now/580);
-    ctx.beginPath();for(let i=0;i<6;i++){const a=(Math.PI/3)*i;i===0?ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r):ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);}ctx.closePath();
-    ctx.strokeStyle=`rgba(68,170,255,${0.88*fa})`;ctx.lineWidth=2.4;ctx.shadowBlur=20;ctx.shadowColor='#44aaff';ctx.stroke();ctx.shadowBlur=0;ctx.restore();
-    ctx.save();ctx.translate(sx,sy);ctx.rotate(-now/900);ctx.beginPath();ctx.arc(0,0,r*1.22,0,Math.PI*2);ctx.strokeStyle=`rgba(68,170,255,${0.22*fa})`;ctx.lineWidth=1;ctx.stroke();ctx.restore();
+  for(const p of players){
+    if(!p.alive)continue;
+    if(portalActive&&p===P)continue;
+    if(p.iframes>0&&Math.floor(p.iframes/75)%2===0)continue;
+    const sx=p.x-camX,sy=p.y-camY,now=Date.now();
+    const baseAlpha=p.cloakMs>0?0.07:1.0;
+    if(baseAlpha<1)ctx.globalAlpha=baseAlpha;
+    if(p.overchargeMs>0){const a=0.5+0.5*Math.sin(now/120);ctx.beginPath();ctx.arc(sx,sy,p.size*1.95,0,Math.PI*2);ctx.fillStyle=`rgba(255,150,0,${0.08*a})`;ctx.fill();ctx.strokeStyle=`rgba(255,180,50,${0.55*a})`;ctx.lineWidth=1.6;ctx.shadowBlur=18;ctx.shadowColor='#ff9900';ctx.stroke();ctx.shadowBlur=0;}
+    if(p.invincMs>0){
+      const pulse=0.6+0.4*Math.sin(now/90);
+      ctx.save();ctx.translate(sx,sy);
+      ctx.rotate(now/220);ctx.strokeStyle=`rgba(255,255,255,${0.75*pulse})`;ctx.lineWidth=2.2;ctx.shadowBlur=18;ctx.shadowColor='#ffffff';
+      ctx.beginPath();ctx.arc(0,0,p.size*2.1,0,Math.PI*2);ctx.stroke();
+      ctx.rotate(-now/140);ctx.strokeStyle=`rgba(200,240,255,${0.45*pulse})`;ctx.lineWidth=1.2;
+      ctx.beginPath();ctx.arc(0,0,p.size*2.6,0,Math.PI*2);ctx.stroke();
+      ctx.shadowBlur=0;ctx.restore();
+    }
+    drawPlayerCraft(sx,sy,p.aim,p.size,p.color,lighten(p.color,90),p.rotor,p.hp/p.maxHp);
+    if(baseAlpha<1)ctx.globalAlpha=1.0;
+    if(p.shieldMs>0){
+      const r=p.size*2.15,fa=Math.min(1,p.shieldMs/1200);
+      ctx.save();ctx.translate(sx,sy);ctx.rotate(now/580);
+      ctx.beginPath();for(let i=0;i<6;i++){const a=(Math.PI/3)*i;i===0?ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r):ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);}ctx.closePath();
+      ctx.strokeStyle=`rgba(68,170,255,${0.88*fa})`;ctx.lineWidth=2.4;ctx.shadowBlur=20;ctx.shadowColor='#44aaff';ctx.stroke();ctx.shadowBlur=0;ctx.restore();
+      ctx.save();ctx.translate(sx,sy);ctx.rotate(-now/900);ctx.beginPath();ctx.arc(0,0,r*1.22,0,Math.PI*2);ctx.strokeStyle=`rgba(68,170,255,${0.22*fa})`;ctx.lineWidth=1;ctx.stroke();ctx.restore();
+    }
   }
 }
 
@@ -3015,7 +3039,7 @@ function spawnWaveEnemies(n){
 function tickEnemies(dt,now){
   for(const e of enemies){
     if(e._visible===false)continue;
-    const dx=P.x-e.x,dy=P.y-e.y,d=Math.sqrt(dx*dx+dy*dy)||1;
+    const _tgt=nearestAlivePlayer(e.x,e.y);const dx=_tgt.x-e.x,dy=_tgt.y-e.y,d=Math.sqrt(dx*dx+dy*dy)||1;
     e.aim=Math.atan2(dy,dx);e.rotor+=dt*14;
     // Tick down all stun timers
     if(e.stunMs>0)    e.stunMs    -=dt*1000;
@@ -3108,18 +3132,18 @@ function tickEnemies(dt,now){
         e.x=clamp(e.x+e.chargeVx*dt*60,e.size,WORLD_W-e.size);
         e.y=clamp(e.y+e.chargeVy*dt*60,e.size,WORLD_H-e.size);
         pushOutObs(e,e.size);
-        if(P.alive&&P.iframes===0&&dist(e.x,e.y,P.x,P.y)<e.size+P.size){
-          if(P.shieldMs>0){P.shieldMs=0;spawnParts(P.x,P.y,'#44aaff',_pCount(14),4,5,400);SFX.shbreak();P.iframes=400;}
-          else{P.hp-=38*P.damageMult;P.iframes=600;if(settings.screenShake)shake=Math.max(shake,18);SFX.hit();if(P.hp<=0)P.alive=false;Music.onHit();}
+        const _rTgt=nearestAlivePlayer(e.x,e.y);if(_rTgt.alive&&_rTgt.iframes===0&&dist(e.x,e.y,_rTgt.x,_rTgt.y)<e.size+_rTgt.size){
+          if(_rTgt.shieldMs>0){_rTgt.shieldMs=0;spawnParts(_rTgt.x,_rTgt.y,'#44aaff',_pCount(14),4,5,400);SFX.shbreak();_rTgt.iframes=400;}
+          else{_rTgt.hp-=38*_rTgt.damageMult;_rTgt.iframes=600;if(settings.screenShake)shake=Math.max(shake,18);SFX.hit();if(_rTgt.hp<=0)_rTgt.alive=false;Music.onHit();}
           e.chargeMs=-1500;
         }
         continue;
       }
-      if(e.chargeMs<=0&&e.state==='attack'&&dist(e.x,e.y,P.x,P.y)<220){
-        const dd=dist(e.x,e.y,P.x,P.y)||1;
+      if(e.chargeMs<=0&&e.state==='attack'&&dist(e.x,e.y,_tgt.x,_tgt.y)<220){
+        const dd=dist(e.x,e.y,_tgt.x,_tgt.y)||1;
         e.chargeMs=600;
-        e.chargeVx=(P.x-e.x)/dd*11;
-        e.chargeVy=(P.y-e.y)/dd*11;
+        e.chargeVx=(_tgt.x-e.x)/dd*11;
+        e.chargeVy=(_tgt.y-e.y)/dd*11;
         continue;
       }
     }
@@ -4438,53 +4462,54 @@ function checkCollisions(){
       }
     }
   }
-  if(P.iframes<=0&&P.alive){
-    for(let bi=eBullets.length-1;bi>=0;bi--){
-      const b=eBullets[bi];
-      // miniMe intercepts bullets (checked before player)
-      if(miniMe.active&&miniMe.iframes<=0&&dist2(b.x,b.y,miniMe.x,miniMe.y)<MM_SIZE*MM_SIZE){
-        miniMe.hp-=b.dmg;miniMe.iframes=500;
-        spawnParts(b.x,b.y,MM_COL,_pCount(8),2.5,3.5,260);
-        eBullets.splice(bi,1);
-        if(miniMe.hp<=0){
-          miniMe.active=false;miniMe.lost=true;
-          spawnParts(miniMe.x,miniMe.y,MM_COL,_pCount(20),4.5,6,700);
-          spawnParts(miniMe.x,miniMe.y,'#ffffff',_pCount(8),3,4,400);
-          if(settings.screenShake)shake=10;SFX.mmdead();
-        }
-        continue;
+  for(let bi=eBullets.length-1;bi>=0;bi--){
+    const b=eBullets[bi];
+    // miniMe intercepts bullets (checked before player)
+    if(miniMe.active&&miniMe.iframes<=0&&dist2(b.x,b.y,miniMe.x,miniMe.y)<MM_SIZE*MM_SIZE){
+      miniMe.hp-=b.dmg;miniMe.iframes=500;
+      spawnParts(b.x,b.y,MM_COL,_pCount(8),2.5,3.5,260);
+      eBullets.splice(bi,1);
+      if(miniMe.hp<=0){
+        miniMe.active=false;miniMe.lost=true;
+        spawnParts(miniMe.x,miniMe.y,MM_COL,_pCount(20),4.5,6,700);
+        spawnParts(miniMe.x,miniMe.y,'#ffffff',_pCount(8),3,4,400);
+        if(settings.screenShake)shake=10;SFX.mmdead();
       }
-      // Carrier drones intercept enemy bullets
-      if(carrierDrones.length){
-        let droneHit=false;
-        for(let d=0;d<carrierDrones.length;d++){
-          const dr=carrierDrones[d];
-          if(dr.hp<=0) continue;
-          if(dist2(b.x,b.y,dr.x,dr.y)<10*10){
-            dr.hp-=b.dmg;
-            spawnParts(b.x,b.y,'#00aaff',_pCount(5),2,3,200);
-            eBullets.splice(bi,1);
-            if(dr.hp<=0){dr.hp=0;dr.respawnMs=10000;spawnParts(dr.x,dr.y,'#00aaff',_pCount(12),3,5,500);if(settings.screenShake)shake=6;}
-            droneHit=true;break;
-          }
+      continue;
+    }
+    // Carrier drones intercept enemy bullets
+    if(carrierDrones.length){
+      let droneHit=false;
+      for(let d=0;d<carrierDrones.length;d++){
+        const dr=carrierDrones[d];
+        if(dr.hp<=0) continue;
+        if(dist2(b.x,b.y,dr.x,dr.y)<10*10){
+          dr.hp-=b.dmg;
+          spawnParts(b.x,b.y,'#00aaff',_pCount(5),2,3,200);
+          eBullets.splice(bi,1);
+          if(dr.hp<=0){dr.hp=0;dr.respawnMs=10000;spawnParts(dr.x,dr.y,'#00aaff',_pCount(12),3,5,500);if(settings.screenShake)shake=6;}
+          droneHit=true;break;
         }
-        if(droneHit) continue;
       }
-      const hitR=P.size+(b.isBrute?b.bSz*0.6:0);
-      if(b.fromInfected) continue; // infected ally bullets never hurt player
-      if(b.isBomb) continue; // bombs detonate via tickBullets, not player collision
-      if(dist2(b.x,b.y,P.x,P.y)<hitR*hitR){
+      if(droneHit) continue;
+    }
+    if(b.fromInfected) continue; // infected ally bullets never hurt player
+    if(b.isBomb) continue; // bombs detonate via tickBullets, not player collision
+    for(const _p of players){
+      if(_p.iframes>0||!_p.alive)continue;
+      const hitR=_p.size+(b.isBrute?b.bSz*0.6:0);
+      if(dist2(b.x,b.y,_p.x,_p.y)<hitR*hitR){
         // Invincibility: deflect bullet back outward
-        if(P.invincMs>0){
-          const ang=Math.atan2(b.y-P.y,b.x-P.x);
+        if(_p.invincMs>0){
+          const ang=Math.atan2(b.y-_p.y,b.x-_p.x);
           b.vx=Math.cos(ang)*Math.sqrt(b.vx*b.vx+b.vy*b.vy);
           b.vy=Math.sin(ang)*Math.sqrt(b.vx*b.vx+b.vy*b.vy);
           spawnParts(b.x,b.y,'#ffffff',_pCount(5),2.5,3.5,180);
           continue;
         }
-        if(P.shieldMs>0){P.shieldMs=0;if(settings.screenShake)shake=9;spawnParts(P.x,P.y,'#44aaff',_pCount(24),5,6,500);SFX.shbreak();P.iframes=400;}
-        else{const dmg=b.dmg*P.damageMult*DIFF().enemyDmg;P.hp-=dmg;P.iframes=700;if(settings.screenShake)shake=16;SFX.hit();Music.onHit();spawnParts(b.x,b.y,'#00eeff',_pCount(10),3,4,380);if(P.hp<=0)P.alive=false;}
-        eBullets.splice(bi,1);
+        if(_p.shieldMs>0){_p.shieldMs=0;if(settings.screenShake)shake=9;spawnParts(_p.x,_p.y,'#44aaff',_pCount(24),5,6,500);SFX.shbreak();_p.iframes=400;}
+        else{const dmg=b.dmg*_p.damageMult*DIFF().enemyDmg;_p.hp-=dmg;_p.iframes=700;if(settings.screenShake)shake=16;SFX.hit();Music.onHit();spawnParts(b.x,b.y,'#00eeff',_pCount(10),3,4,380);if(_p.hp<=0)_p.alive=false;}
+        eBullets.splice(bi,1);break;
       }
     }
   }
@@ -4492,7 +4517,8 @@ function checkCollisions(){
     const pk=pickups[pi];
     if(pk._visible===false)continue;
     const hitR=(pk.hidden?36:48)**2;
-    const playerHit=dist2(pk.x,pk.y,P.x,P.y)<hitR;
+    let playerHit=false,_collector=P;
+    for(const _p of players){if(_p.alive&&dist2(pk.x,pk.y,_p.x,_p.y)<hitR){playerHit=true;_collector=_p;break;}}
     const jrHit=miniMe.active&&dist2(pk.x,pk.y,miniMe.x,miniMe.y)<(MM_SIZE+18)**2;
     if(playerHit||jrHit){
       if(jrHit&&!playerHit) spawnParts(pk.x,pk.y,'#44ffcc',_pCount(8),2.5,4,300); // J R pickup sparkle
@@ -4947,7 +4973,7 @@ function drawMinimap(){
   for(const o of obstacles){ctx.fillStyle='rgba(25,70,150,0.45)';if(o.type==='pillar')ctx.fillRect(mx+o.x*scx-2,my+o.y*scy-2,4,4);else ctx.fillRect(mx+o.x*scx,my+o.y*scy,Math.max(2,o.w*scx),Math.max(2,o.h*scy));}
   for(const p of pickups){ctx.fillStyle=PTYPES[p.type].color+(p.hidden?'55':'bb');ctx.fillRect(mx+p.x*scx-1,my+p.y*scy-1,2.5,2.5);}
   for(const e of enemies){ctx.fillStyle=e.color;ctx.fillRect(mx+e.x*scx-2,my+e.y*scy-2,4,4);}
-  ctx.fillStyle=P.color;ctx.shadowBlur=8;ctx.shadowColor=P.color;ctx.fillRect(mx+P.x*scx-2.5,my+P.y*scy-2.5,5,5);ctx.shadowBlur=0;
+  for(const p of players){if(!p.alive)continue;ctx.fillStyle=p.color;ctx.shadowBlur=8;ctx.shadowColor=p.color;ctx.fillRect(mx+p.x*scx-2.5,my+p.y*scy-2.5,5,5);ctx.shadowBlur=0;}
   // Portal markers
   if(portalActive){
     portalPositions.forEach((pos,i)=>{
@@ -10897,7 +10923,7 @@ function loop(now){
     if(gameMode==='timetrial') drawFinishLine();
     drawEMPFlash();drawLaserFlash();drawLeechFlash();drawShockwaveFlash();drawPortals();drawHUD();drawMinimap();drawCrosshair();drawTouchSticks();drawMiniMe();drawBossWarning(dt);drawCustomTransition();
     }
-    if(!P.alive){
+    if(!players.some(p=>p.alive)){
       mines.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;
       spawnParts(P.x,P.y,P.color,_pCount(35),7.5,9.5,1100);spawnParts(P.x,P.y,'#ffffff',_pCount(15),5,4,700);if(settings.screenShake)shake=30;
       if(jrCarrying>=0){jrCarrying=-1;P.spd=CRAFTS[P.craftIdx].spd;}
