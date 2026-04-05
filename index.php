@@ -3244,6 +3244,27 @@ function tickEnemies(dt,now){
       }
     }
   }
+  // Enemy separation — soft push apart so same-type enemies don't stack on identical paths
+  for(let i=0;i<enemies.length;i++){
+    const a=enemies[i];
+    if(a._visible===false)continue;
+    for(let j=i+1;j<enemies.length;j++){
+      const b=enemies[j];
+      if(b._visible===false)continue;
+      const minD=a.size+b.size;
+      const dx=a.x-b.x,dy=a.y-b.y;
+      const d2=dx*dx+dy*dy;
+      if(d2<minD*minD&&d2>0.01){
+        const d=Math.sqrt(d2);
+        const overlap=(minD-d)*0.35;
+        const nx=dx/d,ny=dy/d;
+        a.x+=nx*overlap;a.y+=ny*overlap;
+        b.x-=nx*overlap;b.y-=ny*overlap;
+        a.vx+=nx*0.3;a.vy+=ny*0.3;
+        b.vx-=nx*0.3;b.vy-=ny*0.3;
+      }
+    }
+  }
   // Self-destruct: if only one enemy remains and it's infected, slowly drain its HP
   if(enemies.length===1&&enemies[0].infected){
     const e=enemies[0];
