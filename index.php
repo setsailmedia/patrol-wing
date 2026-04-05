@@ -6815,6 +6815,7 @@ function saveHighScore(modeKey, pts, durationMs){
     score: Math.round(pts),
     duration: Math.round(durationMs),
     date: new Date().toISOString(),
+    difficulty: settings.difficulty||'hard',
   });
   arr.sort((a,b)=>b.score-a.score);
   _hofSave(arr.slice(0,HOF_MAX));
@@ -7259,13 +7260,14 @@ function drawHallOfFame(){
       const totalRows=scores.length;
       const maxScroll=Math.max(0,totalRows*rowH+52-(listH-22));
       hofScroll=Math.min(hofScroll,maxScroll);
-      const colX={rank:cx-W*0.44,mode:cx-W*0.30,score:cx+W*0.04,dur:cx+W*0.22,date:cx+W*0.38};
+      const colX={rank:cx-W*0.44,mode:cx-W*0.30,diff:cx-W*0.10,score:cx+W*0.04,dur:cx+W*0.20,date:cx+W*0.34};
       const headerY=listY+18-hofScroll;
       if(headerY>listY-2){
         ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(0,180,255,0.7)';
         ctx.textAlign='left';
         ctx.fillText('#',   colX.rank, headerY);
         ctx.fillText('MODE',colX.mode, headerY);
+        ctx.fillText('DIFF',colX.diff, headerY);
         ctx.fillText('SCORE',colX.score,headerY);
         ctx.fillText('TIME', colX.dur,  headerY);
         ctx.fillText('DATE', colX.date, headerY);
@@ -7282,6 +7284,11 @@ function drawHallOfFame(){
         ctx.textAlign='left';
         ctx.fillText(`${i+1}`,colX.rank,ry);
         ctx.fillText(MODE_LABELS[s.mode]||s.mode,colX.mode,ry);
+        const dc=s.difficulty||'hard';
+        const diffCols={intense:'#ff4444',hard:'#ffaa00',mid:'#00ccff',easy:'#00ff88'};
+        ctx.fillStyle=diffCols[dc]||ctx.fillStyle;
+        ctx.fillText((dc||'hard').toUpperCase(),colX.diff,ry);
+        ctx.fillStyle=gold?'#ffdd44':silver?'#cccccc':bronze?'#cc8844':'rgba(140,180,220,0.85)';
         ctx.textAlign='right';
         ctx.fillText(s.score.toLocaleString(),colX.score+60,ry);
         ctx.textAlign='left';
