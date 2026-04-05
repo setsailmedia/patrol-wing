@@ -24,6 +24,10 @@ canvas{display:block;cursor:none;position:absolute;top:0;left:0;}
 <canvas id="c"></canvas>
 <input type="color" id="colorPick" value="#00ddff">
 <input type="text" id="editorNameInput" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;" maxlength="40">
+<input type="email" id="accountEmail" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;" maxlength="255">
+<input type="password" id="accountPw" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;" maxlength="128">
+<input type="text" id="accountUsername" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;" maxlength="40">
+<input type="password" id="accountPwConfirm" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;" maxlength="128">
 <div id="adSlot1" class="adSlot">
   <div class="adLabel">Advertisement</div>
   <div class="adBox"><span><!-- Google AdSense 300×250 --><br>Replace with AdSense tag</span></div>
@@ -35,6 +39,10 @@ canvas{display:block;cursor:none;position:absolute;top:0;left:0;}
 const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
 const colorPick=document.getElementById('colorPick');
 const editorNameInput=document.getElementById('editorNameInput');
+const accountEmail=document.getElementById('accountEmail');
+const accountPw=document.getElementById('accountPw');
+const accountUsername=document.getElementById('accountUsername');
+const accountPwConfirm=document.getElementById('accountPwConfirm');
 const PW_API={
   token:null,user:null,baseUrl:'/api/v1',eventQueue:[],online:false,
   _init(){try{this.token=localStorage.getItem('pw_api_token');if(this.token)this.checkAuth();}catch(e){}},
@@ -965,6 +973,9 @@ let editorPanning=false;let editorPanStartX=0,editorPanStartY=0,editorPanCamX=0,
 let editorSelectedGate=-1;
 let editorSelectedPickup=-1;
 let editorSelectedTimer=-1;
+let accountTab=0;
+let accountError='';
+let accountLoading=false;
 let customSelectExpanded=-1;
 let customSelectSelectedLevel=-1;
 // Level 2 — Nuclear Disarm
@@ -5520,6 +5531,15 @@ function drawStartScreen(){
   const _stX=W-_stPad-_stW,_stY=_stPad;
   const _stMuted=Music.isMuted();
   _btn(_stX,_stY,_stW,_stH,_stMuted?'SOUND OFF':'SOUND ON','default',_stMuted?'\u2715':'\u266A');
+  // Account indicator
+  ctx.textAlign='right';ctx.font='10px "Courier New"';
+  if(PW_API.online&&PW_API.user){
+    ctx.fillStyle='rgba(0,200,100,0.7)';
+    ctx.fillText(PW_API.user.username+' (ONLINE)',W-Math.max(14,W*0.02),Math.max(14,W*0.02)+_stH+18);
+  } else {
+    ctx.fillStyle='rgba(100,140,180,0.4)';
+    ctx.fillText('OFFLINE',W-Math.max(14,W*0.02),Math.max(14,W*0.02)+_stH+18);
+  }
   ctx.textAlign='left';
 }
 function _roundRect(x,y,w,h,r){
@@ -7077,6 +7097,81 @@ function _returnToStart(){
   deathScreenEnteredAt=0;
   jrCaptives=[];jrCarrying=-1;tngPads=[];tngSeq=1;tngOnPad=-1;tngHoldMs=0;
   WORLD_W=2600;WORLD_H=1700;ttLevel=1;nukes=[];gameMode='battle';gameState='start';
+}
+
+function drawAccountScreen(){
+  const W=canvas.width,H=canvas.height,cx=W/2;
+  ctx.fillStyle='#060c18';ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(0,80,160,0.08)';ctx.lineWidth=1;
+  for(let x=0;x<W;x+=70){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=70){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  ctx.textAlign='center';
+  ctx.font='bold 32px "Courier New"';ctx.fillStyle='#00ccff';ctx.shadowBlur=20;ctx.shadowColor='#00aaff';
+  ctx.fillText('ACCOUNT',cx,52);ctx.shadowBlur=0;
+
+  const panelW=Math.min(400,W*0.7),panelX=cx-panelW/2;
+
+  if(PW_API.online&&PW_API.user){
+    // Logged in view
+    ctx.font='14px "Courier New"';ctx.fillStyle='rgba(0,200,100,0.8)';
+    ctx.fillText('ONLINE',cx,90);
+    ctx.font='bold 20px "Courier New"';ctx.fillStyle='#00eeff';
+    ctx.fillText(PW_API.user.username,cx,126);
+    ctx.font='12px "Courier New"';ctx.fillStyle='rgba(150,190,230,0.7)';
+    ctx.fillText(PW_API.user.email||'',cx,150);
+    if(PW_API.user.created_at){
+      ctx.fillText('Member since '+PW_API.user.created_at.substring(0,10),cx,174);
+    }
+    if(PW_API.user.scores_count!==undefined){
+      ctx.fillText(PW_API.user.scores_count+' scores submitted',cx,198);
+    }
+    _btn(cx-80,240,160,40,'LOGOUT','danger','\u2717');
+  } else {
+    // Logged out view — tabs
+    const tabW=panelW/2-4;
+    _btn(panelX,80,tabW,34,accountTab===0?'> LOGIN':'LOGIN',accountTab===0?'primary':'default');
+    _btn(panelX+tabW+8,80,tabW,34,accountTab===1?'> REGISTER':'REGISTER',accountTab===1?'primary':'default');
+
+    let fy=134;
+    const fieldW=panelW,fieldH=36;
+
+    function _drawField(label,y,inputEl,isPassword){
+      ctx.textAlign='left';ctx.font='bold 11px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.7)';
+      ctx.fillText(label,panelX,y);
+      const hov=mouse.x>panelX&&mouse.x<panelX+fieldW&&mouse.y>y+4&&mouse.y<y+4+fieldH;
+      ctx.fillStyle=hov?'rgba(0,40,80,0.7)':'rgba(0,20,50,0.5)';
+      roundRect(ctx,panelX,y+4,fieldW,fieldH,2);ctx.fill();
+      ctx.strokeStyle=hov?'#00ccff':'rgba(0,100,180,0.4)';ctx.lineWidth=1;
+      roundRect(ctx,panelX,y+4,fieldW,fieldH,2);ctx.stroke();
+      ctx.font='14px "Courier New"';ctx.fillStyle='rgba(180,220,255,0.9)';
+      const val=inputEl.value||'';
+      ctx.fillText(isPassword?'*'.repeat(val.length):val||'Click to enter...',panelX+12,y+30);
+      ctx.textAlign='center';
+      return y+4+fieldH+16;
+    }
+
+    if(accountTab===1){
+      fy=_drawField('USERNAME',fy,accountUsername,false);
+    }
+    fy=_drawField('EMAIL',fy,accountEmail,false);
+    fy=_drawField('PASSWORD',fy,accountPw,true);
+    if(accountTab===1){
+      fy=_drawField('CONFIRM PASSWORD',fy,accountPwConfirm,true);
+    }
+
+    const submitLabel=accountLoading?'LOADING...':accountTab===0?'LOGIN':'REGISTER';
+    _btn(cx-100,fy,200,40,submitLabel,'primary','\u25B6');
+
+    if(accountError){
+      ctx.font='11px "Courier New"';ctx.fillStyle='#ff4444';
+      ctx.fillText(accountError,cx,fy+56);
+    }
+  }
+
+  // Back button
+  const bw=Math.min(220,W*0.28),bh=46,bx=Math.max(20,W*0.03),by=H-bh-Math.max(28,H*0.04);
+  _btn(bx,by,bw,bh,'BACK','default','\u25C0');
+  ctx.textAlign='left';
 }
 
 function drawHallOfFame(){
@@ -9475,6 +9570,13 @@ function _doClick(){
     if(mouse.x>=_stX2&&mouse.x<=_stX2+_stW2&&mouse.y>=_stY2&&mouse.y<=_stY2+_stH2){
       initAudio();Music.toggleMute();return;
     }
+    // Account indicator click
+    const aiY=Math.max(14,canvas.width*0.02)+Math.max(28,canvas.height*0.042)+18;
+    if(mouse.x>canvas.width*0.5&&mouse.y>aiY-12&&mouse.y<aiY+8){
+      accountTab=0;accountError='';accountLoading=false;
+      accountEmail.value='';accountPw.value='';accountUsername.value='';accountPwConfirm.value='';
+      gameState='account';SFX.select();return;
+    }
     const rects=getMenuRects();
     for(let i=0;i<rects.length;i++){
       const {x,y,w,h,item}=rects[i];
@@ -9536,6 +9638,74 @@ function _doClick(){
     if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){
       WORLD_W=2600;WORLD_H=1700;ttLevel=1;nukes=[];jrCaptives=[];jrCarrying=-1;tngPads=[];tngSeq=1;tngOnPad=-1;tngHoldMs=0;gameMode='battle';gameState='start';SFX.select();return;
     }
+    return;
+  }
+  if(gameState==='account'){
+    const W=canvas.width,H=canvas.height,cx=W/2;
+    const panelW=Math.min(400,W*0.7),panelX=cx-panelW/2;
+
+    if(PW_API.online&&PW_API.user){
+      // Logout button
+      if(mouse.x>cx-80&&mouse.x<cx+80&&mouse.y>240&&mouse.y<280){
+        PW_API.logout();SFX.select();return;
+      }
+    } else {
+      // Tab clicks
+      const tabW=panelW/2-4;
+      if(mouse.x>panelX&&mouse.x<panelX+tabW&&mouse.y>80&&mouse.y<114){accountTab=0;accountError='';SFX.select();return;}
+      if(mouse.x>panelX+tabW+8&&mouse.x<panelX+panelW&&mouse.y>80&&mouse.y<114){accountTab=1;accountError='';SFX.select();return;}
+
+      // Field clicks — show hidden inputs
+      const fieldW=panelW,fieldH=36;
+      let fy=134;
+      function _showInput(inputEl,y){
+        inputEl.style.pointerEvents='auto';inputEl.style.opacity='1';
+        inputEl.style.position='fixed';inputEl.style.left='50%';inputEl.style.top=(y+4)+'px';
+        inputEl.style.transform='translateX(-50%)';inputEl.style.width=Math.min(380,W*0.65)+'px';
+        inputEl.style.height='30px';inputEl.style.fontSize='16px';inputEl.style.fontFamily='"Courier New"';
+        inputEl.style.background='#0a1828';inputEl.style.color='#00ccff';inputEl.style.border='1px solid #00ccff';
+        inputEl.style.textAlign='center';inputEl.style.zIndex='100';
+        inputEl.focus();
+        inputEl.onblur=()=>{inputEl.style.pointerEvents='none';inputEl.style.opacity='0';inputEl.style.width='1px';inputEl.style.height='1px';};
+      }
+
+      if(accountTab===1){
+        if(mouse.x>panelX&&mouse.x<panelX+fieldW&&mouse.y>fy+4&&mouse.y<fy+4+fieldH){_showInput(accountUsername,fy);return;}
+        fy+=fieldH+20;
+      }
+      if(mouse.x>panelX&&mouse.x<panelX+fieldW&&mouse.y>fy+4&&mouse.y<fy+4+fieldH){_showInput(accountEmail,fy);return;}
+      fy+=fieldH+20;
+      if(mouse.x>panelX&&mouse.x<panelX+fieldW&&mouse.y>fy+4&&mouse.y<fy+4+fieldH){_showInput(accountPw,fy);return;}
+      fy+=fieldH+20;
+      if(accountTab===1){
+        if(mouse.x>panelX&&mouse.x<panelX+fieldW&&mouse.y>fy+4&&mouse.y<fy+4+fieldH){_showInput(accountPwConfirm,fy);return;}
+        fy+=fieldH+20;
+      }
+
+      // Submit button
+      if(mouse.x>cx-100&&mouse.x<cx+100&&mouse.y>fy&&mouse.y<fy+40&&!accountLoading){
+        if(accountTab===0){
+          accountLoading=true;accountError='';
+          PW_API.login(accountEmail.value,accountPw.value).then(r=>{
+            accountLoading=false;
+            if(!r)accountError='Login failed -- check credentials';
+            else{gameState='start';SFX.confirm();}
+          });
+        } else {
+          accountLoading=true;accountError='';
+          PW_API.register(accountUsername.value,accountEmail.value,accountPw.value,accountPwConfirm.value).then(r=>{
+            accountLoading=false;
+            if(!r)accountError='Registration failed -- try different username/email';
+            else{gameState='start';SFX.confirm();}
+          });
+        }
+        return;
+      }
+    }
+
+    // Back button
+    const bw=Math.min(220,W*0.28),bh=46,bx=Math.max(20,W*0.03),by=H-bh-Math.max(28,H*0.04);
+    if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){gameState='start';SFX.select();return;}
     return;
   }
   if(gameState==='hallOfFame'){
@@ -10528,6 +10698,7 @@ function loop(now){
       camY=(gameMode==='timetrial'&&(ttLevel===1||ttLevel===3))?0:clamp(prev.y-canvas.height/2,0,Math.max(0,WORLD_H-canvas.height));
       SFX.select();return;
     }
+    if(gameState==='account'){K['Space']=false;return;}
     if(gameState==='levelEditor'){K['Space']=false;return;}
     if(gameState==='levelSavePrompt'){K['Space']=false;return;}
     if(gameState==='levelSetup'&&document.activeElement!==editorNameInput){K['Space']=false;gameState='customSelect';SFX.select();return;}
@@ -10547,6 +10718,7 @@ function loop(now){
   }
 
   if(K['Escape']){
+    if(gameState==='account'){K['Escape']=false;gameState='start';SFX.select();return;}
     if(gameState==='levelEditor'){
       K['Escape']=false;
       if(editorTool==='_assignGuard'){editorTool='';return;}
@@ -10642,6 +10814,8 @@ function loop(now){
       else if(elapsed<60){score+=100;weaponFlash={name:'WAVE BONUS +100',ms:2800};}
       wave++;if(wave>TOTAL_WAVES){saveHighScore('battle',score,Date.now()-gameStartTime);PW_API.saveScore({mode:gameMode,score,duration_ms:Date.now()-gameStartTime,wave_reached:wave,craft_id:CRAFTS[P.craftIdx].id});PW_API.flushEvents();gameState='victory';}else{gameState='waveClear';wavePause=3800;screenLockMs=2000;SFX.wave();}
     }
+  } else if(gameState==='account'){
+    drawAccountScreen();
   } else if(gameState==='hallOfFame'){
     drawHallOfFame();
   } else if(gameState==='ctLevelUp'){
