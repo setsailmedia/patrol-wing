@@ -107,22 +107,42 @@ const NET={
   _onMsg:null,
   connect(roomCode,isHost){
     if(this.ws)this.disconnect();
-    this.roomCode=roomCode;this.isHost=isHost;
+    this.roomCode=roomCode;this.isHost=isHost;this._socketId=null;
     try{
-      const wsUrl=`ws://${location.hostname}:8080/app/${document.querySelector('meta[name=reverb-key]')?.content||''}?protocol=7&client=js&version=7.0&flash=false`;
+      const appKey=document.querySelector('meta[name=reverb-key]')?.content||'';
+      const wsUrl=`ws://${location.hostname}:8080/app/${appKey}?protocol=7&client=js&version=7.0&flash=false`;
       this.ws=new WebSocket(wsUrl);
       this.ws.binaryType='arraybuffer';
-      this.ws.onopen=()=>{
-        this.connected=true;
-        // Subscribe to private channel via Reverb protocol
-        const auth=PW_API.token;
-        this.ws.send(JSON.stringify({event:'pusher:subscribe',data:{channel:`private-game.${roomCode}`,auth:`${auth}`}}));
-      };
+      this.ws.onopen=()=>{this.connected=true;};
+      // Wait for pusher:connection_established to get socket_id, then auth the channel
+      this._origOnMsg=null;
       this.ws.onmessage=(evt)=>{
         if(typeof evt.data==='string'){
-          try{const msg=JSON.parse(evt.data);if(this._onMsg)this._onMsg(msg);}catch(e){}
+          try{
+            const msg=JSON.parse(evt.data);
+            // Handle Pusher connection established — get socket_id for channel auth
+            if(msg.event==='pusher:connection_established'){
+              const connData=JSON.parse(msg.data);
+              this._socketId=connData.socket_id;
+              // Auth the private channel via Laravel backend
+              const channel=`private-game.${this.roomCode}`;
+              fetch('/api/broadcasting/auth',{
+                method:'POST',
+                headers:{'Content-Type':'application/json','Accept':'application/json','Authorization':'Bearer '+PW_API.token},
+                body:JSON.stringify({socket_id:this._socketId,channel_name:channel}),
+              }).then(r=>r.json()).then(authData=>{
+                if(authData&&authData.auth){
+                  this.ws.send(JSON.stringify({event:'pusher:subscribe',data:{channel,auth:authData.auth}}));
+                  console.log('NET: subscribed to',channel);
+                } else console.warn('NET: channel auth failed',authData);
+              }).catch(e=>console.warn('NET: auth fetch failed',e));
+              return;
+            }
+            if(msg.event==='pusher_internal:subscription_succeeded'){console.log('NET: channel subscription OK');return;}
+            if(msg.event==='pusher:error'){console.warn('NET: pusher error',msg);return;}
+            if(this._onMsg)this._onMsg(msg);
+          }catch(e){}
         } else {
-          // Binary game state
           this._onBinary(new DataView(evt.data));
         }
       };

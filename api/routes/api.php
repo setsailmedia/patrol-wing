@@ -6,6 +6,11 @@ use App\Http\Controllers\EventController;
 use App\Http\Controllers\RoomController;
 use Illuminate\Support\Facades\Route;
 
+// Broadcasting auth (outside v1 prefix for Reverb compatibility)
+Route::post('/broadcasting/auth', function (\Illuminate\Http\Request $request) {
+    return \Illuminate\Support\Facades\Broadcast::auth($request);
+})->middleware('auth:sanctum');
+
 Route::prefix('v1')->group(function () {
     // Auth (rate limited)
     Route::middleware('throttle:10,1')->group(function () {

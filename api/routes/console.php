@@ -6,3 +6,6 @@ use Illuminate\Support\Facades\Artisan;
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+// Clean up orphaned game rooms every 5 minutes
+\Illuminate\Support\Facades\Schedule::command('rooms:cleanup')->everyFiveMinutes();
