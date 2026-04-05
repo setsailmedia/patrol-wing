@@ -140,6 +140,8 @@ const NET={
             }
             if(msg.event==='pusher_internal:subscription_succeeded'){console.log('NET: channel subscription OK');return;}
             if(msg.event==='pusher:error'){console.warn('NET: pusher error',msg);return;}
+            // Parse stringified data field from Pusher protocol
+            if(msg.data&&typeof msg.data==='string'){try{msg.data=JSON.parse(msg.data);}catch(e){}}
             if(this._onMsg)this._onMsg(msg);
           }catch(e){}
         } else {
@@ -168,13 +170,14 @@ const NET={
     else this.ws.send(data);
   },
   sendJSON(event,data){
-    this.send(JSON.stringify({event:`client-${event}`,data,channel:`private-game.${this.roomCode}`}));
+    this.send(JSON.stringify({event:`client-${event}`,data:JSON.stringify(data),channel:`private-game.${this.roomCode}`}));
   },
   _onBinary(dv){
     // Will be implemented in Sub-Project 4 for game state sync
   },
 };
 NET._onMsg=function(msg){
+  console.log('NET msg:',msg.event,msg.data);
   if(msg.event==='client-launch'&&gameState==='waitingRoom'&&!NET.isHost){
     const lm=msg.data&&msg.data.mode||'coop';
     if(lm==='pvp'){pvpRound=0;pvpScore=[0,0];startPvP();}
