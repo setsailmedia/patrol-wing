@@ -137,6 +137,11 @@ const NET={
     // Will be implemented in Sub-Project 4 for game state sync
   },
 };
+NET._onMsg=function(msg){
+  if(msg.event==='client-launch'&&gameState==='waitingRoom'&&!waitingRoomIsHost){
+    gameMode='battle';startBattle();SFX.confirm();
+  }
+};
 let gameMode='battle';  // hoisted — needed by resize() before main game state block
 let gameState='intro';  // hoisted — needed by resize() before main game state block
 function resize(){
@@ -1047,6 +1052,13 @@ let editorSelectedTimer=-1;
 let accountTab=0;
 let accountError='';
 let accountLoading=false;
+let lobbyError='';
+let lobbyRoomCode='';
+let lobbyRooms=[];
+let lobbyLoading=false;
+let waitingRoomData=null;
+let waitingRoomPollMs=0;
+let waitingRoomIsHost=false;
 let customSelectExpanded=-1;
 let customSelectSelectedLevel=-1;
 // Level 2 — Nuclear Disarm
@@ -5575,6 +5587,7 @@ const MENU_ITEMS=[
   {label:'Battle Waves',   dim:false},
   {label:'Time Trials',    dim:false},
   {label:'Combat Training',dim:false},
+  {label:'Multiplayer',    dim:false},
   {label:'Level Designer', dim:false},
   {label:'Aircraft Hangar',dim:false},
   {label:'Hall of Fame',   dim:false},
@@ -7310,6 +7323,147 @@ function drawAccountScreen(){
   // Back button
   const bw=Math.min(220,W*0.28),bh=46,bx=Math.max(20,W*0.03),by=H-bh-Math.max(28,H*0.04);
   _btn(bx,by,bw,bh,'BACK','default','\u25C0');
+  ctx.textAlign='left';
+}
+
+function drawLobby(){
+  const W=canvas.width,H=canvas.height,cx=W/2;
+  ctx.fillStyle='#060c18';ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(0,80,160,0.08)';ctx.lineWidth=1;
+  for(let x=0;x<W;x+=70){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=70){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  ctx.textAlign='center';
+  ctx.font='bold 32px "Courier New"';ctx.fillStyle='#00ccff';ctx.shadowBlur=20;ctx.shadowColor='#00aaff';
+  ctx.fillText('MULTIPLAYER',cx,52);ctx.shadowBlur=0;
+  ctx.font='11px "Courier New"';ctx.fillStyle='rgba(100,160,220,0.5)';
+  ctx.fillText(`Logged in as ${PW_API.user?PW_API.user.username:'---'}`,cx,74);
+
+  const panelW=Math.min(400,W*0.7),panelX=cx-panelW/2;
+  let py=100;
+
+  // CREATE ROOM
+  ctx.textAlign='center';
+  _btn(cx-panelW/2,py,panelW,44,'CREATE ROOM','primary','+');
+  py+=58;
+
+  // JOIN ROOM
+  ctx.font='bold 12px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.7)';ctx.textAlign='left';
+  ctx.fillText('JOIN BY CODE',panelX,py);py+=4;
+  const codeW=panelW-120,codeH=36;
+  const codeHov=mouse.x>panelX&&mouse.x<panelX+codeW&&mouse.y>py&&mouse.y<py+codeH;
+  ctx.fillStyle=codeHov?'rgba(0,40,80,0.7)':'rgba(0,20,50,0.5)';
+  roundRect(ctx,panelX,py,codeW,codeH,2);ctx.fill();
+  ctx.strokeStyle=codeHov?'#00ccff':'rgba(0,100,180,0.4)';ctx.lineWidth=1;
+  roundRect(ctx,panelX,py,codeW,codeH,2);ctx.stroke();
+  ctx.font='18px "Courier New"';ctx.fillStyle='rgba(180,220,255,0.9)';ctx.textAlign='center';
+  ctx.fillText(lobbyRoomCode||'Enter code...',panelX+codeW/2,py+26);
+  _btn(panelX+codeW+8,py,108,codeH,'JOIN','default','\u25B6');
+  py+=codeH+20;
+
+  // FIND MATCH
+  ctx.textAlign='center';
+  _btn(cx-panelW/2,py,panelW,44,'FIND MATCH','default','\u{1F50D}');
+  py+=58;
+
+  // Available rooms list
+  if(lobbyRooms.length>0){
+    ctx.font='bold 11px "Courier New"';ctx.fillStyle='rgba(100,180,255,0.6)';ctx.textAlign='center';
+    ctx.fillText(`OPEN ROOMS (${lobbyRooms.length})`,cx,py);py+=16;
+    for(let i=0;i<Math.min(lobbyRooms.length,5);i++){
+      const r=lobbyRooms[i];
+      const rY=py+i*38;
+      const rHov=mouse.x>panelX&&mouse.x<panelX+panelW&&mouse.y>rY&&mouse.y<rY+34;
+      ctx.fillStyle=rHov?'rgba(0,60,120,0.6)':'rgba(0,30,60,0.4)';
+      roundRect(ctx,panelX,rY,panelW,34,2);ctx.fill();
+      ctx.strokeStyle=rHov?'#00ccff':'rgba(0,100,180,0.3)';ctx.lineWidth=1;
+      roundRect(ctx,panelX,rY,panelW,34,2);ctx.stroke();
+      ctx.textAlign='left';ctx.font='12px "Courier New"';ctx.fillStyle='rgba(180,220,255,0.85)';
+      ctx.fillText(`${r.code}  |  ${r.host?.username||'Host'}  |  ${r.mode}`,panelX+12,rY+22);
+    }
+  }
+
+  // Error
+  if(lobbyError){
+    ctx.textAlign='center';ctx.font='11px "Courier New"';ctx.fillStyle='#ff4444';
+    ctx.fillText(lobbyError,cx,H-100);
+  }
+  if(lobbyLoading){
+    ctx.textAlign='center';ctx.font='11px "Courier New"';ctx.fillStyle='rgba(0,200,255,0.6)';
+    ctx.fillText('Loading...',cx,H-100);
+  }
+
+  // Back button
+  const bw=Math.min(220,W*0.28),bh=46,bx=Math.max(20,W*0.03),by=H-bh-Math.max(28,H*0.04);
+  _btn(bx,by,bw,bh,'BACK','default','\u25C0');
+  ctx.textAlign='left';
+}
+
+function drawWaitingRoom(){
+  const W=canvas.width,H=canvas.height,cx=W/2;
+  ctx.fillStyle='#060c18';ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(0,80,160,0.08)';ctx.lineWidth=1;
+  for(let x=0;x<W;x+=70){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=70){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  ctx.textAlign='center';
+  ctx.font='bold 28px "Courier New"';ctx.fillStyle='#00ccff';ctx.shadowBlur=20;ctx.shadowColor='#00aaff';
+  ctx.fillText('WAITING ROOM',cx,48);ctx.shadowBlur=0;
+
+  const rd=waitingRoomData;
+  if(!rd){ctx.font='14px "Courier New"';ctx.fillStyle='rgba(100,140,180,0.6)';ctx.fillText('Loading...',cx,H/2);return;}
+
+  // Room code
+  ctx.font='bold 36px "Courier New"';ctx.fillStyle='#ffdd00';ctx.shadowBlur=16;ctx.shadowColor='#ffaa00';
+  ctx.fillText(rd.code,cx,100);ctx.shadowBlur=0;
+  ctx.font='10px "Courier New"';ctx.fillStyle='rgba(150,180,220,0.5)';
+  ctx.fillText('Share this code with your partner',cx,120);
+
+  // Mode
+  ctx.font='bold 14px "Courier New"';ctx.fillStyle='rgba(0,200,255,0.8)';
+  ctx.fillText(`MODE: ${(rd.mode||'coop').toUpperCase()}`,cx,152);
+
+  // Players
+  const slotW=200,slotH=120,slotGap=30;
+  const p1X=cx-slotW-slotGap/2,p2X=cx+slotGap/2,slotY=175;
+
+  // Host slot
+  ctx.fillStyle='rgba(0,30,60,0.6)';roundRect(ctx,p1X,slotY,slotW,slotH,4);ctx.fill();
+  ctx.strokeStyle='#00ff88';ctx.lineWidth=2;roundRect(ctx,p1X,slotY,slotW,slotH,4);ctx.stroke();
+  ctx.font='bold 10px "Courier New"';ctx.fillStyle='#00ff88';ctx.fillText('HOST',p1X+slotW/2,slotY+20);
+  ctx.font='bold 16px "Courier New"';ctx.fillStyle='#ffffff';
+  ctx.fillText(rd.host||'---',p1X+slotW/2,slotY+50);
+  ctx.font='10px "Courier New"';ctx.fillStyle='rgba(0,200,100,0.7)';
+  ctx.fillText('CONNECTED',p1X+slotW/2,slotY+72);
+
+  // Guest slot
+  ctx.fillStyle='rgba(0,30,60,0.6)';roundRect(ctx,p2X,slotY,slotW,slotH,4);ctx.fill();
+  const hasGuest=!!rd.guest;
+  ctx.strokeStyle=hasGuest?'#00ccff':'rgba(0,100,180,0.3)';ctx.lineWidth=hasGuest?2:1;
+  roundRect(ctx,p2X,slotY,slotW,slotH,4);ctx.stroke();
+  ctx.font='bold 10px "Courier New"';ctx.fillStyle=hasGuest?'#00ccff':'rgba(80,120,160,0.5)';
+  ctx.fillText('GUEST',p2X+slotW/2,slotY+20);
+  ctx.font='bold 16px "Courier New"';ctx.fillStyle=hasGuest?'#ffffff':'rgba(80,120,160,0.4)';
+  ctx.fillText(hasGuest?rd.guest:'Waiting...',p2X+slotW/2,slotY+50);
+  if(hasGuest){ctx.font='10px "Courier New"';ctx.fillStyle='rgba(0,200,100,0.7)';ctx.fillText('CONNECTED',p2X+slotW/2,slotY+72);}
+  else{
+    const pulse=0.3+0.3*Math.sin(Date.now()/500);
+    ctx.font='10px "Courier New"';ctx.fillStyle=`rgba(100,160,220,${pulse})`;
+    ctx.fillText('WAITING FOR PLAYER...',p2X+slotW/2,slotY+72);
+  }
+
+  // Launch button (host only, when guest connected)
+  if(waitingRoomIsHost&&hasGuest){
+    _btn(cx-100,slotY+slotH+30,200,46,'LAUNCH','primary','\u25B6');
+  } else if(waitingRoomIsHost&&!hasGuest){
+    ctx.font='12px "Courier New"';ctx.fillStyle='rgba(100,160,220,0.5)';
+    ctx.fillText('Waiting for another player to join...',cx,slotY+slotH+55);
+  } else {
+    ctx.font='12px "Courier New"';ctx.fillStyle='rgba(100,160,220,0.5)';
+    ctx.fillText('Waiting for host to launch...',cx,slotY+slotH+55);
+  }
+
+  // Leave button
+  const bw=Math.min(220,W*0.28),bh=46,bx=Math.max(20,W*0.03),by=H-bh-Math.max(28,H*0.04);
+  _btn(bx,by,bw,bh,'LEAVE','danger','\u25C0');
   ctx.textAlign='left';
 }
 
@@ -9740,6 +9894,10 @@ function _doClick(){
         if(item.label==='Combat Training'){ activeBriefing='brief_ct'; gameState='briefing'; SFX.select(); }
         if(item.label==='Aircraft Hangar'){ hangarCraft=selectedCraft; hangarColor=selectedColor; hangarScroll=Math.max(0,Math.min(hangarCraft,CRAFTS.length-HANGAR_VISIBLE)); gameState='hangar'; SFX.select(); }
         if(item.label==='Hall of Fame'){ hofTab=0; hofScroll=0; gameState='hallOfFame'; SFX.select(); }
+        if(item.label==='Multiplayer'){
+          if(!PW_API.online){accountTab=0;accountError='Login required for multiplayer';gameState='account';SFX.select();}
+          else{lobbyError='';lobbyRoomCode='';lobbyRooms=[];gameState='lobby';SFX.select();}
+        }
         if(item.label==='Level Designer'){ gameState='customSelect'; SFX.select(); }
         if(item.label==='Setup'){ gameState='setup'; SFX.select(); }
         return;
@@ -9791,6 +9949,101 @@ function _doClick(){
     const cx=canvas.width/2,cy=canvas.height/2,bw=240,bh=44,bx=cx-bw/2,by=cy+74;
     if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){
       WORLD_W=2600;WORLD_H=1700;ttLevel=1;nukes=[];jrCaptives=[];jrCarrying=-1;tngPads=[];tngSeq=1;tngOnPad=-1;tngHoldMs=0;gameMode='battle';gameState='start';SFX.select();return;
+    }
+    return;
+  }
+  if(gameState==='lobby'){
+    const W=canvas.width,H=canvas.height,cx=W/2;
+    const panelW=Math.min(400,W*0.7),panelX=cx-panelW/2;
+    let py=100;
+    // CREATE ROOM
+    if(mouse.x>panelX&&mouse.x<panelX+panelW&&mouse.y>py&&mouse.y<py+44){
+      lobbyLoading=true;lobbyError='';
+      PW_API._req('POST','/rooms',{mode:'coop'}).then(r=>{
+        lobbyLoading=false;
+        if(!r){lobbyError='Failed to create room';}
+        else{waitingRoomData=r;waitingRoomIsHost=true;waitingRoomPollMs=0;NET.connect(r.code,true);gameState='waitingRoom';SFX.confirm();}
+      });
+      return;
+    }
+    py+=58;
+    // JOIN CODE field
+    const codeW=panelW-120,codeH=36;
+    if(mouse.x>panelX&&mouse.x<panelX+codeW&&mouse.y>py&&mouse.y<py+codeH){
+      editorNameInput.value=lobbyRoomCode;
+      editorNameInput.style.pointerEvents='auto';editorNameInput.style.opacity='1';
+      editorNameInput.style.position='fixed';editorNameInput.style.left='50%';editorNameInput.style.top=(py+4)+'px';
+      editorNameInput.style.transform='translateX(-50%)';editorNameInput.style.width='200px';editorNameInput.style.height='30px';
+      editorNameInput.style.fontSize='18px';editorNameInput.style.fontFamily='"Courier New"';
+      editorNameInput.style.background='#0a1828';editorNameInput.style.color='#ffdd00';editorNameInput.style.border='1px solid #00ccff';
+      editorNameInput.style.textAlign='center';editorNameInput.style.zIndex='100';
+      editorNameInput.style.textTransform='uppercase';editorNameInput.maxLength=6;
+      editorNameInput.focus();editorNameInput.select();
+      editorNameInput.onblur=()=>{lobbyRoomCode=editorNameInput.value.toUpperCase().substring(0,6);editorNameInput.style.pointerEvents='none';editorNameInput.style.opacity='0';editorNameInput.style.width='1px';editorNameInput.style.height='1px';editorNameInput.maxLength=40;editorNameInput.style.textTransform='';};
+      editorNameInput.onkeydown=(e)=>{if(e.key==='Enter')editorNameInput.blur();};
+      return;
+    }
+    // JOIN button
+    if(mouse.x>panelX+codeW+8&&mouse.x<panelX+panelW&&mouse.y>py&&mouse.y<py+codeH&&lobbyRoomCode.length>=4){
+      lobbyLoading=true;lobbyError='';
+      PW_API._req('POST',`/rooms/${lobbyRoomCode}/join`).then(r=>{
+        lobbyLoading=false;
+        if(!r){lobbyError='Room not found or full';}
+        else{waitingRoomData=r;waitingRoomIsHost=false;waitingRoomPollMs=0;NET.connect(r.code,false);gameState='waitingRoom';SFX.confirm();}
+      });
+      return;
+    }
+    py+=codeH+20;
+    // FIND MATCH
+    if(mouse.x>panelX&&mouse.x<panelX+panelW&&mouse.y>py&&mouse.y<py+44){
+      lobbyLoading=true;lobbyError='';lobbyRooms=[];
+      PW_API._req('GET','/rooms/available?mode=coop').then(r=>{
+        lobbyLoading=false;
+        if(r&&Array.isArray(r))lobbyRooms=r;
+        else lobbyError='No rooms available';
+      });
+      return;
+    }
+    py+=58;
+    // Click on available room
+    for(let i=0;i<Math.min(lobbyRooms.length,5);i++){
+      const rY=py+16+i*38;
+      if(mouse.x>panelX&&mouse.x<panelX+panelW&&mouse.y>rY&&mouse.y<rY+34){
+        const r=lobbyRooms[i];
+        lobbyLoading=true;lobbyError='';
+        PW_API._req('POST',`/rooms/${r.code}/join`).then(res=>{
+          lobbyLoading=false;
+          if(!res){lobbyError='Failed to join room';}
+          else{waitingRoomData=res;waitingRoomIsHost=false;waitingRoomPollMs=0;NET.connect(r.code,false);gameState='waitingRoom';SFX.confirm();}
+        });
+        return;
+      }
+    }
+    // BACK
+    const bw=Math.min(220,W*0.28),bh=46,bx=Math.max(20,W*0.03),by=H-bh-Math.max(28,H*0.04);
+    if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){gameState='start';SFX.select();return;}
+    return;
+  }
+  if(gameState==='waitingRoom'){
+    const W=canvas.width,H=canvas.height,cx=W/2;
+    const rd=waitingRoomData;
+    const slotH=120,slotY=175;
+    // Launch button
+    if(waitingRoomIsHost&&rd&&rd.guest){
+      if(mouse.x>cx-100&&mouse.x<cx+100&&mouse.y>slotY+slotH+30&&mouse.y<slotY+slotH+76){
+        // Launch game -- tell guest via WebSocket
+        NET.sendJSON('launch',{mode:rd.mode||'coop'});
+        // Start battle locally
+        gameMode='battle';startBattle();
+        SFX.confirm();return;
+      }
+    }
+    // Leave button
+    const bw=Math.min(220,W*0.28),bh=46,bx=Math.max(20,W*0.03),by=H-bh-Math.max(28,H*0.04);
+    if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){
+      if(rd)PW_API._req('DELETE',`/rooms/${rd.code}`);
+      NET.disconnect();waitingRoomData=null;
+      gameState='lobby';SFX.select();return;
     }
     return;
   }
@@ -10863,6 +11116,17 @@ function loop(now){
   if(screenLockMs>0) screenLockMs-=dt*1000;
   Music.tick();
 
+  // Waiting room polling
+  if(gameState==='waitingRoom'&&waitingRoomData){
+    waitingRoomPollMs-=dt*1000;
+    if(waitingRoomPollMs<=0){
+      waitingRoomPollMs=2000;
+      PW_API._req('GET',`/rooms/${waitingRoomData.code}`).then(r=>{
+        if(r)waitingRoomData=r;
+      });
+    }
+  }
+
   // Space key — menu advances + pause resume
   if(K['Space']){
     if(gameState==='intro'){K['Space']=false;if(introMs()>=INTRO_BTN_DELAY)advanceIntro();return;}
@@ -10876,6 +11140,8 @@ function loop(now){
       camY=(gameMode==='timetrial'&&(ttLevel===1||ttLevel===3))?0:clamp(prev.y-canvas.height/2,0,Math.max(0,WORLD_H-canvas.height));
       SFX.select();return;
     }
+    if(gameState==='lobby'){K['Space']=false;return;}
+    if(gameState==='waitingRoom'){K['Space']=false;return;}
     if(gameState==='account'){K['Space']=false;return;}
     if(gameState==='levelEditor'){K['Space']=false;return;}
     if(gameState==='levelSavePrompt'){K['Space']=false;return;}
@@ -10896,6 +11162,13 @@ function loop(now){
   }
 
   if(K['Escape']){
+    if(gameState==='lobby'){K['Escape']=false;gameState='start';SFX.select();return;}
+    if(gameState==='waitingRoom'){
+      K['Escape']=false;
+      if(waitingRoomData)PW_API._req('DELETE',`/rooms/${waitingRoomData.code}`);
+      NET.disconnect();waitingRoomData=null;
+      gameState='lobby';SFX.select();return;
+    }
     if(gameState==='account'){K['Escape']=false;gameState='start';SFX.select();return;}
     if(gameState==='levelEditor'){
       K['Escape']=false;
@@ -10992,6 +11265,10 @@ function loop(now){
       else if(elapsed<60){score+=100;weaponFlash={name:'WAVE BONUS +100',ms:2800};}
       wave++;if(wave>TOTAL_WAVES){saveHighScore('battle',score,Date.now()-gameStartTime);PW_API.saveScore({mode:gameMode,score,duration_ms:Date.now()-gameStartTime,wave_reached:wave,craft_id:CRAFTS[P.craftIdx].id});PW_API.flushEvents();gameState='victory';}else{gameState='waveClear';wavePause=3800;screenLockMs=2000;SFX.wave();}
     }
+  } else if(gameState==='lobby'){
+    drawLobby();
+  } else if(gameState==='waitingRoom'){
+    drawWaitingRoom();
   } else if(gameState==='account'){
     drawAccountScreen();
   } else if(gameState==='hallOfFame'){
