@@ -7667,20 +7667,19 @@ function drawWaitingRoom(){
   ctx.font='10px "Courier New"';ctx.fillStyle='rgba(150,180,220,0.5)';
   ctx.fillText('Share this code with your partner',cx,120);
 
-  // Mode selector
-  if(waitingRoomIsHost){
-    const modes=['coop','pvp','ctf'];
-    const mLabels=['CO-OP','PVP','CTF'];
-    const mW=100,mH=34,mGap=12;
-    const mStartX=cx-(modes.length*(mW+mGap)-mGap)/2;
-    for(let m=0;m<modes.length;m++){
-      const mx=mStartX+m*(mW+mGap),my=140;
-      const sel=(rd.mode||'coop')===modes[m];
-      _btn(mx,my,mW,mH,mLabels[m],sel?'primary':'default');
-    }
-  } else {
-    ctx.font='bold 14px "Courier New"';ctx.fillStyle='rgba(0,200,255,0.8)';
-    ctx.fillText(`MODE: ${(rd.mode||'coop').toUpperCase()}`,cx,152);
+  // Mode selector (host can click, guest sees same buttons read-only)
+  const modes=['coop','pvp','ctf'];
+  const mLabels=['CO-OP','PVP','CTF'];
+  const mW=100,mH=34,mGap=12;
+  const mStartX=cx-(modes.length*(mW+mGap)-mGap)/2;
+  for(let m=0;m<modes.length;m++){
+    const mx=mStartX+m*(mW+mGap),my=140;
+    const sel=(rd.mode||'coop')===modes[m];
+    _btn(mx,my,mW,mH,mLabels[m],sel?'primary':'default');
+  }
+  if(!waitingRoomIsHost){
+    ctx.font='10px "Courier New"';ctx.fillStyle='rgba(100,160,220,0.4)';ctx.textAlign='center';
+    ctx.fillText('Host selects game mode',cx,140+mH+14);
   }
 
   // Players
