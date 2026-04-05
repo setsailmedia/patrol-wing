@@ -437,6 +437,9 @@ window.addEventListener('keydown',e=>{
   }
 });
 window.addEventListener('keyup',e=>{K[e.code]=false;});
+window.addEventListener('blur',()=>{for(const k in K)K[k]=false;mouse.down=false;});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){for(const k in K)K[k]=false;mouse.down=false;}});
+canvas.addEventListener('mouseleave',()=>{mouse.down=false;});
 // mouse position handled by pointer-lock-aware listener below
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 document.addEventListener('contextmenu',e=>e.preventDefault());
