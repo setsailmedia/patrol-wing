@@ -35,6 +35,52 @@ canvas{display:block;cursor:none;position:absolute;top:0;left:0;}
 const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
 const colorPick=document.getElementById('colorPick');
 const editorNameInput=document.getElementById('editorNameInput');
+const PW_API={
+  token:null,user:null,baseUrl:'/api/v1',eventQueue:[],online:false,
+  _init(){try{this.token=localStorage.getItem('pw_api_token');if(this.token)this.checkAuth();}catch(e){}},
+  async _req(method,path,body){
+    try{
+      const h={'Content-Type':'application/json'};
+      if(this.token)h['Authorization']='Bearer '+this.token;
+      const res=await fetch(this.baseUrl+path,{method,headers:h,body:body?JSON.stringify(body):undefined});
+      if(!res.ok)throw new Error(res.status);
+      return await res.json();
+    }catch(e){return null;}
+  },
+  async register(username,email,pw,pwConfirm){
+    const r=await this._req('POST','/auth/register',{username,email,password:pw,password_confirmation:pwConfirm});
+    if(r&&r.token){this.token=r.token;this.user=r.user;this.online=true;try{localStorage.setItem('pw_api_token',r.token);}catch(e){}}
+    return r;
+  },
+  async login(email,pw){
+    const r=await this._req('POST','/auth/login',{email,password:pw});
+    if(r&&r.token){this.token=r.token;this.user=r.user;this.online=true;try{localStorage.setItem('pw_api_token',r.token);}catch(e){}}
+    return r;
+  },
+  async logout(){
+    await this._req('POST','/auth/logout');
+    this.token=null;this.user=null;this.online=false;
+    try{localStorage.removeItem('pw_api_token');}catch(e){}
+    this.flushEvents();
+  },
+  async checkAuth(){
+    const r=await this._req('GET','/auth/me');
+    if(r&&r.id){this.user=r;this.online=true;}
+    else{this.token=null;this.user=null;this.online=false;try{localStorage.removeItem('pw_api_token');}catch(e){}}
+    return r;
+  },
+  queueEvent(type,payload){this.eventQueue.push({event_type:type,payload:payload||{},timestamp:Date.now()});},
+  async flushEvents(){
+    if(!this.token||this.eventQueue.length===0)return;
+    const batch=[...this.eventQueue];this.eventQueue=[];
+    const r=await this._req('POST','/events/batch',batch);
+    if(!r)this.eventQueue.push(...batch);
+  },
+  async saveScore(data){if(!this.token)return null;return this._req('POST','/scores',data);},
+  async getLeaderboard(mode,limit){return this._req('GET','/scores?mode='+(mode||'battle')+'&limit='+(limit||20));},
+  async getMyScores(limit){return this._req('GET','/scores/me?limit='+(limit||20));},
+};
+PW_API._init();
 let gameMode='battle';  // hoisted — needed by resize() before main game state block
 let gameState='intro';  // hoisted — needed by resize() before main game state block
 function resize(){
@@ -2793,7 +2839,10 @@ function tickPlayer(dt,now){
   if(P.hp<=0)P.alive=false;
   if(gameMode==='timetrial'&&(ttLevel===1||ttLevel===3)&&!ttFinished&&P.x>=(ttLevel===3?DBD_FINISH_X:TT_FINISH_X)){
     ttFinished=true;ttElapsed=performance.now()-ttStartTime;
-    computeTTFinalScore();SFX.confirm();saveHighScore(`timetrial_${ttLevel}`,ttFinalScore,ttElapsed);gameState='timeTrialResult';
+    computeTTFinalScore();SFX.confirm();saveHighScore(`timetrial_${ttLevel}`,ttFinalScore,ttElapsed);
+    PW_API.saveScore({mode:gameMode,score,duration_ms:Date.now()-gameStartTime,wave_reached:wave,craft_id:CRAFTS[P.craftIdx].id});
+    PW_API.flushEvents();
+    gameState='timeTrialResult';
   }
   const tx=P.x-canvas.width/2,ty=P.y-canvas.height/2;camX+=(tx-camX)*0.13;camY+=(ty-camY)*0.13;
   camX=clamp(camX,0,Math.max(0,WORLD_W-canvas.width));
@@ -5692,6 +5741,8 @@ function drawVictoryScreen(){
 
 // ─── GAME INIT ────────────────────────────────────────────────────
 function spawnWave(n){
+  if(n>1)PW_API.queueEvent('wave_cleared',{wave:n-1,score,kills:P.kills});
+  PW_API.flushEvents();
   pBullets.length=0;eBullets.length=0;mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;hazardProjectiles.length=0;
   waveStartTime=Date.now();
   // JR persists through waves — only reset if not currently active
@@ -6027,6 +6078,8 @@ function tickNukes(dt){
         if(nukes.every(nb=>!nb.armed)){
           ttFinished=true;ttElapsed=performance.now()-ttStartTime;
           computeNukeFinalScore();saveHighScore('timetrial_2',ttFinalScore,ttElapsed);SFX.wave();
+          PW_API.saveScore({mode:gameMode,score,duration_ms:Date.now()-gameStartTime,wave_reached:wave,craft_id:CRAFTS[P.craftIdx].id});
+          PW_API.flushEvents();
           setTimeout(()=>{gameState='timeTrialResult';},800);
         }
       }
@@ -6192,6 +6245,7 @@ function startNukeDisarm(){
   }
   ttStartTime=performance.now();ttElapsed=0;ttFinished=false;ttFinalScore=0;
   gameStartTime=Date.now();gameState='playing';_snapMouseToPlayer();
+  PW_API.queueEvent('game_started',{mode:'timetrial',craft:CRAFTS[P.craftIdx].id,level:2});
 }
 
 // ─── TIME TRIAL LEVEL SELECT SCREEN ──────────────────────────────
@@ -6473,6 +6527,7 @@ function startDanceBirdie(){
   }
   ttStartTime=performance.now(); ttElapsed=0; ttFinished=false; ttFinalScore=0;
   gameStartTime=Date.now(); gameState='playing'; _snapMouseToPlayer();
+  PW_API.queueEvent('game_started',{mode:'timetrial',craft:CRAFTS[P.craftIdx].id,level:3});
 }
 
 
@@ -6543,6 +6598,7 @@ function startCombatTraining(){
   ctStartTime=performance.now();
   gameStartTime=Date.now();
   gameState='playing';
+  PW_API.queueEvent('game_started',{mode:'combattraining',craft:CRAFTS[P.craftIdx].id});
 }
 
 function ctKillAndAdvance(){
@@ -6554,6 +6610,8 @@ function ctKillAndAdvance(){
   if(ctLevel>=CT_SEQUENCE.length){
     ctFinalScore=ctTotalScore;
     saveHighScore('combattraining',ctFinalScore,Date.now()-gameStartTime);
+    PW_API.saveScore({mode:gameMode,score:ctFinalScore,duration_ms:Date.now()-gameStartTime,wave_reached:wave,craft_id:CRAFTS[P.craftIdx].id});
+    PW_API.flushEvents();
     gameState='ctResult';
     SFX.confirm();
   } else {
@@ -7419,6 +7477,7 @@ function startJRRescue(){
   }
   ttStartTime=performance.now();ttElapsed=0;ttFinished=false;ttFinalScore=0;
   gameStartTime=Date.now();gameState='playing';_snapMouseToPlayer();
+  PW_API.queueEvent('game_started',{mode:'timetrial',craft:CRAFTS[P.craftIdx].id,level:4});
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -7648,6 +7707,7 @@ function startTouchNGo(){
   }
   ttStartTime=performance.now();ttElapsed=0;ttFinished=false;ttFinalScore=0;
   gameStartTime=Date.now();gameState='playing';_snapMouseToPlayer();
+  PW_API.queueEvent('game_started',{mode:'timetrial',craft:CRAFTS[P.craftIdx].id,level:5});
 }
 
 function loadCustomLevel(levelData){
@@ -7767,6 +7827,7 @@ function loadCustomLevel(levelData){
     if(obj.type==='goal'){customGoalX=obj.x;customGoalY=obj.y;}
   }
   gameStartTime=Date.now();
+  PW_API.queueEvent('game_started',{mode:'custom',level:levelData.name||'Custom'});
   gameState='playing';
 }
 function customLevelWin(){
@@ -8795,6 +8856,7 @@ function startBattle(){
   miniMe.active=false; miniMe.lost=false; miniMe.hp=MM_HP; miniMe.iframes=0;
   hangarScroll=0; resetPlayer(); camX=P.x-canvas.width/2; camY=P.y-canvas.height/2;
   spawnWave(1); gameStartTime=Date.now(); gameState='playing'; _snapMouseToPlayer();
+  PW_API.queueEvent('game_started',{mode:'battle',craft:CRAFTS[P.craftIdx].id});
 }
 
 function startTimeTrial(){
@@ -8821,6 +8883,7 @@ function startTimeTrial(){
   }
   ttStartTime=performance.now(); ttElapsed=0; ttFinished=false; ttFinalScore=0;
   gameStartTime=Date.now(); gameState='playing'; _snapMouseToPlayer();
+  PW_API.queueEvent('game_started',{mode:'timetrial',craft:CRAFTS[P.craftIdx].id,level:1});
 }
 
 function startGame(){
@@ -10563,6 +10626,9 @@ function loop(now){
       spawnParts(P.x,P.y,P.color,_pCount(35),7.5,9.5,1100);spawnParts(P.x,P.y,'#ffffff',_pCount(15),5,4,700);if(settings.screenShake)shake=30;
       if(jrCarrying>=0){jrCarrying=-1;P.spd=CRAFTS[P.craftIdx].spd;}
       saveHighScore(gameMode==='combattraining'?'combattraining':gameMode==='timetrial'?`timetrial_${ttLevel}`:'battle', score, Date.now()-gameStartTime);
+      PW_API.saveScore({mode:gameMode,score,duration_ms:Date.now()-gameStartTime,wave_reached:wave,craft_id:CRAFTS[P.craftIdx].id});
+      PW_API.queueEvent('player_defeated',{mode:gameMode,wave,score,craft:CRAFTS[P.craftIdx].id});
+      PW_API.flushEvents();
       gameEndScore=(gameMode==='combattraining')?(ctTotalScore+score):score;
       gameEndDurationMs=Date.now()-gameStartTime;
       deathScreenEnteredAt=Date.now();
@@ -10574,7 +10640,7 @@ function loop(now){
       const elapsed=(Date.now()-waveStartTime)/1000;
       if(elapsed<30){score+=500;weaponFlash={name:'WAVE BONUS +500',ms:2800};}
       else if(elapsed<60){score+=100;weaponFlash={name:'WAVE BONUS +100',ms:2800};}
-      wave++;if(wave>TOTAL_WAVES){saveHighScore('battle',score,Date.now()-gameStartTime);gameState='victory';}else{gameState='waveClear';wavePause=3800;screenLockMs=2000;SFX.wave();}
+      wave++;if(wave>TOTAL_WAVES){saveHighScore('battle',score,Date.now()-gameStartTime);PW_API.saveScore({mode:gameMode,score,duration_ms:Date.now()-gameStartTime,wave_reached:wave,craft_id:CRAFTS[P.craftIdx].id});PW_API.flushEvents();gameState='victory';}else{gameState='waveClear';wavePause=3800;screenLockMs=2000;SFX.wave();}
     }
   } else if(gameState==='hallOfFame'){
     drawHallOfFame();
