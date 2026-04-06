@@ -23,6 +23,7 @@ class RoomController extends Controller
             'host_user_id' => $request->user()->id,
             'mode' => $validated['mode'] ?? 'coop',
             'status' => 'waiting',
+            'settings' => ['private' => $request->boolean('private', true)],
         ]);
 
         return response()->json([
@@ -88,6 +89,10 @@ class RoomController extends Controller
         $mode = $request->query('mode');
         $query = GameRoom::where('status', 'waiting')
             ->whereNull('guest_user_id')
+            ->where(function ($q) {
+                $q->whereNull('settings')
+                  ->orWhereJsonContains('settings->private', false);
+            })
             ->with('host:id,username')
             ->orderByDesc('created_at')
             ->limit(20);
