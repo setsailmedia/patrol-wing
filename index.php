@@ -213,7 +213,7 @@ NET._onMsg=function(msg){
   if(msg.event==='client-input'&&NET.isHost&&NET.peerPlayer){
     const d=msg.data;
     if(d){
-      NET.peerPlayer.x=d.x;NET.peerPlayer.y=d.y;NET.peerPlayer.aim=d.aim;
+      NET.peerPlayer._tx=d.x;NET.peerPlayer._ty=d.y;NET.peerPlayer._taim=d.aim;
       NET.peerPlayer.vx=d.vx;NET.peerPlayer.vy=d.vy;NET.peerPlayer.rotor=d.rotor;
       NET.peerPlayer.alive=d.alive;NET.peerPlayer.hp=d.hp;
       if(d.fire&&NET.peerPlayer.alive){
@@ -231,7 +231,7 @@ NET._onMsg=function(msg){
     if(!d)return;
     if(NET.peerPlayer&&d.hp){
       const h=d.hp;
-      NET.peerPlayer.x=h.x;NET.peerPlayer.y=h.y;NET.peerPlayer.aim=h.aim;
+      NET.peerPlayer._tx=h.x;NET.peerPlayer._ty=h.y;NET.peerPlayer._taim=h.aim;
       NET.peerPlayer.hp=h.hp;NET.peerPlayer.bat=h.bat;NET.peerPlayer.alive=h.alive;
       NET.peerPlayer.vx=h.vx;NET.peerPlayer.vy=h.vy;
       NET.peerPlayer.shieldMs=h.shieldMs;NET.peerPlayer.invincMs=h.invincMs;
@@ -9628,6 +9628,7 @@ function startBattle(){
     const p2=mkPlayer(NET.isHost?0:P.craftIdx, NET.isHost?'#ff3300':'#00ddff');
     p2.isLocal=false;
     p2.x=WORLD_W/2+80;p2.y=WORLD_H/2;
+    p2._tx=p2.x;p2._ty=p2.y;p2._taim=p2.aim;
     players.push(p2);
     NET.peerPlayer=p2;
     mpRevivePos=null;mpReviveMs=0;
@@ -9658,7 +9659,7 @@ function startPvP(){
   ctNextPickupMs=15000;
   if(NET.connected){
     const p2=mkPlayer(NET.isHost?0:P.craftIdx,NET.isHost?'#ff3300':'#00ddff');
-    p2.isLocal=false;
+    p2.isLocal=false;p2._tx=p2.x;p2._ty=p2.y;p2._taim=p2.aim;
     p2.x=WORLD_W-200;p2.y=WORLD_H/2;
     for(let i=0;i<WEAPONS.length;i++)p2.unlockedW.add(i);
     p2.loadout=WEAPONS.map((_,i)=>i).slice(0,CRAFTS[p2.craftIdx].maxSlots);
@@ -11763,6 +11764,20 @@ function loop(now){
     }
     // Multiplayer sync
     if(NET.connected){
+      // Interpolate remote player position (smooth 50ms updates into 60fps rendering)
+      if(NET.peerPlayer&&NET.peerPlayer.alive){
+        const lerpSpd=0.25; // 0-1, higher = snappier, lower = smoother
+        const p2=NET.peerPlayer;
+        if(p2._tx!==undefined){
+          p2.x+=(p2._tx-p2.x)*lerpSpd;
+          p2.y+=(p2._ty-p2.y)*lerpSpd;
+          // Smooth aim angle (handle wrapping)
+          let dAim=p2._taim-p2.aim;
+          while(dAim>Math.PI)dAim-=Math.PI*2;
+          while(dAim<-Math.PI)dAim+=Math.PI*2;
+          p2.aim+=dAim*lerpSpd;
+        }
+      }
       const now2=performance.now();
       if(NET.isHost){
         if(now2-NET.lastSendTime>NET.SEND_RATE){_mpHostBroadcast();NET.lastSendTime=now2;}
