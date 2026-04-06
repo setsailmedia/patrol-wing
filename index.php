@@ -5720,7 +5720,7 @@ function _hangarLayout(){
   const W=canvas.width, H=canvas.height, cx=W/2;
   const btnH=44, btnY=H-72;
   const headerBottom=72, previewTopPad=24, previewBotPad=44;
-  const cardBotPad=44, swatchZoneH=54, cardH=360;
+  const cardBotPad=44, swatchZoneH=54, cardH=Math.min(360,Math.max(240,H-520));
   const fixedH=previewTopPad+previewBotPad+cardH+cardBotPad+swatchZoneH+32+btnH;
   const previewAvail=Math.max(60, Math.min(H-headerBottom-fixedH, 140));
   const previewSize=Math.min(42,(previewAvail-24)/2);
@@ -5877,14 +5877,14 @@ let hofClearStep=0,hofClearResetAt=0,hofClearFlashMs=0;
 let setupSliderDrag=null;
 function getMenuRects(){
   const W=canvas.width,H=canvas.height;
-  const bw=Math.max(200,Math.min(W*0.72,380));
-  const bh=Math.max(32,Math.min(H*0.062,52));
-  const gap=Math.max(6,Math.min(H*0.014,14));
+  const bw=Math.max(180,Math.min(W*0.72,380));
+  const bh=Math.max(26,Math.min(H*0.052,46));
+  const gap=Math.max(3,Math.min(H*0.009,10));
   const n=MENU_ITEMS.length;
   const totalH=n*(bh+gap)-gap;
   // Title block ends ~45% down; menu starts just below, clamped so it fits
-  const titleEnd=Math.min(H*0.46, H-totalH-20);
-  const startY=Math.max(titleEnd, (H-totalH)/2+H*0.08);
+  const titleEnd=Math.min(H*0.42, H-totalH-20);
+  const startY=Math.max(titleEnd, Math.min((H-totalH)/2+H*0.08, H-totalH-10));
   const x=W/2-bw/2;
   return MENU_ITEMS.map((m,i)=>({x,y:startY+i*(bh+gap),w:bw,h:bh,item:m}));
 }
@@ -7710,7 +7710,7 @@ function drawWaitingRoom(){
   }
 
   // Private toggle
-  const privW=160,privH=30,privX=cx-privW/2,privY=140+mH+20;
+  const privW=160,privH=30,privX=cx-privW/2,privY=140+mH+8;
   const privOn=waitingRoomPrivate;
   if(waitingRoomIsHost){
     _btn(privX,privY,privW,privH,privOn?'PRIVATE ROOM':'PUBLIC ROOM',privOn?'primary':'default',privOn?'\u{1F512}':'\u{1F513}');
@@ -7721,7 +7721,7 @@ function drawWaitingRoom(){
 
   // Players
   const slotW=200,slotH=120,slotGap=30;
-  const p1X=cx-slotW-slotGap/2,p2X=cx+slotGap/2,slotY=175;
+  const p1X=cx-slotW-slotGap/2,p2X=cx+slotGap/2,slotY=240;
 
   // Host slot
   ctx.fillStyle='rgba(0,30,60,0.6)';roundRect(ctx,p1X,slotY,slotW,slotH,4);ctx.fill();
@@ -7781,7 +7781,7 @@ function drawHallOfFame(){
   _btn(btnRowX,btnRowY,btnW,btnH,'BACK','default','\u25C0');
   _btn(btnRowX+btnW+btnGap,btnRowY,btnW,btnH,'THIS DEVICE',hofTab===0?'primary':'default','\u2302');
   _btn(btnRowX+2*(btnW+btnGap),btnRowY,btnW,btnH,'GLOBAL',hofTab===1?'primary':'default','\u2605');
-  const listY=86, listH=H-86-72;
+  const listY=86, listH=H-86-80;
   ctx.fillStyle='rgba(0,0,0,0.35)';ctx.fillRect(cx-W*0.46,listY,W*0.92,listH);
   ctx.strokeStyle='rgba(0,80,160,0.25)';ctx.lineWidth=1;ctx.strokeRect(cx-W*0.46,listY,W*0.92,listH);
   // clip chart area
@@ -8790,7 +8790,7 @@ function drawCustomSelect(){
     let cy=140;
     for(let i=0;i<packs.length;i++){
       const pk=packs[i];
-      if(cy>H-100)break;
+      if(cy>H-120)break;
       const expanded=customSelectExpanded===i;
       const phov=mouse.x>cx-cardW/2&&mouse.x<cx+cardW/2&&mouse.y>cy&&mouse.y<cy+cardH;
       // Pack header
@@ -8816,7 +8816,7 @@ function drawCustomSelect(){
       if(expanded&&pk.levels){
         for(let j=0;j<pk.levels.length;j++){
           const lv=pk.levels[j];
-          if(cy>H-100)break;
+          if(cy>H-120)break;
           const sel=customSelectSelectedLevel===j;
           const lhov=mouse.x>cx-cardW/2+20&&mouse.x<cx+cardW/2&&mouse.y>cy&&mouse.y<cy+subH;
           ctx.fillStyle=sel?'rgba(0,60,40,0.6)':lhov?'rgba(0,30,60,0.5)':'rgba(0,15,35,0.4)';
@@ -10235,7 +10235,7 @@ function _doClick(){
     let cy=140;
     for(let i=0;i<packs.length;i++){
       const pk=packs[i];
-      if(cy>H-100)break;
+      if(cy>H-120)break;
       const expanded=customSelectExpanded===i;
       // Pack-level buttons
       const pbtnW=48,pbtnH=24,pbtnY=cy+(cardH-pbtnH)/2;
@@ -10266,7 +10266,7 @@ function _doClick(){
       cy+=cardH+cardGap;
       if(expanded&&pk.levels){
         for(let j=0;j<pk.levels.length;j++){
-          if(cy>H-100)break;
+          if(cy>H-120)break;
           const lbW=38,lbH=22,lbY=cy+(subH-lbH)/2;
           const lDelX=cx+cardW/2-lbW-8,lCopyX=lDelX-lbW-4,lEditX=lCopyX-lbW-4,lPlayX=lEditX-lbW-4;
           // PLAY
@@ -10473,7 +10473,7 @@ function _doClick(){
   if(gameState==='waitingRoom'){
     const W=canvas.width,H=canvas.height,cx=W/2;
     const rd=waitingRoomData;
-    const slotH=120,slotY=175;
+    const slotH=120,slotY=240;
     // Mode toggle (host only)
     if(waitingRoomIsHost&&rd){
       const modes=['coop','pvp','ctf'];
@@ -10491,7 +10491,7 @@ function _doClick(){
     }
     // Private toggle (host only)
     if(waitingRoomIsHost){
-      const privW=160,privH=30,privX=cx-privW/2,privY=140+34+20;
+      const privW=160,privH=30,privX=cx-privW/2,privY=140+34+8;
       if(mouse.x>privX&&mouse.x<privX+privW&&mouse.y>privY&&mouse.y<privY+privH){
         waitingRoomPrivate=!waitingRoomPrivate;
         NET.sendJSON('privacy',{private:waitingRoomPrivate});
