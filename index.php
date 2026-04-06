@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="reverb-key" content="32bgvjoz3qvpioxq8fqe">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, minimal-ui">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -110,7 +111,9 @@ const NET={
     this.roomCode=roomCode;this.isHost=isHost;this._socketId=null;
     try{
       const appKey=document.querySelector('meta[name=reverb-key]')?.content||'';
-      const wsUrl=`ws://${location.hostname}:8080/app/${appKey}?protocol=7&client=js&version=7.0&flash=false`;
+      const wsProto=location.protocol==='https:'?'wss':'ws';
+      const wsPort=location.protocol==='https:'?'8080':'8080';
+      const wsUrl=`${wsProto}://${location.hostname}:${wsPort}/app/${appKey}?protocol=7&client=js&version=7.0&flash=false`;
       this.ws=new WebSocket(wsUrl);
       this.ws.binaryType='arraybuffer';
       this.ws.onopen=()=>{this.connected=true;};
