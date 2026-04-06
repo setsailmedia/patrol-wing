@@ -7697,26 +7697,60 @@ function drawWaitingRoom(){
   // Mode selector (host can click, guest sees same buttons read-only)
   const modes=['coop','pvp','ctf'];
   const mLabels=['CO-OP','PVP','CTF'];
+  const mIcons=['\u2764','\u2694','\u2691'];
   const mW=100,mH=34,mGap=12;
   const mStartX=cx-(modes.length*(mW+mGap)-mGap)/2;
   for(let m=0;m<modes.length;m++){
     const mx=mStartX+m*(mW+mGap),my=140;
     const sel=(rd.mode||'coop')===modes[m];
-    _btn(mx,my,mW,mH,mLabels[m],sel?'primary':'default');
+    const hov=mouse.x>mx&&mouse.x<mx+mW&&mouse.y>my&&mouse.y<my+mH;
+    if(sel){
+      ctx.fillStyle='rgba(0,180,100,0.2)';roundRect(ctx,mx,my,mW,mH,2);ctx.fill();
+      ctx.strokeStyle='#00ff88';ctx.lineWidth=2;ctx.shadowBlur=12;ctx.shadowColor='#00ff88';
+      roundRect(ctx,mx,my,mW,mH,2);ctx.stroke();ctx.shadowBlur=0;
+      ctx.font='bold 12px "Courier New"';ctx.fillStyle='#00ff88';ctx.textAlign='center';
+      ctx.fillText(`${mIcons[m]}  ${mLabels[m]}`,mx+mW/2,my+mH/2+5);
+      // Active indicator bar
+      ctx.fillStyle='#00ff88';ctx.fillRect(mx+10,my+mH-3,mW-20,2);
+    } else {
+      ctx.fillStyle=hov?'rgba(0,80,160,0.2)':'rgba(0,0,0,0.65)';roundRect(ctx,mx,my,mW,mH,2);ctx.fill();
+      ctx.strokeStyle=hov?'rgba(0,180,220,0.6)':'rgba(0,100,160,0.3)';ctx.lineWidth=1;
+      roundRect(ctx,mx,my,mW,mH,2);ctx.stroke();
+      ctx.font='12px "Courier New"';ctx.fillStyle=hov?'rgba(0,200,240,0.85)':'rgba(100,160,220,0.5)';ctx.textAlign='center';
+      ctx.fillText(`${mIcons[m]}  ${mLabels[m]}`,mx+mW/2,my+mH/2+5);
+    }
   }
   if(!waitingRoomIsHost){
-    ctx.font='10px "Courier New"';ctx.fillStyle='rgba(100,160,220,0.4)';ctx.textAlign='center';
-    ctx.fillText('Host selects game mode',cx,140+mH+14);
+    ctx.font='9px "Courier New"';ctx.fillStyle='rgba(100,160,220,0.35)';ctx.textAlign='center';
+    ctx.fillText('Host selects game mode',cx,140+mH+12);
   }
 
-  // Private toggle
-  const privW=160,privH=30,privX=cx-privW/2,privY=140+mH+8;
-  const privOn=waitingRoomPrivate;
-  if(waitingRoomIsHost){
-    _btn(privX,privY,privW,privH,privOn?'PRIVATE ROOM':'PUBLIC ROOM',privOn?'primary':'default',privOn?'\u{1F512}':'\u{1F513}');
-  } else {
-    ctx.font='10px "Courier New"';ctx.fillStyle='rgba(100,160,220,0.5)';ctx.textAlign='center';
-    ctx.fillText(privOn?'Private room \u2014 code required':'Public room \u2014 visible in Find Match',cx,privY+20);
+  // Privacy selector (two buttons: PRIVATE / PUBLIC)
+  const privBtns=[{id:true,label:'PRIVATE',icon:'\u{1F512}'},{id:false,label:'PUBLIC',icon:'\u{1F513}'}];
+  const pW=110,pH=30,pGap=10;
+  const pStartX=cx-(privBtns.length*(pW+pGap)-pGap)/2;
+  const privY=140+mH+6;
+  for(let p=0;p<privBtns.length;p++){
+    const pb=privBtns[p],px=pStartX+p*(pW+pGap),py=privY;
+    const sel=waitingRoomPrivate===pb.id;
+    const hov=mouse.x>px&&mouse.x<px+pW&&mouse.y>py&&mouse.y<py+pH;
+    if(sel){
+      const acCol=pb.id?'#ffaa00':'#00ccff';
+      ctx.fillStyle=pb.id?'rgba(180,120,0,0.2)':'rgba(0,140,200,0.15)';
+      roundRect(ctx,px,py,pW,pH,2);ctx.fill();
+      ctx.strokeStyle=acCol;ctx.lineWidth=2;ctx.shadowBlur=10;ctx.shadowColor=acCol;
+      roundRect(ctx,px,py,pW,pH,2);ctx.stroke();ctx.shadowBlur=0;
+      ctx.font='bold 11px "Courier New"';ctx.fillStyle=acCol;ctx.textAlign='center';
+      ctx.fillText(`${pb.icon}  ${pb.label}`,px+pW/2,py+pH/2+4);
+      ctx.fillStyle=acCol;ctx.fillRect(px+8,py+pH-3,pW-16,2);
+    } else {
+      ctx.fillStyle=hov?'rgba(0,40,80,0.3)':'rgba(0,0,0,0.5)';
+      roundRect(ctx,px,py,pW,pH,2);ctx.fill();
+      ctx.strokeStyle=hov?'rgba(0,140,180,0.4)':'rgba(0,80,120,0.25)';ctx.lineWidth=1;
+      roundRect(ctx,px,py,pW,pH,2);ctx.stroke();
+      ctx.font='11px "Courier New"';ctx.fillStyle=hov?'rgba(180,210,240,0.7)':'rgba(100,140,180,0.4)';ctx.textAlign='center';
+      ctx.fillText(`${pb.icon}  ${pb.label}`,px+pW/2,py+pH/2+4);
+    }
   }
 
   // Players
@@ -10493,14 +10527,20 @@ function _doClick(){
         }
       }
     }
-    // Private toggle (host only)
+    // Privacy buttons (host only)
     if(waitingRoomIsHost){
-      const privW=160,privH=30,privX=cx-privW/2,privY=140+34+8;
-      if(mouse.x>privX&&mouse.x<privX+privW&&mouse.y>privY&&mouse.y<privY+privH){
-        waitingRoomPrivate=!waitingRoomPrivate;
-        NET.sendJSON('privacy',{private:waitingRoomPrivate});
-        PW_API._req('PATCH',`/rooms/${rd.code}`,{private:waitingRoomPrivate});
-        SFX.select();return;
+      const pW2=110,pH2=30,pGap2=10;
+      const pStartX2=cx-(2*(pW2+pGap2)-pGap2)/2;
+      const privY2=140+34+6;
+      for(let p=0;p<2;p++){
+        const px=pStartX2+p*(pW2+pGap2),py=privY2;
+        const targetVal=p===0;// 0=PRIVATE(true), 1=PUBLIC(false)
+        if(mouse.x>px&&mouse.x<px+pW2&&mouse.y>py&&mouse.y<py+pH2){
+          waitingRoomPrivate=targetVal;
+          NET.sendJSON('privacy',{private:waitingRoomPrivate});
+          PW_API._req('PATCH',`/rooms/${rd.code}`,{private:waitingRoomPrivate});
+          SFX.select();return;
+        }
       }
     }
     // Launch button
