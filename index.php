@@ -182,6 +182,11 @@ const NET={
 NET._onMsg=function(msg){
   console.log('NET msg:',msg.event,msg.data);
   if(msg.event==='client-launch'&&gameState==='waitingRoom'&&!NET.isHost){
+    // Store host's craft info for peer player creation
+    NET._peerCraft=msg.data&&msg.data.craftIdx!==undefined?msg.data.craftIdx:0;
+    NET._peerColor=msg.data&&msg.data.color||'#00ddff';
+    // Reply with our craft info
+    NET.sendJSON('craftInfo',{craftIdx:selectedCraft,color:selectedColor});
     const lm=msg.data&&msg.data.mode||'coop';
     if(lm==='pvp'){pvpRound=0;pvpScore=[0,0];startPvP();}
     else if(lm==='ctf'){
@@ -211,6 +216,16 @@ NET._onMsg=function(msg){
   }
   if(msg.event==='client-privacy'&&msg.data){
     waitingRoomPrivate=!!msg.data.private;
+  }
+  // Host receives guest craft info
+  if(msg.event==='client-craftInfo'&&msg.data){
+    NET._peerCraft=msg.data.craftIdx!==undefined?msg.data.craftIdx:0;
+    NET._peerColor=msg.data.color||'#ff3300';
+    // Update peer player if already created
+    if(NET.peerPlayer){
+      NET.peerPlayer.craftIdx=NET._peerCraft;
+      NET.peerPlayer.color=NET._peerColor;
+    }
   }
   // Host receives guest input
   if(msg.event==='client-input'&&NET.isHost&&NET.peerPlayer){
@@ -1237,7 +1252,7 @@ const MP_REVIVE_RANGE=60;
 const MP_REVIVE_TIME=2000;
 let pvpRound=0;
 let pvpScore=[0,0];
-let pvpBestOf=3;
+let pvpBestOf=5;
 let pvpRoundOverMs=0;
 let pvpWinner=-1;
 let ctfScores=[0,0]; // [red captures, blue captures]
@@ -9693,9 +9708,12 @@ function startBattle(){
   PW_API.queueEvent('game_started',{mode:'battle',craft:CRAFTS[P.craftIdx].id});
   if(NET.connected){
     // Create player 2
-    const p2=mkPlayer(NET.isHost?0:P.craftIdx, NET.isHost?'#ff3300':'#00ddff');
+    const peerCraft=NET._peerCraft!==undefined?NET._peerCraft:0;
+    const peerColor=NET._peerColor||'#ff3300';
+    const p2=mkPlayer(peerCraft,peerColor);
     p2.isLocal=false;
-    p2.x=WORLD_W/2+80;p2.y=WORLD_H/2;
+    P.x=WORLD_W/2-120;P.y=WORLD_H/2;
+    p2.x=WORLD_W/2+120;p2.y=WORLD_H/2;
     p2._tx=p2.x;p2._ty=p2.y;p2._taim=p2.aim;
     players.push(p2);
     NET.peerPlayer=p2;
@@ -9727,9 +9745,12 @@ function startPvP(){
   pvpRound++;pvpRoundOverMs=0;pvpWinner=-1;
   ctNextPickupMs=15000;
   if(NET.connected){
-    const p2=mkPlayer(NET.isHost?0:P.craftIdx,NET.isHost?'#ff3300':'#00ddff');
-    p2.isLocal=false;p2._tx=p2.x;p2._ty=p2.y;p2._taim=p2.aim;
+    const peerCraft2=NET._peerCraft!==undefined?NET._peerCraft:0;
+    const peerColor2=NET._peerColor||'#ff3300';
+    const p2=mkPlayer(peerCraft2,peerColor2);
+    p2.isLocal=false;
     p2.x=WORLD_W-200;p2.y=WORLD_H/2;
+    p2._tx=p2.x;p2._ty=p2.y;p2._taim=p2.aim;
     for(let i=0;i<WEAPONS.length;i++)p2.unlockedW.add(i);
     p2.loadout=WEAPONS.map((_,i)=>i).slice(0,CRAFTS[p2.craftIdx].maxSlots);
     p2.weaponIdx=p2.loadout[0];
@@ -10481,7 +10502,7 @@ function _doClick(){
     // FIND MATCH
     if(mouse.x>panelX&&mouse.x<panelX+panelW&&mouse.y>py&&mouse.y<py+44){
       lobbyLoading=true;lobbyError='';lobbyRooms=[];
-      PW_API._req('GET','/rooms/available?mode=coop').then(r=>{
+      PW_API._req('GET','/rooms/available').then(r=>{
         lobbyLoading=false;
         if(r&&Array.isArray(r))lobbyRooms=r;
         else lobbyError='No rooms available';
@@ -10547,7 +10568,7 @@ function _doClick(){
     if(waitingRoomIsHost&&rd&&rd.guest){
       if(mouse.x>cx-100&&mouse.x<cx+100&&mouse.y>slotY+slotH+30&&mouse.y<slotY+slotH+76){
         const launchMode=rd.mode||'coop';
-        NET.sendJSON('launch',{mode:launchMode});
+        NET.sendJSON('launch',{mode:launchMode,craftIdx:selectedCraft,color:selectedColor});
         if(launchMode==='pvp'){pvpRound=0;pvpScore=[0,0];startPvP();}
         else if(launchMode==='ctf'){
           ctfScores=[0,0];ctfCarryingFlag=-1;ctfFlagPositions=[null,null];ctfRoundOverMs=0;
