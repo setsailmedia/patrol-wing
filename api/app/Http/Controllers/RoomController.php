@@ -107,7 +107,8 @@ class RoomController extends Controller
             ->whereNull('guest_user_id')
             ->where(function ($q) {
                 $q->whereNull('settings')
-                  ->orWhereJsonContains('settings->private', false);
+                  ->orWhereRaw("JSON_EXTRACT(settings, '$.private') = false")
+                  ->orWhereRaw("JSON_EXTRACT(settings, '$.private') IS NULL");
             })
             ->with('host:id,username')
             ->orderByDesc('created_at')
