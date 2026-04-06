@@ -26,10 +26,10 @@ canvas{display:block;cursor:none;position:absolute;top:0;left:0;}
 <canvas id="c"></canvas>
 <input type="color" id="colorPick" value="#00ddff">
 <input type="text" id="editorNameInput" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;" maxlength="40">
-<input type="email" id="accountEmail" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;" maxlength="255">
-<input type="password" id="accountPw" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;" maxlength="128">
-<input type="text" id="accountUsername" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;" maxlength="40">
-<input type="password" id="accountPwConfirm" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;" maxlength="128">
+<input type="text" id="accountUsername" tabindex="1" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;" maxlength="40">
+<input type="email" id="accountEmail" tabindex="2" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;" maxlength="255">
+<input type="password" id="accountPw" tabindex="3" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;" maxlength="128">
+<input type="password" id="accountPwConfirm" tabindex="4" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;" maxlength="128">
 <div id="adSlot1" class="adSlot">
   <div class="adLabel">Advertisement</div>
   <div class="adBox"><span><!-- Google AdSense 300×250 --><br>Replace with AdSense tag</span></div>
@@ -10158,12 +10158,14 @@ function _doClick(){
     // Name click
     const nameH=36;
     if(mouse.x>panelX&&mouse.x<panelX+panelW&&mouse.y>py+6&&mouse.y<py+6+nameH){
+      const cRect2=canvas.getBoundingClientRect();
       editorNameInput.style.pointerEvents='auto';editorNameInput.style.opacity='1';
-      editorNameInput.style.position='fixed';editorNameInput.style.left='50%';editorNameInput.style.top='130px';
-      editorNameInput.style.transform='translateX(-50%)';editorNameInput.style.width='300px';editorNameInput.style.height='30px';
+      editorNameInput.style.position='fixed';
+      editorNameInput.style.left=(cRect2.left+panelX)+'px';editorNameInput.style.top=(cRect2.top+py+8)+'px';
+      editorNameInput.style.width=panelW+'px';editorNameInput.style.height='30px';
       editorNameInput.style.fontSize='16px';editorNameInput.style.fontFamily='"Courier New"';
       editorNameInput.style.background='#0a1828';editorNameInput.style.color='#00ccff';editorNameInput.style.border='1px solid #00ccff';
-      editorNameInput.style.textAlign='center';editorNameInput.style.zIndex='100';
+      editorNameInput.style.textAlign='center';editorNameInput.style.zIndex='100';editorNameInput.style.borderRadius='2px';
       editorNameInput.value=editorLevelName;editorNameInput.focus();editorNameInput.select();
       editorNameInput.onblur=()=>{editorLevelName=editorNameInput.value||'Untitled Level';editorNameInput.style.pointerEvents='none';editorNameInput.style.opacity='0';editorNameInput.style.width='1px';editorNameInput.style.height='1px';};
       editorNameInput.onkeydown=(e)=>{if(e.key==='Enter'){editorNameInput.blur();}};
@@ -10417,12 +10419,14 @@ function _doClick(){
     const codeW=panelW-120,codeH=36;
     if(mouse.x>panelX&&mouse.x<panelX+codeW&&mouse.y>py&&mouse.y<py+codeH){
       editorNameInput.value=lobbyRoomCode;
+      const cRect=canvas.getBoundingClientRect();
       editorNameInput.style.pointerEvents='auto';editorNameInput.style.opacity='1';
-      editorNameInput.style.position='fixed';editorNameInput.style.left='50%';editorNameInput.style.top=(py+4)+'px';
-      editorNameInput.style.transform='translateX(-50%)';editorNameInput.style.width='200px';editorNameInput.style.height='30px';
+      editorNameInput.style.position='fixed';
+      editorNameInput.style.left=(cRect.left+panelX)+'px';editorNameInput.style.top=(cRect.top+py+4)+'px';
+      editorNameInput.style.width=codeW+'px';editorNameInput.style.height='30px';
       editorNameInput.style.fontSize='18px';editorNameInput.style.fontFamily='"Courier New"';
       editorNameInput.style.background='#0a1828';editorNameInput.style.color='#ffdd00';editorNameInput.style.border='1px solid #00ccff';
-      editorNameInput.style.textAlign='center';editorNameInput.style.zIndex='100';
+      editorNameInput.style.textAlign='center';editorNameInput.style.zIndex='100';editorNameInput.style.borderRadius='2px';
       editorNameInput.style.textTransform='uppercase';editorNameInput.maxLength=6;
       editorNameInput.focus();editorNameInput.select();
       editorNameInput.onblur=()=>{lobbyRoomCode=editorNameInput.value.toUpperCase().substring(0,6);editorNameInput.style.pointerEvents='none';editorNameInput.style.opacity='0';editorNameInput.style.width='1px';editorNameInput.style.height='1px';editorNameInput.maxLength=40;editorNameInput.style.textTransform='';};
@@ -10555,29 +10559,58 @@ function _doClick(){
       // Field clicks — show hidden inputs
       const fieldW=panelW,fieldH=36;
       let fy=134;
+      const _acctFields=accountTab===1?[accountUsername,accountEmail,accountPw,accountPwConfirm]:[accountEmail,accountPw];
+      const _acctFieldYs=[];
       function _showInput(inputEl,y){
+        const canvasRect=canvas.getBoundingClientRect();
+        const iw=Math.min(panelW-4,W*0.65);
         inputEl.style.pointerEvents='auto';inputEl.style.opacity='1';
-        inputEl.style.position='fixed';inputEl.style.left='50%';inputEl.style.top=(y+4)+'px';
-        inputEl.style.transform='translateX(-50%)';inputEl.style.width=Math.min(380,W*0.65)+'px';
-        inputEl.style.height='30px';inputEl.style.fontSize='16px';inputEl.style.fontFamily='"Courier New"';
+        inputEl.style.position='fixed';
+        inputEl.style.left=(canvasRect.left+cx-iw/2)+'px';
+        inputEl.style.top=(canvasRect.top+y+6)+'px';
+        inputEl.style.width=iw+'px';
+        inputEl.style.height='30px';inputEl.style.fontSize='14px';inputEl.style.fontFamily='"Courier New"';
         inputEl.style.background='#0a1828';inputEl.style.color='#00ccff';inputEl.style.border='1px solid #00ccff';
-        inputEl.style.textAlign='center';inputEl.style.zIndex='100';
+        inputEl.style.textAlign='center';inputEl.style.zIndex='100';inputEl.style.outline='none';
+        inputEl.style.borderRadius='2px';inputEl.style.padding='0 8px';
         inputEl.focus();
-        inputEl.onblur=()=>{inputEl.style.pointerEvents='none';inputEl.style.opacity='0';inputEl.style.width='1px';inputEl.style.height='1px';};
+        _acctFieldYs.push({el:inputEl,y:y});
+        const hideInput=(el)=>{el.style.pointerEvents='none';el.style.opacity='0';el.style.width='1px';el.style.height='1px';};
+        inputEl.onblur=(e)=>{
+          // Don't hide if tabbing to the next field in the form
+          const nextField=_acctFields[_acctFields.indexOf(inputEl)+1];
+          if(e.relatedTarget&&nextField&&e.relatedTarget===nextField){return;}
+          hideInput(inputEl);
+        };
+        inputEl.onkeydown=(e)=>{
+          if(e.key==='Enter'){inputEl.blur();return;}
+          if(e.key==='Tab'){
+            e.preventDefault();
+            const idx=_acctFields.indexOf(inputEl);
+            const next=e.shiftKey?_acctFields[idx-1]:_acctFields[idx+1];
+            if(next){
+              const fy2=_acctFieldYs.find(f=>f.el===next);
+              hideInput(inputEl);
+              _showInput(next,fy2?fy2.y:y+56);
+            } else {
+              inputEl.blur();
+            }
+          }
+        };
       }
 
-      if(accountTab===1){
-        if(mouse.x>panelX&&mouse.x<panelX+fieldW&&mouse.y>fy+4&&mouse.y<fy+4+fieldH){_showInput(accountUsername,fy);return;}
-        fy+=fieldH+20;
+      // Pre-compute all field Y positions for Tab navigation
+      const _step=fieldH+20;
+      let _fy=134;
+      if(accountTab===1){_acctFieldYs.push({el:accountUsername,y:_fy});_fy+=_step;}
+      _acctFieldYs.push({el:accountEmail,y:_fy});_fy+=_step;
+      _acctFieldYs.push({el:accountPw,y:_fy});_fy+=_step;
+      if(accountTab===1){_acctFieldYs.push({el:accountPwConfirm,y:_fy});_fy+=_step;}
+      // Field click detection
+      for(const f of _acctFieldYs){
+        if(mouse.x>panelX&&mouse.x<panelX+fieldW&&mouse.y>f.y+4&&mouse.y<f.y+4+fieldH){_showInput(f.el,f.y);return;}
       }
-      if(mouse.x>panelX&&mouse.x<panelX+fieldW&&mouse.y>fy+4&&mouse.y<fy+4+fieldH){_showInput(accountEmail,fy);return;}
-      fy+=fieldH+20;
-      if(mouse.x>panelX&&mouse.x<panelX+fieldW&&mouse.y>fy+4&&mouse.y<fy+4+fieldH){_showInput(accountPw,fy);return;}
-      fy+=fieldH+20;
-      if(accountTab===1){
-        if(mouse.x>panelX&&mouse.x<panelX+fieldW&&mouse.y>fy+4&&mouse.y<fy+4+fieldH){_showInput(accountPwConfirm,fy);return;}
-        fy+=fieldH+20;
-      }
+      fy=_fy;
 
       // Submit button
       if(mouse.x>cx-100&&mouse.x<cx+100&&mouse.y>fy&&mouse.y<fy+40&&!accountLoading){
