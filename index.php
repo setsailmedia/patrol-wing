@@ -101,7 +101,7 @@ const PW_API={
 };
 PW_API._init();
 const NET={
-  ws:null,isHost:false,roomCode:null,connected:false,
+  ws:null,isHost:false,roomCode:null,connected:false,_sentObs:false,
   lastSendTime:0,SEND_RATE:50,
   interpBuffer:[],
   peerPlayer:null,
@@ -218,7 +218,6 @@ NET._onMsg=function(msg){
     if(d){
       NET.peerPlayer._tx=d.x;NET.peerPlayer._ty=d.y;NET.peerPlayer._taim=d.aim;
       NET.peerPlayer.vx=d.vx;NET.peerPlayer.vy=d.vy;NET.peerPlayer.rotor=d.rotor;
-      NET.peerPlayer.alive=d.alive;NET.peerPlayer.hp=d.hp;
       if(d.fire&&NET.peerPlayer.alive){
         const w=WEAPONS[d.weaponIdx];
         if(w){
@@ -270,6 +269,20 @@ NET._onMsg=function(msg){
     }
     if(d.rv)mpRevivePos=d.rv;
     else mpRevivePos=null;
+    // Sync local player state from host (host is authoritative on hp/damage)
+    if(d.gp){
+      P.hp=d.gp.hp;P.bat=d.gp.bat;P.alive=d.gp.alive;
+      P.shieldMs=d.gp.shieldMs||0;P.invincMs=d.gp.invincMs||0;P.iframes=d.gp.iframes||0;
+    }
+    // Sync obstacles (received once)
+    if(d.obs){
+      obstacles=[];
+      for(const o of d.obs){
+        if(o.t==='p')obstacles.push({type:'pillar',x:o.x,y:o.y,r:o.r,rot:o.rot||0});
+        else if(o.t==='w')obstacles.push({type:'wall',x:o.x,y:o.y,w:o.w,h:o.h});
+        else obstacles.push({type:o.t,x:o.x,y:o.y,w:o.w||0,h:o.h||0,r:o.r||0});
+      }
+    }
   }
 };
 function _mpHostBroadcast(){
@@ -282,7 +295,14 @@ function _mpHostBroadcast(){
     pb:pBullets.slice(0,60).map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy,bSz:b.bSz,col:b.color||'#00eeff'})),
     eb:eBullets.slice(0,60).map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy})),
     rv:mpRevivePos,
+    gp:NET.peerPlayer?{hp:NET.peerPlayer.hp,bat:NET.peerPlayer.bat,alive:NET.peerPlayer.alive,shieldMs:NET.peerPlayer.shieldMs,invincMs:NET.peerPlayer.invincMs,iframes:NET.peerPlayer.iframes}:null,
+    obs:!NET._sentObs?obstacles.map(o=>{
+      if(o.type==='pillar')return{t:'p',x:o.x,y:o.y,r:o.r,rot:o.rot};
+      if(o.type==='wall')return{t:'w',x:o.x,y:o.y,w:o.w,h:o.h};
+      return{t:o.type,x:o.x,y:o.y,w:o.w,h:o.h,r:o.r};
+    }):undefined,
   };
+  if(!NET._sentObs&&state.obs)NET._sentObs=true;
   NET.sendJSON('gs',state);
 }
 function _mpGuestSendInput(firing){
@@ -9645,6 +9665,7 @@ function startBattle(){
     p2._tx=p2.x;p2._ty=p2.y;p2._taim=p2.aim;
     players.push(p2);
     NET.peerPlayer=p2;
+    NET._sentObs=false;
     mpRevivePos=null;mpReviveMs=0;
   }
 }
@@ -9681,6 +9702,7 @@ function startPvP(){
     p2.stocks=mkStocks();p2.mineStock=20;p2.seekStock=15;
     players.push(p2);
     NET.peerPlayer=p2;
+    NET._sentObs=false;
   }
   gameStartTime=Date.now();gameState='playing';_snapMouseToPlayer();
   PW_API.queueEvent('game_started',{mode:'pvp',craft:CRAFTS[P.craftIdx].id});
@@ -10462,6 +10484,7 @@ function _doClick(){
         if(mouse.x>mx&&mouse.x<mx+mW&&mouse.y>my&&mouse.y<my+mH){
           rd.mode=modes[m];
           NET.sendJSON('mode',{mode:modes[m]});
+          PW_API._req('PATCH',`/rooms/${rd.code}`,{mode:modes[m]});
           SFX.select();return;
         }
       }
@@ -10472,6 +10495,7 @@ function _doClick(){
       if(mouse.x>privX&&mouse.x<privX+privW&&mouse.y>privY&&mouse.y<privY+privH){
         waitingRoomPrivate=!waitingRoomPrivate;
         NET.sendJSON('privacy',{private:waitingRoomPrivate});
+        PW_API._req('PATCH',`/rooms/${rd.code}`,{private:waitingRoomPrivate});
         SFX.select();return;
       }
     }

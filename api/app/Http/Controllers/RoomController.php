@@ -70,6 +70,22 @@ class RoomController extends Controller
         ]);
     }
 
+    public function update(Request $request, string $code)
+    {
+        $room = GameRoom::where('code', strtoupper($code))->firstOrFail();
+        if ($room->host_user_id !== $request->user()->id) {
+            return response()->json(['error' => 'Only host can update'], 403);
+        }
+        if ($request->has('mode')) $room->mode = $request->input('mode');
+        if ($request->has('private')) {
+            $settings = $room->settings ?? [];
+            $settings['private'] = $request->boolean('private');
+            $room->settings = $settings;
+        }
+        $room->save();
+        return response()->json(['status' => 'updated']);
+    }
+
     public function leave(Request $request, string $code)
     {
         $room = GameRoom::where('code', strtoupper($code))->firstOrFail();

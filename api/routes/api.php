@@ -35,6 +35,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/rooms/available', [RoomController::class, 'available']);
         Route::get('/rooms/{code}', [RoomController::class, 'show']);
         Route::post('/rooms/{code}/join', [RoomController::class, 'join']);
+        Route::patch('/rooms/{code}', [RoomController::class, 'update']);
         Route::delete('/rooms/{code}', [RoomController::class, 'leave']);
     });
 
