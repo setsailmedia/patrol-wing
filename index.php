@@ -112,8 +112,8 @@ const NET={
     try{
       const appKey=document.querySelector('meta[name=reverb-key]')?.content||'';
       const wsProto=location.protocol==='https:'?'wss':'ws';
-      const wsPort=location.protocol==='https:'?'8080':'8080';
-      const wsUrl=`${wsProto}://${location.hostname}:${wsPort}/app/${appKey}?protocol=7&client=js&version=7.0&flash=false`;
+      const wsPort=location.protocol==='https:'?location.port||'443':'8080';
+      const wsUrl=`${wsProto}://${location.hostname}${wsPort==='443'||wsPort==='80'?'':':'+wsPort}/app/${appKey}?protocol=7&client=js&version=7.0&flash=false`;
       this.ws=new WebSocket(wsUrl);
       this.ws.binaryType='arraybuffer';
       this.ws.onopen=()=>{this.connected=true;};
