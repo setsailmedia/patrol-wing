@@ -69,8 +69,8 @@ const PW_API={
     if(r&&r.message){this._lastError=r.message;return null;}
     this._lastError=null;return r;
   },
-  async login(email,pw){
-    const r=await this._req('POST','/auth/login',{email,password:pw});
+  async login(username,pw){
+    const r=await this._req('POST','/auth/login',{username,password:pw});
     if(r&&r.token){this.token=r.token;this.user=r.user;this.online=true;this._lastError=null;try{localStorage.setItem('pw_api_token',r.token);}catch(e){}return r;}
     if(r&&r.errors){this._lastError=Object.values(r.errors).flat().join(', ');return null;}
     if(r&&r.message){this._lastError=r.message;return null;}
@@ -7594,10 +7594,10 @@ function drawAccountScreen(){
       return y+4+fieldH+16;
     }
 
+    fy=_drawField('USERNAME',fy,accountUsername,false);
     if(accountTab===1){
-      fy=_drawField('USERNAME',fy,accountUsername,false);
+      fy=_drawField('EMAIL',fy,accountEmail,false);
     }
-    fy=_drawField('EMAIL',fy,accountEmail,false);
     fy=_drawField('PASSWORD',fy,accountPw,true);
     if(accountTab===1){
       fy=_drawField('CONFIRM PASSWORD',fy,accountPwConfirm,true);
@@ -10620,7 +10620,7 @@ function _doClick(){
       // Field clicks — show hidden inputs
       const fieldW=panelW,fieldH=36;
       let fy=134;
-      const _acctFields=accountTab===1?[accountUsername,accountEmail,accountPw,accountPwConfirm]:[accountEmail,accountPw];
+      const _acctFields=accountTab===1?[accountUsername,accountEmail,accountPw,accountPwConfirm]:[accountUsername,accountPw];
       const _acctFieldYs=[];
       function _showInput(inputEl,y){
         const canvasRect=canvas.getBoundingClientRect();
@@ -10663,8 +10663,8 @@ function _doClick(){
       // Pre-compute all field Y positions for Tab navigation
       const _step=fieldH+20;
       let _fy=134;
-      if(accountTab===1){_acctFieldYs.push({el:accountUsername,y:_fy});_fy+=_step;}
-      _acctFieldYs.push({el:accountEmail,y:_fy});_fy+=_step;
+      _acctFieldYs.push({el:accountUsername,y:_fy});_fy+=_step;
+      if(accountTab===1){_acctFieldYs.push({el:accountEmail,y:_fy});_fy+=_step;}
       _acctFieldYs.push({el:accountPw,y:_fy});_fy+=_step;
       if(accountTab===1){_acctFieldYs.push({el:accountPwConfirm,y:_fy});_fy+=_step;}
       // Field click detection
@@ -10677,7 +10677,7 @@ function _doClick(){
       if(mouse.x>cx-100&&mouse.x<cx+100&&mouse.y>fy&&mouse.y<fy+40&&!accountLoading){
         if(accountTab===0){
           accountLoading=true;accountError='';
-          PW_API.login(accountEmail.value,accountPw.value).then(r=>{
+          PW_API.login(accountUsername.value,accountPw.value).then(r=>{
             accountLoading=false;
             if(!r)accountError=PW_API._lastError||'Login failed -- check credentials';
             else{gameState='start';SFX.confirm();}
