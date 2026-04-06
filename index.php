@@ -209,6 +209,9 @@ NET._onMsg=function(msg){
   if(msg.event==='client-mode'&&msg.data&&waitingRoomData){
     waitingRoomData.mode=msg.data.mode;
   }
+  if(msg.event==='client-privacy'&&msg.data){
+    waitingRoomPrivate=!!msg.data.private;
+  }
   // Host receives guest input
   if(msg.event==='client-input'&&NET.isHost&&NET.peerPlayer){
     const d=msg.data;
@@ -1207,6 +1210,7 @@ let lobbyLoading=false;
 let waitingRoomData=null;
 let waitingRoomPollMs=0;
 let waitingRoomIsHost=false;
+let waitingRoomPrivate=true;
 let mpRevivePos=null; // {x,y} death position for revive mechanic
 let mpReviveMs=0; // revive hold progress
 const MP_REVIVE_RANGE=60;
@@ -5060,7 +5064,7 @@ function drawHUD(){
   if(NET.connected&&players.length>1){
     const p2=players.find(p=>p!==P);
     if(p2){
-      const p2X=canvas.width-pad-bW,p2Y=pad;
+      const p2X=canvas.width-pad-bW,p2Y=pad+60;
       ctx.textAlign='right';
       hudBar(p2X,p2Y,bW,bH,p2.hp,p2.maxHp,p2.hp/p2.maxHp>0.5?'#22ee88':p2.hp/p2.maxHp>0.25?'#ffaa00':'#ff3333',`P2 ${Math.ceil(p2.hp)}%`);
       hudBar(p2X,p2Y+bGap,bW,bH,p2.bat,p2.maxBat,p2.bat>25?'#ffee00':'#ff5500',`BATT ${Math.ceil(p2.bat)}%`);
@@ -7683,6 +7687,16 @@ function drawWaitingRoom(){
   if(!waitingRoomIsHost){
     ctx.font='10px "Courier New"';ctx.fillStyle='rgba(100,160,220,0.4)';ctx.textAlign='center';
     ctx.fillText('Host selects game mode',cx,140+mH+14);
+  }
+
+  // Private toggle
+  const privW=160,privH=30,privX=cx-privW/2,privY=140+mH+20;
+  const privOn=waitingRoomPrivate;
+  if(waitingRoomIsHost){
+    _btn(privX,privY,privW,privH,privOn?'PRIVATE ROOM':'PUBLIC ROOM',privOn?'primary':'default',privOn?'\u{1F512}':'\u{1F513}');
+  } else {
+    ctx.font='10px "Courier New"';ctx.fillStyle='rgba(100,160,220,0.5)';ctx.textAlign='center';
+    ctx.fillText(privOn?'Private room \u2014 code required':'Public room \u2014 visible in Find Match',cx,privY+20);
   }
 
   // Players
@@ -10369,7 +10383,7 @@ function _doClick(){
     // CREATE ROOM
     if(mouse.x>panelX&&mouse.x<panelX+panelW&&mouse.y>py&&mouse.y<py+44){
       lobbyLoading=true;lobbyError='';
-      PW_API._req('POST','/rooms',{mode:'coop'}).then(r=>{
+      PW_API._req('POST','/rooms',{mode:'coop',private:true}).then(r=>{
         lobbyLoading=false;
         if(!r){lobbyError='Failed to create room';}
         else{waitingRoomData=r;waitingRoomIsHost=true;waitingRoomPollMs=0;NET.connect(r.code,true);gameState='waitingRoom';SFX.confirm();}
@@ -10450,6 +10464,15 @@ function _doClick(){
           NET.sendJSON('mode',{mode:modes[m]});
           SFX.select();return;
         }
+      }
+    }
+    // Private toggle (host only)
+    if(waitingRoomIsHost){
+      const privW=160,privH=30,privX=cx-privW/2,privY=140+34+20;
+      if(mouse.x>privX&&mouse.x<privX+privW&&mouse.y>privY&&mouse.y<privY+privH){
+        waitingRoomPrivate=!waitingRoomPrivate;
+        NET.sendJSON('privacy',{private:waitingRoomPrivate});
+        SFX.select();return;
       }
     }
     // Launch button
@@ -11640,7 +11663,7 @@ function loop(now){
     if(waitingRoomPollMs<=0){
       waitingRoomPollMs=2000;
       PW_API._req('GET',`/rooms/${waitingRoomData.code}`).then(r=>{
-        if(r)waitingRoomData=r;
+        if(r){const savedMode=waitingRoomData.mode;waitingRoomData=r;waitingRoomData.mode=savedMode||r.mode;}
       });
     }
   }
@@ -11838,9 +11861,11 @@ function loop(now){
         if(dist(alive.x,alive.y,mpRevivePos.x,mpRevivePos.y)<MP_REVIVE_RANGE){
           mpReviveMs+=dt*1000;
           if(mpReviveMs>=MP_REVIVE_TIME){
-            dead.alive=true;dead.hp=dead.maxHp*0.3;dead.iframes=2000;
-            dead.x=mpRevivePos.x;dead.y=mpRevivePos.y;
-            spawnParts(dead.x,dead.y,'#00ff88',_pCount(20),4,6,500);
+            dead.alive=true;dead.hp=dead.maxHp*0.5;dead.bat=dead.maxBat*0.5;dead.iframes=2500;
+            dead.x=alive.x+30;dead.y=alive.y+30; // spawn near the reviver
+            if(dead._tx!==undefined){dead._tx=dead.x;dead._ty=dead.y;dead._taim=dead.aim;}
+            dead.vx=0;dead.vy=0;
+            spawnParts(dead.x,dead.y,'#00ff88',_pCount(25),5,7,600);
             mpRevivePos=null;mpReviveMs=0;
             weaponFlash={prefix:'',name:'PARTNER REVIVED',ms:2000};
             SFX.confirm();
