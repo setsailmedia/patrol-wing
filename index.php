@@ -248,6 +248,7 @@ NET._onMsg=function(msg){
     if(!d)return;
     if(NET.peerPlayer&&d.hp){
       const h=d.hp;
+      const peerWasAlive=NET.peerPlayer.alive;
       NET.peerPlayer._tx=h.x;NET.peerPlayer._ty=h.y;NET.peerPlayer._taim=h.aim;
       NET.peerPlayer.hp=h.hp;NET.peerPlayer.bat=h.bat;NET.peerPlayer.alive=h.alive;
       NET.peerPlayer.vx=h.vx;NET.peerPlayer.vy=h.vy;
@@ -255,6 +256,7 @@ NET._onMsg=function(msg){
       NET.peerPlayer.cloakMs=h.cloakMs;NET.peerPlayer.overchargeMs=h.overchargeMs;
       NET.peerPlayer.rotor=h.rotor;NET.peerPlayer.iframes=h.iframes;
       NET.peerPlayer.weaponIdx=h.weaponIdx;NET.peerPlayer.kills=h.kills;
+      if(peerWasAlive&&!NET.peerPlayer.alive){spawnParts(NET.peerPlayer.x,NET.peerPlayer.y,NET.peerPlayer.color,_pCount(25),6,8,900);if(settings.screenShake)shake=20;}
     }
     if(d.en){
       while(enemies.length>d.en.length)enemies.pop();
@@ -286,8 +288,10 @@ NET._onMsg=function(msg){
     else mpRevivePos=null;
     // Sync local player state from host (host is authoritative on hp/damage)
     if(d.gp){
+      const wasAlive=P.alive;
       P.hp=d.gp.hp;P.bat=d.gp.bat;P.alive=d.gp.alive;
       P.shieldMs=d.gp.shieldMs||0;P.invincMs=d.gp.invincMs||0;P.iframes=d.gp.iframes||0;
+      if(wasAlive&&!P.alive){spawnParts(P.x,P.y,P.color,_pCount(35),7.5,9.5,1100);spawnParts(P.x,P.y,'#ffffff',_pCount(15),5,4,700);if(settings.screenShake)shake=30;}
     }
     // Sync obstacles (received once)
     if(d.obs){
@@ -7541,6 +7545,7 @@ function _returnToStart(){
   deathScreenEnteredAt=0;
   jrCaptives=[];jrCarrying=-1;tngPads=[];tngSeq=1;tngOnPad=-1;tngHoldMs=0;
   WORLD_W=2600;WORLD_H=1700;ttLevel=1;nukes=[];gameMode='battle';gameState='start';
+  NET.disconnect();waitingRoomData=null;waitingRoomIsHost=false;NET._peerCraft=undefined;NET._peerColor=undefined;NET._sentObs=false;
 }
 
 function drawAccountScreen(){
@@ -9712,8 +9717,8 @@ function startBattle(){
     const peerColor=NET._peerColor||'#ff3300';
     const p2=mkPlayer(peerCraft,peerColor);
     p2.isLocal=false;
-    P.x=WORLD_W/2-120;P.y=WORLD_H/2;
-    p2.x=WORLD_W/2+120;p2.y=WORLD_H/2;
+    if(NET.isHost){P.x=WORLD_W*0.25;P.y=WORLD_H/2;p2.x=WORLD_W*0.75;p2.y=WORLD_H/2;}
+    else{P.x=WORLD_W*0.75;P.y=WORLD_H/2;p2.x=WORLD_W*0.25;p2.y=WORLD_H/2;}
     p2._tx=p2.x;p2._ty=p2.y;p2._taim=p2.aim;
     players.push(p2);
     NET.peerPlayer=p2;
@@ -9931,6 +9936,7 @@ function _doClick(){
         particles.length=0;pickups.length=0;pBullets.length=0;eBullets.length=0;
         mines.length=0;seekers.length=0;rockets.length=0;boomerangs.length=0;fractals.length=0;hazards.length=0;grenades.length=0;gravityWells.length=0;faradayCages.length=0;hazardProjectiles.length=0;enemies.length=0;
         miniMe.active=false;miniMe.lost=false;
+        NET.disconnect();waitingRoomData=null;waitingRoomIsHost=false;NET._peerCraft=undefined;NET._peerColor=undefined;NET._sentObs=false;
         SFX.select(); return;
       }
     }
@@ -10444,14 +10450,14 @@ function _doClick(){
   if(gameState==='timeTrialResult'||gameState==='victory'){
     const cx=canvas.width/2,cy=canvas.height/2,bw=260,bh=46,bx=cx-bw/2,by=cy+104;
     if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){
-      WORLD_W=2600;WORLD_H=1700;ttLevel=1;nukes=[];jrCaptives=[];jrCarrying=-1;tngPads=[];tngSeq=1;tngOnPad=-1;tngHoldMs=0;gameMode='battle';gameState='start';SFX.select();return;
+      WORLD_W=2600;WORLD_H=1700;ttLevel=1;nukes=[];jrCaptives=[];jrCarrying=-1;tngPads=[];tngSeq=1;tngOnPad=-1;tngHoldMs=0;gameMode='battle';gameState='start';NET.disconnect();waitingRoomData=null;waitingRoomIsHost=false;NET._peerCraft=undefined;NET._peerColor=undefined;NET._sentObs=false;SFX.select();return;
     }
     return;
   }
   if(gameState==='ctResult'){
     const cx=canvas.width/2,cy=canvas.height/2,bw=240,bh=44,bx=cx-bw/2,by=cy+74;
     if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){
-      WORLD_W=2600;WORLD_H=1700;ttLevel=1;nukes=[];jrCaptives=[];jrCarrying=-1;tngPads=[];tngSeq=1;tngOnPad=-1;tngHoldMs=0;gameMode='battle';gameState='start';SFX.select();return;
+      WORLD_W=2600;WORLD_H=1700;ttLevel=1;nukes=[];jrCaptives=[];jrCarrying=-1;tngPads=[];tngSeq=1;tngOnPad=-1;tngHoldMs=0;gameMode='battle';gameState='start';NET.disconnect();waitingRoomData=null;waitingRoomIsHost=false;NET._peerCraft=undefined;NET._peerColor=undefined;NET._sentObs=false;SFX.select();return;
     }
     return;
   }
@@ -10597,7 +10603,7 @@ function _doClick(){
     const bw=Math.min(220,W*0.28),bh=46,bx=Math.max(20,W*0.03),by=H-bh-Math.max(28,H*0.04);
     if(mouse.x>bx&&mouse.x<bx+bw&&mouse.y>by&&mouse.y<by+bh){
       if(rd)PW_API._req('DELETE',`/rooms/${rd.code}`);
-      NET.disconnect();waitingRoomData=null;
+      NET.disconnect();waitingRoomData=null;waitingRoomIsHost=false;NET._peerCraft=undefined;NET._peerColor=undefined;NET._sentObs=false;
       gameState='lobby';SFX.select();return;
     }
     return;
@@ -11815,7 +11821,7 @@ function loop(now){
     else if(gameState==='colorSelect'){K['Space']=false;P.craftIdx=selectedCraft;SFX.confirm();startGame();}
     else if(gameState==='waveClear'&&screenLockMs<=0&&gameMode==='battle'){K['Space']=false;spawnWave(wave);wavePause=0;gameState='playing';}
     else if(gameState==='gameover'){K['Space']=false;_returnToStart();}
-    else if(gameState==='victory'||gameState==='timeTrialResult'||gameState==='ctResult'){K['Space']=false;WORLD_W=2600;WORLD_H=1700;ttLevel=1;nukes=[];jrCaptives=[];jrCarrying=-1;tngPads=[];tngSeq=1;tngOnPad=-1;tngHoldMs=0;gameMode='battle';gameState='start';}
+    else if(gameState==='victory'||gameState==='timeTrialResult'||gameState==='ctResult'){K['Space']=false;WORLD_W=2600;WORLD_H=1700;ttLevel=1;nukes=[];jrCaptives=[];jrCarrying=-1;tngPads=[];tngSeq=1;tngOnPad=-1;tngHoldMs=0;gameMode='battle';gameState='start';NET.disconnect();waitingRoomData=null;waitingRoomIsHost=false;NET._peerCraft=undefined;NET._peerColor=undefined;NET._sentObs=false;}
     else if(gameState==='briefing'){K['Space']=false;const b=BRIEFINGS[activeBriefing];if(b)b.launchFn();}
     else if(gameState==='ctLevelUp'){K['Space']=false;ctLevelUpMs=0;} // skip the countdown
   }
@@ -11825,7 +11831,7 @@ function loop(now){
     if(gameState==='waitingRoom'){
       K['Escape']=false;
       if(waitingRoomData)PW_API._req('DELETE',`/rooms/${waitingRoomData.code}`);
-      NET.disconnect();waitingRoomData=null;
+      NET.disconnect();waitingRoomData=null;waitingRoomIsHost=false;NET._peerCraft=undefined;NET._peerColor=undefined;NET._sentObs=false;
       gameState='lobby';SFX.select();return;
     }
     if(gameState==='account'){K['Escape']=false;gameState='start';SFX.select();return;}
@@ -11907,9 +11913,9 @@ function loop(now){
     if(NET.connected){
       // Interpolate remote player position (smooth 50ms updates into 60fps rendering)
       if(NET.peerPlayer&&NET.peerPlayer.alive){
-        const lerpSpd=0.25; // 0-1, higher = snappier, lower = smoother
+        const lerpSpd=0.18; // 0-1, higher = snappier, lower = smoother
         const p2=NET.peerPlayer;
-        if(p2._tx!==undefined){
+        if(p2._tx!==undefined&&!isNaN(p2._tx)){
           p2.x+=(p2._tx-p2.x)*lerpSpd;
           p2.y+=(p2._ty-p2.y)*lerpSpd;
           // Smooth aim angle (handle wrapping)
