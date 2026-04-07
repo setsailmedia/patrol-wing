@@ -37,6 +37,10 @@ class RoomController extends Controller
     public function show(string $code)
     {
         $room = GameRoom::where('code', strtoupper($code))->firstOrFail();
+        // Auto-close if stale
+        if (in_array($room->status, ['waiting', 'playing']) && $room->updated_at->lt(now()->subMinutes(15))) {
+            $room->update(['status' => 'finished']);
+        }
         return response()->json([
             'code' => $room->code,
             'mode' => $room->mode,
@@ -102,6 +106,11 @@ class RoomController extends Controller
 
     public function available(Request $request)
     {
+        // Auto-close stale rooms older than 15 minutes
+        GameRoom::whereIn('status', ['waiting', 'playing'])
+            ->where('updated_at', '<', now()->subMinutes(15))
+            ->update(['status' => 'finished']);
+
         $mode = $request->query('mode');
         $query = GameRoom::where('status', 'waiting')
             ->whereNull('guest_user_id')
