@@ -289,8 +289,12 @@ NET._onMsg=function(msg){
     // Sync local player state from host (host is authoritative on hp/damage)
     if(d.gp){
       const wasAlive=P.alive;
+      const prevHp=P.hp;
       P.hp=d.gp.hp;P.bat=d.gp.bat;P.alive=d.gp.alive;
-      P.shieldMs=d.gp.shieldMs||0;P.invincMs=d.gp.invincMs||0;P.iframes=d.gp.iframes||0;
+      P.shieldMs=d.gp.shieldMs||0;P.invincMs=d.gp.invincMs||0;
+      // Don't sync iframes — let local rendering handle flash independently
+      // Instead, trigger local iframes when HP drops (hit detection)
+      if(P.alive&&d.gp.hp<prevHp&&P.iframes<=0){P.iframes=500;if(settings.screenShake)shake=8;SFX.hit();}
       if(wasAlive&&!P.alive){spawnParts(P.x,P.y,P.color,_pCount(35),7.5,9.5,1100);spawnParts(P.x,P.y,'#ffffff',_pCount(15),5,4,700);if(settings.screenShake)shake=30;}
     }
     // Sync obstacles (received once)
@@ -2886,8 +2890,8 @@ function drawSkirmisher(x,y,aim,sz,col,acc,spin,hp=1){
 }
 
 // Dispatcher for player craft
-function drawPlayerCraft(x,y,aim,sz,col,acc,spin,hp){
-  const id=CRAFTS[P.craftIdx].id;
+function drawPlayerCraft(x,y,aim,sz,col,acc,spin,hp,craftIdx){
+  const id=CRAFTS[craftIdx!==undefined?craftIdx:P.craftIdx].id;
   if(id==='phantom')drawPhantom(x,y,aim,sz,col,acc,spin,hp);
   else if(id==='viper')drawViper(x,y,aim,sz,col,acc,spin,hp);
   else if(id==='titan')drawTitan(x,y,aim,sz,col,acc,spin,hp);
@@ -3190,7 +3194,7 @@ function drawPlayer(){
       ctx.beginPath();ctx.arc(0,0,p.size*2.6,0,Math.PI*2);ctx.stroke();
       ctx.shadowBlur=0;ctx.restore();
     }
-    drawPlayerCraft(sx,sy,p.aim,p.size,p.color,lighten(p.color,90),p.rotor,p.hp/p.maxHp);
+    drawPlayerCraft(sx,sy,p.aim,p.size,p.color,lighten(p.color,90),p.rotor,p.hp/p.maxHp,p.craftIdx);
     if(baseAlpha<1)ctx.globalAlpha=1.0;
     if(p.shieldMs>0){
       const r=p.size*2.15,fa=Math.min(1,p.shieldMs/1200);
@@ -9708,23 +9712,25 @@ function startBattle(){
   portalActive=false; portalPositions=[];
   particles.length=0; pickups.length=0; pBullets.length=0; eBullets.length=0; mines.length=0; seekers.length=0; boomerangs.length=0; fractals.length=0; hazards.length=0;
   miniMe.active=false; miniMe.lost=false; miniMe.hp=MM_HP; miniMe.iframes=0;
-  hangarScroll=0; resetPlayer(); camX=P.x-canvas.width/2; camY=P.y-canvas.height/2;
-  spawnWave(1); gameStartTime=Date.now(); gameState='playing'; _snapMouseToPlayer();
-  PW_API.queueEvent('game_started',{mode:'battle',craft:CRAFTS[P.craftIdx].id});
+  hangarScroll=0; resetPlayer();
   if(NET.connected){
-    // Create player 2
+    // Set spawn positions BEFORE camera snap
     const peerCraft=NET._peerCraft!==undefined?NET._peerCraft:0;
     const peerColor=NET._peerColor||'#ff3300';
     const p2=mkPlayer(peerCraft,peerColor);
     p2.isLocal=false;
-    if(NET.isHost){P.x=WORLD_W*0.25;P.y=WORLD_H/2;p2.x=WORLD_W*0.75;p2.y=WORLD_H/2;}
-    else{P.x=WORLD_W*0.75;P.y=WORLD_H/2;p2.x=WORLD_W*0.25;p2.y=WORLD_H/2;}
+    if(NET.isHost){P.x=WORLD_W*0.2;P.y=WORLD_H/2;p2.x=WORLD_W*0.8;p2.y=WORLD_H/2;}
+    else{P.x=WORLD_W*0.8;P.y=WORLD_H/2;p2.x=WORLD_W*0.2;p2.y=WORLD_H/2;}
     p2._tx=p2.x;p2._ty=p2.y;p2._taim=p2.aim;
     players.push(p2);
     NET.peerPlayer=p2;
     NET._sentObs=false;
     mpRevivePos=null;mpReviveMs=0;
   }
+  camX=clamp(P.x-canvas.width/2,0,Math.max(0,WORLD_W-canvas.width));
+  camY=clamp(P.y-canvas.height/2,0,Math.max(0,WORLD_H-canvas.height));
+  spawnWave(1); gameStartTime=Date.now(); gameState='playing'; _snapMouseToPlayer();
+  PW_API.queueEvent('game_started',{mode:'battle',craft:CRAFTS[P.craftIdx].id});
 }
 
 function startPvP(){
